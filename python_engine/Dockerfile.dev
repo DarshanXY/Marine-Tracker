@@ -1,0 +1,24 @@
+FROM python:3.11-slim
+
+# System deps for rasterio (dataset loaders) — the runtime path decodes GeoTIFF
+# with tifffile and needs none of these; they're only for rebuilding MARIDA/MADOS.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgdal-dev gdal-bin \
+    libgeos-dev \
+    libproj-dev \
+    curl \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python deps (cached layer)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source (volume-mounted in dev)
+COPY . .
+
+EXPOSE 8000
+
+# Flat package: run the FastAPI app from the api sub-package.
+CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

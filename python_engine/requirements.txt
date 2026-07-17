@@ -1,0 +1,39 @@
+# Marine Plastic Tracker — Python Engine dependencies
+#
+# The engine runs at ₹0 in DEMO mode with ONLY the core group (pure-Python
+# algorithms + FastAPI). The optional groups unlock real satellite ingest, ONNX
+# inference, and (re)building the training datasets. Split installers exist:
+#   requirements-demo.txt     core only
+#   requirements-ingest.txt   real Sentinel-2 reflectance
+#   requirements-ml.txt       ONNX classifier
+#
+# Run:  cd python_engine && python -m uvicorn api.app:app --host 127.0.0.1 --port 8000
+
+# ── Core (required) — web framework + schemas ─────────────────────
+fastapi>=0.111
+uvicorn[standard]>=0.30
+pydantic>=2.7
+
+# ── Real pixel ingest (optional) — Sentinel Hub Process API decode ─
+# Needed for REAL Sentinel-2 reflectance (SATELLITE_PROVIDER=cdse|sentinelhub + keys).
+# Decodes the float32 GeoTIFF with tifffile — no GDAL/rasterio required at runtime.
+numpy>=1.26
+tifffile>=2024.1
+
+# ── ONNX classifier (optional) — trained-model inference + export ──
+onnxruntime>=1.17
+onnx>=1.15            # only to (re)train/export: python -m ml.train / train_marida / train_combined / train_patch
+
+# ── Dataset loaders (optional) — rebuild MARIDA/MADOS npz from raw ─
+# Only needed to re-cache the training splits; models/*_*.npz ship pre-built.
+rasterio>=1.3
+
+# ── Optional engine-side persistence ──────────────────────────────
+# The Node backend (Prisma + Postgres) is the primary store; uncomment only to
+# let the *_storage modules best-effort write to Postgres too.
+# psycopg[binary]>=3.1
+
+# NOTE: the aspirational production stack for the ROADMAP (ResNet-50 via
+# TensorFlow/torch, gridded CMEMS/ERA5 via copernicusmarine/cdsapi/xarray,
+# hdbscan, shapely/geopandas) is intentionally NOT installed — nothing in the
+# current runtime imports it. Add per-feature when that work lands.

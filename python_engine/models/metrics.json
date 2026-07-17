@@ -1,0 +1,337 @@
+{
+  "perPixel": {
+    "model": "marinenet.onnx",
+    "arch": "per-pixel MLP 11->64->32->16->4 (ReLU + dropout, GPU-trained AdamW)",
+    "input": "per-pixel features (raw; input standardisation baked into the ONNX)",
+    "features": [
+      "B04",
+      "B06",
+      "B08",
+      "B8A",
+      "B11",
+      "FDI",
+      "NDVI",
+      "PI",
+      "MNDWI",
+      "NDVI_RE",
+      "BRIGHT"
+    ],
+    "trainSamples": 1081615,
+    "trainAccuracy": 0.9909,
+    "testAccuracy": 0.9886,
+    "macroF1": 0.7871,
+    "balancedMacroF1": 0.8727,
+    "onnxAgreement": 1.0,
+    "perClass": {
+      "Plastic": {
+        "precision": 0.6636,
+        "recall": 0.8582,
+        "f1": 0.7485
+      },
+      "Algae": {
+        "precision": 0.6124,
+        "recall": 0.8311,
+        "f1": 0.7052
+      },
+      "Sea_Foam": {
+        "precision": 0.609,
+        "recall": 0.823,
+        "f1": 0.7
+      },
+      "Water": {
+        "precision": 0.9983,
+        "recall": 0.9916,
+        "f1": 0.9949
+      }
+    },
+    "confusion": [
+      [
+        1162,
+        90,
+        40,
+        62
+      ],
+      [
+        366,
+        6090,
+        171,
+        701
+      ],
+      [
+        57,
+        8,
+        637,
+        72
+      ],
+      [
+        166,
+        3756,
+        198,
+        486331
+      ]
+    ],
+    "perDataset": {
+      "marida": {
+        "testAccuracy": 0.998,
+        "macroF1": 0.899,
+        "samples": 153762
+      },
+      "mados": {
+        "testAccuracy": 0.9844,
+        "macroF1": 0.7466,
+        "samples": 346145
+      }
+    },
+    "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "dataset": "REAL - MARIDA + MADOS (Kikaki et al. 2022/2024), official train/val/test splits; GPU-trained on RTX 4050",
+    "trainedOn": "marida+mados",
+    "note": "GPU-retrained per-pixel MLP with 4 engineered spectral indices (PI, MNDWI, red-edge NDVI, brightness) from the same 5 bands. Beats the prior numpy MLP on the identical held-out test: macroF1 0.500->0.787, accuracy 0.895->0.989, Sea_Foam precision 0.016->0.61, Plastic F1 0.508->0.749. Prior model kept as marinenet_prev.onnx; 7-feature drop-in alternative kept as marinenet_pp7.onnx."
+  },
+  "dataset": "REAL - MARIDA + MADOS (Kikaki et al. 2022/2024), official train/val/test splits (see perPixel.dataset for the shipped model)",
+  "classes": [
+    "Plastic",
+    "Algae",
+    "Sea_Foam",
+    "Water"
+  ],
+  "updated": "2026-07-09T12:08:48Z",
+  "patch": {
+    "model": "marinenet_patch.onnx",
+    "arch": "ResNet patch CNN (6ch, residual, 8 conv) 64x64x6 -> 4",
+    "input": "64x64x6 patch [N,6,64,64] NCHW",
+    "channels": [
+      "B04",
+      "B06",
+      "B08",
+      "B8A",
+      "B11",
+      "FDI"
+    ],
+    "trainSamples": 23442,
+    "trainAccuracy": 0.9872,
+    "testAccuracy": 0.6236,
+    "macroF1": 0.5548,
+    "onnxAgreement": 1.0,
+    "perClass": {
+      "Plastic": {
+        "precision": 0.301,
+        "recall": 0.9136,
+        "f1": 0.4529
+      },
+      "Algae": {
+        "precision": 0.7603,
+        "recall": 0.9181,
+        "f1": 0.8318
+      },
+      "Sea_Foam": {
+        "precision": 0.2985,
+        "recall": 0.6718,
+        "f1": 0.4134
+      },
+      "Water": {
+        "precision": 0.9323,
+        "recall": 0.3618,
+        "f1": 0.5213
+      }
+    },
+    "confusion": [
+      [
+        1237,
+        54,
+        13,
+        50
+      ],
+      [
+        369,
+        5190,
+        22,
+        72
+      ],
+      [
+        89,
+        77,
+        520,
+        88
+      ],
+      [
+        2414,
+        1505,
+        1187,
+        2894
+      ]
+    ],
+    "trainedOn": "marida+mados",
+    "dataset": "REAL - MARIDA + MADOS 64x64x6 patches (GPU-trained ResNet CNN)",
+    "perDataset": {
+      "marida": {
+        "testAccuracy": 0.6458,
+        "macroF1": 0.5719,
+        "samples": 6421
+      },
+      "mados": {
+        "testAccuracy": 0.6083,
+        "macroF1": 0.5293,
+        "samples": 9360
+      }
+    },
+    "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "note": "GPU-trained convolutional patch classifier. On the identical held-out test it UNDERPERFORMS the per-pixel model (macroF1 0.555 vs 0.787): 64x64 spatial context overfits the limited number of distinct scenes, while the per-pixel spectral signature generalises. Kept opt-in only via CNN_MODEL_PATH=models/marinenet_patch.onnx; NOT the default.",
+    "updated": "2026-07-08 17:55 UTC"
+  },
+  "clay": {
+    "model": "clay_head.pt (frozen Clay v1.5 encoder + MLP head 1024-256-4)",
+    "role": "OPT-IN second stage / embedding layer \u2014 does NOT replace the per-pixel model",
+    "trainEmbeddings": 27231,
+    "combined": {
+      "acc": 0.7624,
+      "macroF1": 0.7109,
+      "perClass": {
+        "Plastic": {
+          "precision": 0.2611,
+          "recall": 0.6174,
+          "f1": 0.367
+        },
+        "Algae": {
+          "precision": 0.8482,
+          "recall": 0.7663,
+          "f1": 0.8052
+        },
+        "Sea_Foam": {
+          "precision": 0.9495,
+          "recall": 0.7287,
+          "f1": 0.8246
+        },
+        "Water": {
+          "precision": 0.9158,
+          "recall": 0.7874,
+          "f1": 0.8468
+        }
+      },
+      "n": 15781
+    },
+    "baselinePp11SameCentres": {
+      "acc": 0.7585,
+      "macroF1": 0.6905,
+      "n": 15781
+    },
+    "deltaMacroF1": 0.0204,
+    "verdict": "WINS",
+    "rfoHoldout": {
+      "clay": {
+        "debrisRecall": 0.5422,
+        "waterFp": 0.0756
+      },
+      "pp11": {
+        "debrisRecall": 0.2222,
+        "waterFp": 0.0044
+      },
+      "n": 900
+    },
+    "note": "Frozen pretrained backbone fixes the scene-overfitting that killed the from-scratch patch CNN (0.555): on identical held-out chips Clay head 0.711 > pp11-on-centres 0.690 > scratch CNN 0.555. On fully-new seas (RFO durban+marmara) Clay catches 2.4x the debris (recall 0.542 vs 0.222) at 7.6% water FP \u2014 the cross-domain generalization win. Runs offline in the mpt-train GPU env (backbone 4.8 GB, not shipped in the engine).",
+    "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "operatingPoints": {
+      "argmax": {
+        "tau": "argmax",
+        "valP": null,
+        "valR": null,
+        "valF1": null,
+        "rfoRecall": 0.5422,
+        "rfoWaterFp": 0.0756,
+        "testMacroF1": 0.7109
+      },
+      "tauF1": {
+        "tau": 0.35,
+        "valP": 0.6048,
+        "valR": 0.7949,
+        "valF1": 0.687,
+        "rfoRecall": 0.6089,
+        "rfoWaterFp": 0.0889,
+        "testMacroF1": 0.703
+      },
+      "tauPrecise": {
+        "tau": 0.55,
+        "valP": 0.7123,
+        "valR": 0.5579,
+        "valF1": 0.6257,
+        "rfoRecall": 0.4222,
+        "rfoWaterFp": 0.0459,
+        "testMacroF1": 0.7078
+      }
+    },
+    "embeddingFeatures": {
+      "retrievalKnn": {
+        "k1": {
+          "acc": 0.6927,
+          "macroF1": 0.633
+        },
+        "k5": {
+          "acc": 0.711,
+          "macroF1": 0.6371
+        },
+        "k10": {
+          "acc": 0.7312,
+          "macroF1": 0.6596
+        }
+      },
+      "fewShot": {
+        "shot1": 0.3546,
+        "shot5": 0.4698,
+        "shot20": 0.5458,
+        "shot100": 0.5557
+      },
+      "anomaly": {
+        "inDistributionMean": 0.1226,
+        "newSeasMean": 0.1503,
+        "separation": 0.0276
+      },
+      "note": "Pure-numpy similarity over cached Clay embeddings powers find-similar, retrieval classification, few-shot, and novelty detection \u2014 engine-safe (no torch)."
+    }
+  },
+  "plpValidation": {
+    "dates": 21,
+    "hdpeHitRate": 0.333,
+    "hdpeHitRateClean": 0.368,
+    "fdiGateRate": 0.762,
+    "woodAsPlasticRate": 0.8,
+    "medianSceneFpPct": 0.0,
+    "model": "marinenet.onnx",
+    "windowPx": 3,
+    "dataset": "PLP 2021 (Topouzelis / Univ. Aegean) \u2014 deployed HDPE target + wood control",
+    "clayFusion": {
+      "finding": "At 64x64 chip scale (640m), the ~28m PLP target is sub-pixel-fraction: Clay plastic-affinity is 0.00 for BOTH the HDPE target and the wood control. Fusion never CONFIRMS a sub-chip point target (correctly refuses the wood false-positive too). Clay tier-2 adds value at PATCH scale, not for isolated tiny targets.",
+      "HDPE": {
+        "n": 21,
+        "mlpCalledPlastic": 2,
+        "meanPlasticAffinity": 0.0,
+        "confirmedByFusion": 0,
+        "downgradedToPossible": 2
+      },
+      "wood": {
+        "n": 15,
+        "mlpCalledPlastic": 5,
+        "meanPlasticAffinity": 0.0,
+        "confirmedByFusion": 0,
+        "downgradedToPossible": 5
+      },
+      "thresholds": {
+        "conf_high": 0.7,
+        "aff_min": 0.1,
+        "anomaly_tau": 0.2,
+        "conf_low": 0.5,
+        "targetPrecision": 0.92,
+        "calibratedOn": "MARIDA+MADOS held-out test (aligned per-pixel MLP + Clay affinity)",
+        "population": "MLP-Plastic chips",
+        "confirmedPrecision": 0.9219,
+        "confirmedRecall": 0.7037
+      }
+    }
+  },
+  "rfoExperiment": {
+    "dataset": "RefinedFloatingObjects (Russwurm et al. 2023) \u2014 6 scenes, 4689 refined points",
+    "result": "Adding 3789 RFO px to MLP training LOST the primary MARIDA+MADOS benchmark (pp11_rfo 0.767 vs deployed 0.787) but nearly doubled debris recall on held-out NEW seas (0.409 vs 0.222 @ FP 1.5%). NOT promoted; kept as marinenet_pp{7,11}_rfo.onnx.",
+    "holdoutScenes": [
+      "durban_20190424",
+      "marmara_20210519"
+    ]
+  }
+}

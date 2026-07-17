@@ -1,0 +1,234 @@
+{
+  "summary": {
+    "dates": 21,
+    "hdpeHitRate": 0.333,
+    "hdpeHitRateClean": 0.368,
+    "fdiGateRate": 0.762,
+    "woodAsPlasticRate": 0.8,
+    "medianSceneFpPct": 0.0,
+    "model": "marinenet.onnx",
+    "windowPx": 3,
+    "dataset": "PLP 2021 (Topouzelis / Univ. Aegean) \u2014 deployed HDPE target + wood control"
+  },
+  "perDate": [
+    {
+      "date": "20210611",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0658,
+      "hdpe_note": "",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17488
+    },
+    {
+      "date": "20210621",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0764,
+      "hdpe_note": "",
+      "wood_as_plastic": true,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17451
+    },
+    {
+      "date": "20210626",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0684,
+      "hdpe_note": "",
+      "wood_as_plastic": true,
+      "wood_pred": "Plastic",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17451
+    },
+    {
+      "date": "20210701",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0437,
+      "hdpe_note": "",
+      "wood_as_plastic": true,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17451
+    },
+    {
+      "date": "20210706",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0637,
+      "hdpe_note": "",
+      "wood_as_plastic": true,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.01,
+      "valid_px": 17451
+    },
+    {
+      "date": "20210711",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0623,
+      "hdpe_note": "",
+      "wood_as_plastic": true,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17457
+    },
+    {
+      "date": "20210716",
+      "hdpe_hit": true,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0609,
+      "hdpe_note": "",
+      "wood_as_plastic": true,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17449
+    },
+    {
+      "date": "20210721",
+      "hdpe_hit": true,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.078,
+      "hdpe_note": "",
+      "wood_as_plastic": false,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17449
+    },
+    {
+      "date": "20210726",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0467,
+      "hdpe_note": "",
+      "wood_as_plastic": false,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17453
+    },
+    {
+      "date": "20210731",
+      "hdpe_hit": true,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0695,
+      "hdpe_note": "",
+      "wood_as_plastic": true,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17454
+    },
+    {
+      "date": "20210805",
+      "hdpe_hit": true,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0604,
+      "hdpe_note": "",
+      "wood_as_plastic": true,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17457
+    },
+    {
+      "date": "20210810",
+      "hdpe_hit": true,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0674,
+      "hdpe_note": "",
+      "wood_as_plastic": false,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17445
+    },
+    {
+      "date": "20210815",
+      "wood_as_plastic": true,
+      "wood_pred": "Plastic",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": false,
+      "hdpe_max_fdi": -0.0122,
+      "hdpe_note": "under water? no experiment log present",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17445
+    },
+    {
+      "date": "20210820",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": false,
+      "hdpe_max_fdi": -0.0132,
+      "hdpe_note": "partly underwater",
+      "wood_as_plastic": true,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17454
+    },
+    {
+      "date": "20210825",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": false,
+      "hdpe_max_fdi": 0.0125,
+      "hdpe_note": "",
+      "wood_as_plastic": true,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17445
+    },
+    {
+      "date": "20210830",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.03,
+      "hdpe_note": "",
+      "wood_as_plastic": true,
+      "wood_pred": "Algae",
+      "scene_fp_pct": 0.01,
+      "valid_px": 17451
+    },
+    {
+      "date": "20210904",
+      "hdpe_hit": true,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.1734,
+      "hdpe_note": "",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17488
+    },
+    {
+      "date": "20210909",
+      "hdpe_hit": true,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.1157,
+      "hdpe_note": "",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17488
+    },
+    {
+      "date": "20210914",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": true,
+      "hdpe_max_fdi": 0.0245,
+      "hdpe_note": "",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17488
+    },
+    {
+      "date": "20210919",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": false,
+      "hdpe_max_fdi": -0.019,
+      "hdpe_note": "",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17488
+    },
+    {
+      "date": "20210924",
+      "hdpe_hit": false,
+      "hdpe_fdi_gate": false,
+      "hdpe_max_fdi": 0.0021,
+      "hdpe_note": "",
+      "scene_fp_pct": 0.0,
+      "valid_px": 17488
+    }
+  ]
+}

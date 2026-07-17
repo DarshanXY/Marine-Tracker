@@ -1,0 +1,7 @@
+# Optional: run the trained CNN classifier via ONNX Runtime.
+# Without this the classifier uses the interpretable heuristic — the engine runs
+# fine either way. `onnx` is only needed to (re)train/export the models.
+#   python -m pip install -r requirements-ml.txt
+onnxruntime>=1.17
+numpy>=1.26
+onnx>=1.15

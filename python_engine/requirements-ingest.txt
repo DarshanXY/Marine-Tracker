@@ -1,0 +1,6 @@
+# Optional: real pixel-level Sentinel-2 band ingest (Sentinel Hub Process API).
+# Decodes the float32 GeoTIFF with tifffile (pure Python + numpy) — no GDAL/rasterio.
+# The engine runs fine WITHOUT these (synthetic fallback).
+#   python -m pip install -r requirements-ingest.txt
+numpy>=1.26
+tifffile>=2024.1

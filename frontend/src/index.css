@@ -1,0 +1,268 @@
+/* ─────────────────────────────────────────────────────────
+   Marine Plastic Tracker   Global Stylesheet
+   Design system: light "sunlit tropical ocean" + gov-grade
+   ───────────────────────────────────────────────────────── */
+
+/* Fonts loaded in index.html for faster parse; no @import here */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Design Tokens (mirror of tailwind.config.js colors) ──── */
+:root {
+  /* Ocean / "Pisces turquoise" — vivid teal → Tiffany aqua → deep sea */
+  --color-ocean-950: #134E4A;
+  --color-ocean-800: #115E59;
+  --color-ocean-700: #0F766E;
+  --color-ocean-600: #0D9488;   /* primary — turquoise */
+  --color-ocean-500: #14B8A6;
+  --color-ocean-400: #2DD4BF;
+  --color-ocean-300: #5EEAD4;
+  --color-ocean-100: #CCFBF1;
+  --color-ocean-50:  #F0FDFA;
+
+  /* Sky — cyan sparkle accent */
+  --color-sky-700: #0891B2;
+  --color-sky-400: #22D3EE;
+  --color-sky-100: #CFFAFE;
+
+  /* Success / Green */
+  --color-success-700: #059669;
+  --color-success-500: #10B981;
+  --color-success-400: #34D399;
+  --color-success-100: #D1FAE5;
+
+  /* Status */
+  --color-danger:  #EF4444;
+  --color-warn:    #F59E0B;
+  --color-purple:  #8B5CF6;
+
+  /* Role colours */
+  --role-admin:       #EF4444;
+  --role-ministry:    #3B82F6;
+  --role-coastguard:  #0D9488;
+  --role-field:       #10B981;
+  --role-researcher:  #8B5CF6;
+  --role-ngo:         #F97316;
+  --role-public:      #64748B;
+
+  /* Text */
+  --text-900: #0F172A;
+  --text-800: #1E293B;
+  --text-600: #475569;
+  --text-400: #64748B;
+  --text-300: #94A3B8;
+  --text-200: #CBD5E1;
+
+  /* Surfaces */
+  --surface-white: #FFFFFF;
+  --surface-light: #F6FEFC;
+  --surface-blue:  #ECFDF7;
+  --border:        #D6EDE9;
+
+  /* Glass */
+  --glass-bg:        rgba(255, 255, 255, 0.90);
+  --glass-border:    rgba(13, 148, 136, 0.15);
+  --glass-blur:      20px;
+  --glass-radius:    16px;
+  --glass-shadow:    0 8px 32px rgba(13,148,136,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  --glass-shadow-lg: 0 20px 60px rgba(13,148,136,0.12), 0 4px 16px rgba(0,0,0,0.06);
+}
+
+/* ── Base Layer ─────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    border-color: var(--border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    color: rgb(30 41 59);          /* slate-800 */
+    min-height: 100vh;
+    background-color: var(--surface-light);
+  }
+
+  h1, h2, h3 {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    letter-spacing: -0.02em;      /* subtle tightening */
+  }
+
+  code, pre, kbd, samp {
+    font-family: 'IBM Plex Mono', Menlo, monospace;
+  }
+
+  /* Keyboard focus ring — simulates ring-2 ring-ocean-600 ring-offset-2 */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--color-ocean-600);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar          { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track    { background: transparent; }
+  ::-webkit-scrollbar-thumb    { background-color: var(--color-ocean-300); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--color-ocean-500); }
+}
+
+/* ── Reusable Component Classes ─────────────────────────────────── */
+@layer components {
+  /* Glassmorphism card */
+  .glass {
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--glass-radius);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .glass-lg {
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    box-shadow: var(--glass-shadow-lg);
+  }
+
+  /* 3px teal→cyan→green top accent bar */
+  .card-accent::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+    background: linear-gradient(90deg, #0F766E, #14B8A6, #2DD4BF);
+  }
+
+  /* Targeting reticle corner accents */
+  .reticle::before,
+  .reticle::after {
+    content: '';
+    position: absolute;
+    width: 1rem;
+    height: 1rem;
+    pointer-events: none;
+    border-color: #2DD4BF;
+  }
+  .reticle::before {
+    top: 0.5rem;
+    left: 0.5rem;
+    border-top-width: 2px;
+    border-left-width: 2px;
+  }
+  .reticle::after {
+    bottom: 0.5rem;
+    right: 0.5rem;
+    border-bottom-width: 2px;
+    border-right-width: 2px;
+  }
+
+  /* Shimmer sweep on hover (used by Button) */
+  .btn-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    background: linear-gradient(110deg, transparent 25%, rgba(255,255,255,0.32) 50%, transparent 75%);
+    transform: translateX(-100%);
+  }
+  .btn-shimmer:hover::after {
+    opacity: 1;
+    animation: shimmerSweep 0.55s ease-out forwards;
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    background: linear-gradient(90deg, #E2E8F0 25%, #F1F5F9 50%, #E2E8F0 75%);
+    background-size: 200% 100%;
+    animation: skeletonPulse 1.6s ease-in-out infinite;
+  }
+
+  /* Input focus glow */
+  .input-glow:focus-within {
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18);
+  }
+
+  /* Turquoise gradient text */
+  .text-gradient {
+    background: linear-gradient(135deg, #0D9488 0%, #14B8A6 50%, #2DD4BF 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Dark section (hero / footer / dividers) */
+  .section-dark {
+    background: linear-gradient(135deg, #134E4A 0%, #0F766E 50%, #0D9488 100%);
+    color: #ffffff;
+  }
+}
+
+/* ── Utility Layer ───────────────────────────────────────────────── */
+@layer utilities {
+  /* Keyframes defined here so they're available globally */
+  @keyframes shimmerSweep {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
+  }
+
+  @keyframes skeletonPulse {
+    0%   { background-position:  200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  @keyframes floatY {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-18px); }
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(16px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes countUp {
+    from { opacity: 0; transform: scale(0.85); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* Reduced motion: strip all animations safely */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Map container z-index helpers */
+  .leaflet-container {
+    position: relative;
+    z-index: 0;
+    border-radius: inherit;
+  }
+}

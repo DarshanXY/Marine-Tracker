@@ -1,0 +1,1840 @@
+{
+ "pages": [
+  {
+   "page": "OpsBoard",
+   "navLabel": "Live Ops",
+   "purpose": "A single-screen \"duty officer\" operations console aggregating system health, open alerts, coast-bound priority hotspots, the detection verification queue, pipeline activity, and a live WebSocket event feed.",
+   "primaryData": [
+    "usePipelineStatus",
+    "useSatelliteStatus",
+    "useAlerts({acked:false})",
+    "useHotspots({active:true})",
+    "useDetections({status:'PENDING'})",
+    "usePipelineLogs",
+    "useAckAlert",
+    "useLiveFeed (WebSocket)",
+    "api.scheduledRun"
+   ],
+   "keyFeatures": [
+    "4 health tiles: Python engine, BullMQ queue, satellite source (live/demo), open-alert count",
+    "'Run all regions' button triggering api.scheduledRun (queued or direct mode)",
+    "Open alerts list with inline acknowledge buttons",
+    "Priority hotspots list sorted by ETA-to-coast (soonest landfall first)",
+    "Live event feed pushed over WebSocket (run/alert/job/schedule events) with polling fallback",
+    "Awaiting-verification queue of PENDING detections (confidence + FDI)",
+    "Pipeline activity log of recent stages with status/duration/timeAgo"
+   ],
+   "uniqueValue": "Genuinely unique things: (1) the live WebSocket event feed with connection-state indicator, and (2) the 'Run all regions' trigger + real-time engine/queue/satellite health tiles combined in one operator view. Everything else on the page is a compressed read-only mirror of data that other pages own in full.",
+   "overlapsWith": [
+    {
+     "page": "Alerts",
+     "what": "Open-alerts list with acknowledge action duplicates the Alerts page's core job (useAlerts + useAckAlert)"
+    },
+    {
+     "page": "Hotspots",
+     "what": "Priority hotspots list with ETA/severity/coords repeats Hotspots page data (useHotspots active)"
+    },
+    {
+     "page": "Detections",
+     "what": "Awaiting-verification queue of PENDING detections repeats the Detections page's verification list (useDetections status PENDING)"
+    },
+    {
+     "page": "Pipeline",
+     "what": "Pipeline activity log (usePipelineLogs) and engine/queue status (usePipelineStatus) heavily overlap the Pipeline page; the 'Run all regions' trigger likely also lives there"
+    },
+    {
+     "page": "Model Health",
+     "what": "Python-engine online/offline + model.mode health tile overlaps model/engine status reporting"
+    },
+    {
+     "page": "Dashboard",
+     "what": "The at-a-glance health tiles + alert/hotspot counts overlap the Dashboard's summary role"
+    }
+   ],
+   "interactivity": "moderate",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "HotspotDetail.tsx",
+   "navLabel": "Hotspot detail (drill-in)",
+   "purpose": "Deep-linkable drill-in view of a single hotspot cluster: its summary stats, a drift forecast + landfall for the centroid, a reverse back-track to the likely source, and jump-off links to field ops, map, and similarity.",
+   "primaryData": [
+    "useHotspot(id)",
+    "useForecast (mutate: lat/lon/horizon 72h)",
+    "useBacktrack (mutate: lat/lon/horizon 48h)"
+   ],
+   "keyFeatures": [
+    "PageHeader with label, region, coords, severity pill",
+    "Cluster stat card (detection count, avg confidence, active/inactive badge)",
+    "Drift forecast card (coast ETA, landfall probability, data source)",
+    "Timeline card (first detected / last updated)",
+    "Likely-source card with on-demand 'Trace 48h upstream' back-track button",
+    "Jump-off links to Field Ops, Map, and Similarity/Intelligence"
+   ],
+   "uniqueValue": "It is the only per-hotspot detail route (/app/hotspots/:id) \u2014 the single place binding one cluster's identity to a live drift forecast plus a reverse back-track (likely-source trace) for that centroid. The on-demand back-track is not offered by any list page.",
+   "overlapsWith": [
+    {
+     "page": "Hotspots",
+     "what": "This is the drill-in target of the Hotspots list; it re-displays the same hotspot fields (label, region, coords, severity, detection count, confidence, active state, first/last detected) for one row."
+    },
+    {
+     "page": "Alerts",
+     "what": "Coast ETA and landfall probability for a cluster are the same drift-forecast signals that drive landfall alerts."
+    },
+    {
+     "page": "Field Ops",
+     "what": "Duplicates the dispatch action via a 'Dispatch field operation' link into /app/operations."
+    },
+    {
+     "page": "Similarity & Fusion",
+     "what": "'Similar sites' link routes to /app/intelligence for the fingerprint-similarity view of this hotspot."
+    },
+    {
+     "page": "Live Ops",
+     "what": "The 'View on map' link and the drift/ETA framing overlap with the operational map view at /app/map."
+    }
+   ],
+   "interactivity": "moderate",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "ModelHealth",
+   "navLabel": "Model Health",
+   "purpose": "Gives the active classifier a \"report card\": model identity, held-out accuracy/macro-F1, per-class precision/recall, a live confusion matrix with on-demand evaluation, the fusion tier calibration + independent PLP validation (\"operating regime\"), and the engine's self-described capabilities.",
+   "primaryData": [
+    "usePipelineStatus (status.data.model + model.metrics)",
+    "useModelEval (on-demand held-out evaluation mutation)",
+    "useCapabilities (engine config/features/indices/regions)",
+    "useModelValidation (fusion thresholds, PLP validation, Clay fusion boundary)"
+   ],
+   "keyFeatures": [
+    "4 stat tiles: classifier arch, held-out accuracy, macro-F1, training dataset/class count",
+    "Per-class performance bars (recall/precision per class)",
+    "Live confusion matrix with dataset selector (MARIDA/MADOS) and Evaluate button that triggers model/evaluate",
+    "Operating regime & validation card: CONFIRMED tier precision/recall calibration, MLP+Clay fusion thresholds, PLP deployed-target independent validation, 'where it works / its boundary' honesty panel",
+    "Engine capabilities card: config chips (real Sentinel-2, model loaded, gridded forcing, live mode), spectral indices, feature list, engine version/region count"
+   ],
+   "uniqueValue": "Genuinely unique: it is the only page exposing model-quality internals \u2014 the confusion matrix, per-class precision/recall, on-demand held-out evaluation, and the fusion-tier calibration + PLP independent validation that justifies the CONFIRMED/POSSIBLE labels used everywhere else. No other page substitutes for this ML-diagnostics role.",
+   "overlapsWith": [
+    {
+     "page": "Pipeline",
+     "what": "Both read usePipelineStatus.model \u2014 Pipeline shows engine/model loaded state and likely the same capabilities/config; the 'Engine capabilities' card and the model-loaded/mode badge here duplicate Pipeline's engine-health surface."
+    },
+    {
+     "page": "Similarity & Fusion",
+     "what": "The MLP+Clay fusion thresholds and CONFIRMED/POSSIBLE tier explanation in the Operating Regime section overlaps conceptually with the fusion page's job of explaining the two-model agreement."
+    },
+    {
+     "page": "Settings",
+     "what": "The engine config chips (real ingest, demo/live mode, gridded forcing) restate deployment configuration that a Settings/config page would also report."
+    },
+    {
+     "page": "Analytics",
+     "what": "Aggregate model performance metrics (accuracy, macro-F1) are the kind of summary stat an Analytics page may also present, though Analytics is detection-focused rather than model-diagnostic."
+    }
+   ],
+   "interactivity": "moderate",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "Hotspots",
+   "navLabel": "Hotspots",
+   "purpose": "Lists active DBSCAN detection clusters (hotspots) as severity-ranked cards, each linking to a per-hotspot detail view.",
+   "primaryData": [
+    "useHotspots (with severity + active filters)"
+   ],
+   "keyFeatures": [
+    "Severity filter toggle group (All/High/Medium/Low)",
+    "Responsive grid of hotspot cards",
+    "Per-card metrics: detection count, confidence %, coastal-landfall ETA",
+    "Centroid lat/lon display",
+    "SeverityPill with animation for HIGH",
+    "Active-hotspot count badge in header",
+    "Link to /app/hotspots/:id detail page",
+    "Loading skeletons + empty state"
+   ],
+   "uniqueValue": "It is the only list/browse surface dedicated to clustered hotspots (DBSCAN aggregates of detections) with cluster-specific attributes like coastal-landfall ETA and centroid coordinates. Individual raw detections are not the same as these aggregated clusters, so the clustering view itself is distinct \u2014 though the card-grid presentation is generic.",
+   "overlapsWith": [
+    {
+     "page": "Detections",
+     "what": "Both are filterable card/list grids over model outputs with severity filtering; Detections shows raw detections while Hotspots shows their clustered aggregation, so the two present overlapping subject matter at different granularities."
+    },
+    {
+     "page": "Dashboard",
+     "what": "Dashboards typically surface a top-hotspots summary/count widget, duplicating the active-hotspot count and highest-severity clusters shown here."
+    },
+    {
+     "page": "Alerts",
+     "what": "HIGH-severity hotspots with short coastal ETA are the natural trigger for alerts, so alert content likely restates the same high-severity clusters and their ETAs."
+    },
+    {
+     "page": "Live Ops",
+     "what": "An operational map/live view would plot the same hotspot centroids and severities geographically, overlapping the spatial cluster data listed here as cards."
+    }
+   ],
+   "interactivity": "moderate",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "Analytics",
+   "navLabel": "Analytics",
+   "purpose": "Presents aggregate analytics \u2014 detection trend over time, classification mix, per-region breakdown, and a summary of the active detection model with an on-demand held-out evaluation.",
+   "primaryData": [
+    "useOverview",
+    "useTrend(60)",
+    "useByClass",
+    "useByRegion",
+    "usePipelineStatus",
+    "useModelEval"
+   ],
+   "keyFeatures": [
+    "4 StatCards: avg confidence, total area km2, false-alarm rate, model F1",
+    "Detection trend line chart (daily, last 60 days) with detections + confirmed series",
+    "Classification mix donut/pie chart (Plastic/Algae/Sea_Foam/Water)",
+    "Regional breakdown stacked bar chart (detections vs hotspots by region code)",
+    "Region statistics table (detections, hotspots, high-severity per region)",
+    "Active model summary card (name, version, macro-F1, accuracy, trained-on, architecture blurb)",
+    "Live held-out evaluation tool: buttons to re-score shipped ONNX on MARIDA / MADOS test splits via useModelEval"
+   ],
+   "uniqueValue": "The time-series detection trend, the classification-mix pie, and the region-vs-region comparative breakdown (bar chart + stats table) are the genuinely unique offering \u2014 no other page aggregates detections along the temporal and regional axes. The model card and live ONNX evaluation, by contrast, are borrowed/duplicated content the page itself points elsewhere for (\"See Model Health for the confusion matrix and per-class metrics\").",
+   "overlapsWith": [
+    {
+     "page": "Dashboard",
+     "what": "Overview KPI StatCards (avg confidence, total area, false-alarm rate, model F1) all come from useOverview and are the same headline metrics a Dashboard typically surfaces; the detection trend line and classification mix are also classic dashboard tiles."
+    },
+    {
+     "page": "Model Health",
+     "what": "The Active model card (name, version, macro-F1, accuracy, architecture) and the live MARIDA/MADOS held-out evaluation duplicate Model Health's remit \u2014 the card text explicitly defers to Model Health for the fuller confusion matrix / per-class metrics."
+    },
+    {
+     "page": "Hotspots",
+     "what": "Per-region hotspot cluster counts (byRegion.hotspots, high-severity per region) overlap with what the Hotspots page reports."
+    },
+    {
+     "page": "Detections",
+     "what": "Detection counts and confirmed-vs-total trend are aggregations of the same detection data the Detections page lists per-record."
+    },
+    {
+     "page": "Reports",
+     "what": "Region statistics table and aggregate charts are the kind of summarized, export-oriented content a Reports page assembles."
+    },
+    {
+     "page": "Pipeline",
+     "what": "usePipelineStatus model metrics (macroF1, testAccuracy, trainedOn) are pulled from the pipeline/engine status that the Pipeline page owns."
+    }
+   ],
+   "interactivity": "moderate",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "Alerts.tsx",
+   "navLabel": "Alerts",
+   "purpose": "Shows a filterable, acknowledgeable queue of system-generated notifications (hotspot, coast-proximity, infrastructure, and system alerts) so operators can triage and clear them.",
+   "primaryData": [
+    "useAlerts (filtered by severity and acked status)",
+    "useAckAlert (acknowledge mutation)"
+   ],
+   "keyFeatures": [
+    "Status filter toggle: All / Open / Acknowledged",
+    "Severity filter toggle: All / High / Medium / Low",
+    "Open-count badge in page header (danger/success)",
+    "Per-alert rows with type icon, SeverityPill, type badge, relative timeAgo, title, message",
+    "Acknowledge button per row with pending state, framer-motion animated in/out",
+    "Empty-state card when no alerts match filters",
+    "Skeleton loading cards"
+   ],
+   "uniqueValue": "The only page that owns the alert lifecycle \u2014 acknowledging and clearing notifications from an active queue. No other page offers an ack action or an open-alerts inbox. This is a genuine standalone triage workflow, not just a data readout.",
+   "overlapsWith": [
+    {
+     "page": "Hotspots",
+     "what": "HOTSPOT-type alerts surface the same hotspot events the Hotspots page lists; alert title/message likely restates a hotspot visible there."
+    },
+    {
+     "page": "Live Ops",
+     "what": "Real-time system/infrastructure notifications plausibly duplicate a live event/status feed a Live Ops console would show."
+    },
+    {
+     "page": "Dashboard",
+     "what": "Open-alert count and recent high-severity alerts are the kind of summary tile a Dashboard typically also surfaces."
+    },
+    {
+     "page": "Model Health",
+     "what": "SYSTEM-type alerts about server/pipeline health overlap with status Model Health reports."
+    },
+    {
+     "page": "Pipeline",
+     "what": "SYSTEM alerts about pipeline runs overlap with run status shown on the Pipeline page."
+    }
+   ],
+   "interactivity": "moderate",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "Intelligence.tsx",
+   "navLabel": "Similarity & Fusion",
+   "purpose": "Lets an analyst explore the Clay foundation-model embedding space \u2014 nearest reference sites, MLP+Clay confidence fusion, and temporal change \u2014 for a chosen embedded site or by surface class.",
+   "primaryData": [
+    "useSimilarityInfo",
+    "useSimilaritySites",
+    "useSimilarityHotspot",
+    "useSimilarityChange",
+    "useSimilarityDemo",
+    "useSimilaritySearch"
+   ],
+   "keyFeatures": [
+    "Index status panel (model, reference-site count, embedded sites, class mix)",
+    "Embedded-sites picker list (region, coords, observation count)",
+    "Per-site intelligence: fusion confidence tier (MLP+Clay agreement), retrieval class, novelty/anomaly flag, observed date",
+    "Temporal change/trend card (intensifying/clearing/shifted/stable, plastic-affinity delta, drift)",
+    "Nearest-reference-sites neighbour list with similarity bars",
+    "By-class fingerprint explorer (Plastic/Algae/Sea_Foam/Water) when no site selected",
+    "Advanced collapsible: paste raw 1024-d Clay embedding JSON to search nearest neighbours"
+   ],
+   "uniqueValue": "This is the only page that exposes the Clay embedding/similarity subsystem directly \u2014 nearest-neighbour retrieval, MLP+Clay confidence fusion, embedding-drift/temporal change, and raw-embedding search. No other page surfaces the fingerprint space, fusion tiers, or neighbour retrieval. Genuinely distinct and specialist; it is a niche analyst tool, not everyday operational surface, but its function is not duplicated elsewhere.",
+   "overlapsWith": [
+    {
+     "page": "Hotspots",
+     "what": "Per-site fusion confidence, neighbours and temporal change were originally reached by clicking a hotspot on the map (per the file's own docstring); Hotspots likely still shows the same per-site fusion/similarity detail, making this the extracted standalone version of that hotspot drill-down."
+    },
+    {
+     "page": "Detections",
+     "what": "Both surface a per-observation predicted class and confidence; this page adds the Clay-retrieval/fusion angle but the class+confidence readout overlaps conceptually."
+    },
+    {
+     "page": "Model Health",
+     "what": "Both report on model behaviour/quality metrics \u2014 Model Health on classifier performance, this page on the embedding index readiness, class mix and fusion agreement \u2014 a partial overlap in the 'how is the model doing' framing."
+    }
+   ],
+   "interactivity": "high",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "Operations.tsx",
+   "navLabel": "Field Ops",
+   "purpose": "Turns a satellite detection or hotspot into a dispatched field response and tracks that operation through its lifecycle to a filed mission report.",
+   "primaryData": [
+    "useOperations (list, filterable by OperationStatus)",
+    "useOperationStats (total, byStatus counts, plasticCollectedKg, areaClearedSqKm)",
+    "useUpdateOperationStatus (advance status mutation)",
+    "api.exportOperationPdf (per-operation PDF export)"
+   ],
+   "keyFeatures": [
+    "4 summary StatCards: Active now, Total operations, Plastic collected (kg), Area cleared (km2)",
+    "Status filter chips (ALL + STATUS_ORDER) with live per-status counts",
+    "Grid of OperationCard components with role-gated actions",
+    "Advance-status workflow (DISPATCHED / IN_PROGRESS / etc.) with toast feedback",
+    "New-operation creation modal (OperationForm), FIELD-clearance gated",
+    "File mission report modal (MissionReportForm) per operation",
+    "Per-operation PDF export",
+    "EmptyState with contextual copy based on canManage"
+   ],
+   "uniqueValue": "This is the ONLY page in the app that manages an operational task lifecycle \u2014 creating a dispatch record, advancing crew status through workflow states, and filing/exporting a mission report. No other page does write-heavy field-response workflow or crew task tracking; it is the terminal action surface where detection/hotspot intelligence becomes a logged real-world response. This job is genuinely unique.",
+   "overlapsWith": [
+    {
+     "page": "Reports",
+     "what": "Mission-report creation (MissionReportForm) and per-operation PDF export likely duplicate the reporting/export function Reports owns; the operation's filed report is a report artifact."
+    },
+    {
+     "page": "Dashboard",
+     "what": "Summary StatCards (total ops, plastic collected kg, area cleared km2, active count) are the kind of top-line KPI tiles a Dashboard typically aggregates."
+    },
+    {
+     "page": "Analytics",
+     "what": "plasticCollectedKg and areaClearedSqKm are cumulative impact metrics that Analytics would also chart/report."
+    },
+    {
+     "page": "Hotspots",
+     "what": "Operations are dispatched against hotspots; the create flow references hotspot targets, so hotspot-to-response linkage is shared context."
+    },
+    {
+     "page": "Alerts",
+     "what": "Both convert an incoming signal into an acknowledged/actioned response state, so the triage-to-action workflow partially overlaps."
+    }
+   ],
+   "interactivity": "high",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "Pipeline.tsx",
+   "navLabel": "Pipeline",
+   "purpose": "Lets an operator trigger and watch the full detection pipeline (Sentinel-2 ingest \u2192 FDI \u2192 MLP classify \u2192 DBSCAN \u2192 Clay \u2192 drift \u2192 alerts) run end-to-end, showing per-stage timing, the classification model's metrics, recent imagery, and the detections/hotspots/drift produced by that run.",
+   "primaryData": [
+    "usePipelineRun (POST /api/pipeline run)",
+    "usePipelineStatus (engine + model status)",
+    "useRegions",
+    "useScenes (recent Sentinel-2 imagery, STAC/mock)",
+    "SSE /api/pipeline/stream (LiveScanProgress live stage events)"
+   ],
+   "keyFeatures": [
+    "Region selector + 'Run pipeline' button that executes the full run and renders results",
+    "LiveScanProgress: SSE-streamed stage-by-stage stepper with real per-stage durations and a live result strip",
+    "Six animated StageCards showing each stage name, duration(ms), and detail",
+    "ModelCard: classification model card with test accuracy, macro-F1, per-class recall bars, dataset/provenance (MARIDA/MADOS) badges",
+    "ScenesPanel: recent Sentinel-2 scenes with tile, platform, date, cloud cover and data-source badge (STAC/mock/demo)",
+    "Run stat tiles (candidate pixels, plastic detections, hotspots, avg confidence)",
+    "'Hotspots produced this run' list with severity, centroid, detection count, confidence, drift ETA",
+    "72-hour Lagrangian drift summary with windage/uncertainty-cone and real-vs-synthetic forcing badge",
+    "Engine online/offline and CNN trained/heuristic status badges"
+   ],
+   "uniqueValue": "The only page that actually RUNS the pipeline on demand and visualizes it as a process \u2014 trigger controls, live SSE per-stage progress with real durations, and stage-level detail. No other page can execute a run or shows the pipeline as a sequence of timed stages. This orchestration/observability-of-the-run view is genuinely unique.",
+   "overlapsWith": [
+    {
+     "page": "Model Health",
+     "what": "The ModelCard (test accuracy, macro-F1, per-class recall bars, dataset provenance, ONNX agreement, input geometry) is model-evaluation content that is Model Health's core job; this is a substantial duplicate of that page's data."
+    },
+    {
+     "page": "Live Ops",
+     "what": "The 'Live scan' streamed stepper and live detections/hotspots result strip overlap with Live Ops' real-time operational monitoring; both surface a live-running scan and its outputs."
+    },
+    {
+     "page": "Hotspots",
+     "what": "'Hotspots produced this run' list (severity, centroid, detection count, confidence, drift ETA) repeats the hotspot table content owned by the Hotspots page, scoped to one run."
+    },
+    {
+     "page": "Detections",
+     "what": "Run stats (candidate pixels, plastic detections, avg confidence) and the per-run detection counts duplicate the aggregate detection numbers shown on Detections."
+    },
+    {
+     "page": "Dashboard",
+     "what": "The four StatCards (detections, plastic, hotspots, avg confidence) are the same headline KPIs the Dashboard summarizes."
+    },
+    {
+     "page": "Alerts",
+     "what": "The final ALERT stage and drift ETA feed the alert content that the Alerts page presents standalone."
+    }
+   ],
+   "interactivity": "high",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "DetectionDetail.tsx",
+   "navLabel": "Detection detail (drill-in)",
+   "purpose": "Shows the full evidence for a single detection (FDI spectral score, classification/confidence, an on-demand 72h drift forecast, and analyst confirm/false-alarm actions) at a deep-linkable /detections/:id URL.",
+   "primaryData": [
+    "useDetection(id)",
+    "useForecast",
+    "useLabelDetection",
+    "useAuthStore"
+   ],
+   "keyFeatures": [
+    "FDI score bar with threshold marker + estimated affected area",
+    "Classification badge with confidence %",
+    "72h drift forecast metrics (coast ETA, landfall probability, data source)",
+    "RBAC-gated Confirm plastic / False alarm buttons feeding active-learning",
+    "Deep-link by :id with optimistic local status",
+    "Cross-links to Map and Similarity/fingerprint pages"
+   ],
+   "uniqueValue": "The only per-detection drill-in view (deep-linkable by :id) and the sole consumer of the single-record useDetection hook; combines one record's full evidence with an on-demand drift forecast computed for exactly that point. As a detail view it is a legitimate leaf, not sidebar noise.",
+   "overlapsWith": [
+    {
+     "page": "Detections",
+     "what": "Reads and labels the same detection records (FDI, classification, confidence, status, confirm/false-alarm). This page is effectively the row-level drill-in of the Detections list, so its evidence fields and labeling controls duplicate what Detections shows in aggregate."
+    },
+    {
+     "page": "Active Learning",
+     "what": "The Confirm/False-alarm buttons feed the active-learning retrain set \u2014 the same analyst-labeling workflow Active Learning surfaces at queue level."
+    },
+    {
+     "page": "Field Ops",
+     "what": "The 72h drift forecast (coast ETA, landfall probability, winds+currents) repeats the drift/forecast concern owned by Field Ops."
+    },
+    {
+     "page": "Similarity & Fusion",
+     "what": "Links into and shares the spectral-fingerprint framing ('Explore fingerprint space') built on the same detection's features."
+    }
+   ],
+   "interactivity": "moderate",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "Detections",
+   "navLabel": "Detections",
+   "purpose": "The canonical, deeply-filterable master table of every individual floating-debris detection candidate, with per-row explainability and role-gated inline confirm/false-alarm labeling that feeds active learning.",
+   "primaryData": [
+    "useDetections (filtered list, limit 200)",
+    "useLabelDetection (confirm/reject/reset mutation)",
+    "usePipelineStatus (model card for explain drawer)",
+    "useRegions (region filter options)",
+    "api.exportTrainingLabels (labeled-set CSV export)"
+   ],
+   "keyFeatures": [
+    "Sortable data table: region, class, location, confidence bar, FDI, area (km2), status, date",
+    "Filter bar: region, status, classification, min-confidence, and a 0-90 day time-window range slider with clear-filters",
+    "'Why this detection?' slide-in drawer: FDI vs threshold bar, classifier explanation, honest caveats, and model held-out accuracy/recall",
+    "Inline analyst validation buttons (Confirm plastic / False alarm / Reset), gated to COASTGUARD+ role",
+    "'Export labeled set' active-learning CSV button, role-gated",
+    "Per-row deep link to a dedicated detection detail route (/app/detections/:id)"
+   ],
+   "uniqueValue": "The only page offering a full sortable, multi-filter table of ALL individual detections at row granularity (FDI, confidence, area) plus a per-detection 'why' explainability drawer. No other page exposes the raw detection list this way. This is the canonical detection browser and clearly a keeper.",
+   "overlapsWith": [
+    {
+     "page": "Active Learning",
+     "what": "Both center on the analyst confirm/false-alarm labeling loop and the exported labeled set; the inline validation buttons + Export-labeled-set here reproduce the core job an Active Learning page would exist to do."
+    },
+    {
+     "page": "Dashboard",
+     "what": "Dashboard likely shows recent detection counts / totals, which this page reports in its header badge (data.total) and rows."
+    },
+    {
+     "page": "Live Ops",
+     "what": "Live Ops likely streams the newest incoming detections operationally; overlaps with this table's most-recent rows, minus the deep filtering."
+    },
+    {
+     "page": "Model Health",
+     "what": "The explain drawer surfaces model card metrics (test accuracy, per-class recall, arch) via usePipelineStatus, which is Model Health's primary subject."
+    }
+   ],
+   "interactivity": "high",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "ActiveLearning",
+   "navLabel": "Active Learning",
+   "purpose": "Human-in-the-loop review queue where Coast Guard/Admin confirm or reject PENDING detections as real plastic vs. false alarms, tracking progress toward a retrain-ready labelled set that can be exported for model retraining.",
+   "primaryData": [
+    "useDetections (status=PENDING, region/classification filters)",
+    "useLabelDetection (mutation)",
+    "useTrainingLabels",
+    "useRegions",
+    "api.exportTrainingLabels",
+    "useAuthStore (role gating)"
+   ],
+   "keyFeatures": [
+    "4 stat tiles: pending count, confirmed plastic, false alarms, retrain-readiness progress bar (totalLabelled/50)",
+    "Region and classification dropdown filters on the pending queue",
+    "Review queue rows: region, class badge, coords, confidence bar, FDI score",
+    "Role-gated Confirm / False alarm action buttons per row (level >= COASTGUARD)",
+    "Read-only banner for lower-privilege users",
+    "Export labelled set (CONFIRMED + FALSE_ALARM) to CSV button"
+   ],
+   "uniqueValue": "The only page that performs the labelling write action \u2014 confirming/rejecting detections to create ground-truth training labels and exporting them for retraining. This human-in-the-loop labelling workflow plus the retrain-readiness metric exist nowhere else.",
+   "overlapsWith": [
+    {
+     "page": "Detections",
+     "what": "Both list detection records with region, classification, coordinates, confidence and FDI score from the same useDetections hook; this page is essentially a PENDING-only filtered slice, and its read-only queue view duplicates the Detections list."
+    },
+    {
+     "page": "Model Health",
+     "what": "The retrain-readiness metric and confirmed/false-alarm label counts describe model retraining status, which Model Health likely also surfaces."
+    }
+   ],
+   "interactivity": "high",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "Settings",
+   "navLabel": "Settings",
+   "purpose": "Lets the signed-in user view their own profile details and manage account security (enable/disable TOTP two-factor authentication, sign out).",
+   "primaryData": [
+    "useAuthStore (current user, accessToken, refreshUser, logout)",
+    "api.twoFactorSetup",
+    "api.twoFactorEnable",
+    "api.twoFactorDisable",
+    "TwoFactorSetup type"
+   ],
+   "keyFeatures": [
+    "Profile card showing display name, username, email, role badge, clearance level",
+    "Sign out button",
+    "Two-factor auth status badge (enabled/disabled)",
+    "2FA setup flow: QR code + manual secret, 6-digit code verification",
+    "Disable 2FA button",
+    "Post-signup welcome banner that auto-opens 2FA setup when arriving with promptTotp state"
+   ],
+   "uniqueValue": "Sole home for the per-user account/self-service functions: personal profile view, 2FA enrollment/removal, and sign-out. No other page manages the current user's own credentials or security settings.",
+   "overlapsWith": [
+    {
+     "page": "Admin",
+     "what": "Both display user identity fields (role, clearance level via RoleBadge). Admin manages users/roles at an org level (other people's accounts) while Settings manages only the current user's own account \u2014 related domain but distinct scope, minimal true duplication."
+    }
+   ],
+   "interactivity": "moderate",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "AdminPanel",
+   "navLabel": "Admin",
+   "purpose": "Admin-only page for managing user accounts/roles/2FA, listing monitored geographic regions, and displaying live system service/satellite/scheduler configuration.",
+   "primaryData": [
+    "useAdminUsers",
+    "useRegions",
+    "usePipelineStatus",
+    "useSatelliteStatus",
+    "useAuthStore"
+   ],
+   "keyFeatures": [
+    "ADMIN-role gate with 403 fallback card for non-admins",
+    "Users & roles table (displayName, username, email, RoleBadge, level, 2FA/TOTP status)",
+    "Monitored regions list (code, displayName, center lat/lon, zoom level)",
+    "System config cards: Services (engine/queue/classifier), Satellite (provider/mode/latest scene), Scheduler (endpoint, cadence, SCHEDULER_TOKEN guard)"
+   ],
+   "uniqueValue": "The user-account/role/2FA management table and the monitored-regions registry are unique to this page and appear nowhere else \u2014 this is the only RBAC user-admin surface. The three status cards, however, are not unique.",
+   "overlapsWith": [
+    {
+     "page": "Pipeline",
+     "what": "Services card (engine online/offline, queue BullMQ/direct, classifier mode) and the scheduled-run endpoint/cadence come from usePipelineStatus \u2014 the same pipeline/queue/scheduler data Pipeline is built around."
+    },
+    {
+     "page": "Model Health",
+     "what": "Classifier/model mode from usePipelineStatus.model overlaps with model status shown on Model Health."
+    },
+    {
+     "page": "Live Ops",
+     "what": "Satellite provider/mode/latest-scene status and engine/queue liveness are the kind of live operational status Live Ops surfaces."
+    },
+    {
+     "page": "Settings",
+     "what": "System configuration display (scheduler token guard, satellite provider/mode) overlaps conceptually with a Settings/config page."
+    }
+   ],
+   "interactivity": "moderate",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "Reports",
+   "navLabel": "Reports",
+   "purpose": "Lets users export the system's detection/hotspot/region data in several formats (CSV, GeoJSON, JSON snapshot, server PDF, browser print) and renders a printable situation-report summary.",
+   "primaryData": [
+    "useOverview",
+    "useDetections",
+    "useHotspots",
+    "useByRegion",
+    "api.exportHotspotsPdf"
+   ],
+   "keyFeatures": [
+    "Export cards: Detections CSV, Hotspots CSV, GeoJSON FeatureCollection, full JSON snapshot, server-built situation-report PDF",
+    "Print / Save as PDF button (window.print)",
+    "Printable Situation Report card with model-version badge",
+    "Summary metric grid (total detections, confirmed plastic, active hotspots, high severity)",
+    "Regional breakdown table (detections/hotspots/high severity per region)",
+    "Priority hotspots list (top 6 with severity, coords, ETA)"
+   ],
+   "uniqueValue": "The only page whose job is data export / download and generating a shareable offline situation-report artifact (CSV/GeoJSON/JSON/PDF). No other page produces downloadable files or a print-oriented report, so the export function is genuinely unique even though every number it shows is displayed elsewhere.",
+   "overlapsWith": [
+    {
+     "page": "Dashboard",
+     "what": "Reuses the same useOverview summary metrics (total detections, confirmed plastic, active hotspots, high severity) that the Dashboard surfaces as its headline stats."
+    },
+    {
+     "page": "Analytics",
+     "what": "The regional breakdown table (useByRegion: detections/hotspots/high-severity per region) duplicates Analytics' by-region aggregation."
+    },
+    {
+     "page": "Hotspots",
+     "what": "Priority-hotspots list and hotspot CSV/GeoJSON pull the same useHotspots(active) data (label, severity, ETA, centroid, detection count) that the Hotspots page is dedicated to."
+    },
+    {
+     "page": "Detections",
+     "what": "Detections CSV/GeoJSON export the same useDetections table (class, confidence, FDI, status, coords) that the Detections page displays."
+    }
+   ],
+   "interactivity": "moderate",
+   "redundancyVerdict": "keep-standalone"
+  },
+  {
+   "page": "Dashboard.tsx",
+   "navLabel": "Dashboard",
+   "purpose": "Role-aware landing/overview page that aggregates KPIs, live system status, detection trends, class and region breakdowns, active alerts, and recent detections as an at-a-glance entry point into the rest of the app.",
+   "primaryData": [
+    "useOverview",
+    "useTrend",
+    "useByClass",
+    "useByRegion",
+    "useAlerts",
+    "useDetections",
+    "useAckAlert",
+    "useAuthStore",
+    "usePipelineStatus (via LiveStatusRail)",
+    "useSatelliteStatus (via LiveStatusRail)",
+    "useSimilarityInfo (via LiveStatusRail)"
+   ],
+   "keyFeatures": [
+    "Role-specific quick-action links (ADMIN/COASTGUARD/FIELD) deep-linking to other pages",
+    "LiveStatusRail: engine/model/scan-queue/satellite/embedding-store status tiles",
+    "4 KPI StatCards: total detections, confirmed plastic, active hotspots, regions monitored",
+    "Detection trend area chart (30 days: detections vs confirmed)",
+    "By-classification donut/pie chart with legend",
+    "Detections-by-region grouped bar chart (detections + hotspots)",
+    "Active alerts list with inline acknowledge action",
+    "Recent detections table (6 rows) linking to the full Detections page"
+   ],
+   "uniqueValue": "Its only genuinely unique element is the role-aware routing layer: the personalized welcome header and role-specific quick-action shortcuts. Every data widget on the page is a condensed mirror of a dedicated page. As an aggregator/launcher it has value, but almost none of its content is original.",
+   "overlapsWith": [
+    {
+     "page": "Live Ops",
+     "what": "LiveStatusRail (engine/model/queue/satellite/embedding-store live status from usePipelineStatus/useSatelliteStatus/useSimilarityInfo) is the same real-time operational status a Live Ops page centers on"
+    },
+    {
+     "page": "Detections",
+     "what": "Recent-detections table plus total/confirmed-plastic KPIs replicate the Detections list; the 'View all' link points directly there"
+    },
+    {
+     "page": "Hotspots",
+     "what": "Active-hotspots KPI (with high-severity trend) and the hotspots series in the by-region bar chart duplicate Hotspots summaries"
+    },
+    {
+     "page": "Alerts",
+     "what": "Active-alerts list with acknowledge buttons and open-alert count is a trimmed copy of the Alerts page and its useAckAlert flow"
+    },
+    {
+     "page": "Analytics",
+     "what": "Detection-trend area chart, by-classification pie, and detections-by-region bar chart are exactly the kind of aggregate charts an Analytics page owns"
+    },
+    {
+     "page": "Model Health",
+     "what": "Model version badge and LiveStatusRail's model-loaded/mode tile overlap with model status reporting"
+    },
+    {
+     "page": "Pipeline",
+     "what": "LiveStatusRail's engine phase and scan-queue state duplicate Pipeline health status; ADMIN quick action links to it"
+    }
+   ],
+   "interactivity": "moderate",
+   "redundancyVerdict": "merge-candidate"
+  },
+  {
+   "page": "MapExplorer",
+   "navLabel": "Map Explorer",
+   "purpose": "Draw or pick an area of interest on a real satellite map and run the full FDI to CNN to DBSCAN to drift pipeline live for that exact selection, then inspect every detection, hotspot, drift path, forecast, change, and scene in one place.",
+   "primaryData": [
+    "useAoiAnalysis (live pipeline run for the drawn bbox)",
+    "useScenesByBbox (recent Sentinel-2 scenes over AOI)",
+    "useRegions (quick-area seeds)",
+    "useForecast (on-demand 72h drift)",
+    "useChangeDetection (vs 6 months)",
+    "api.exportGeotiff (FDI GeoTIFF)",
+    "SimilarSitesDrawer: useSimilarityHotspot / useSimilarityDemo / useSimilarityChange / useSimilarityInfo"
+   ],
+   "keyFeatures": [
+    "Interactive Leaflet satellite map with drag-to-draw AOI rectangle selector",
+    "Quick-area buttons seeded from monitored region centroids",
+    "Live mode with 30s auto-rescan, countdown, manual rescan and clear",
+    "Animated scan-line overlay plus 6-stage live processing timeline (DOWNLOAD/FDI/CNN/DBSCAN/DRIFT/ALERT) with per-stage durations",
+    "Confidence-scaled detection markers with per-class filter toggles and live counts",
+    "Severity-colored hotspot markers with CONFIRMED/POSSIBLE tier and MLP+Clay fusion affinity in popups",
+    "Drift trajectories with uncertainty cones; on-demand forward+backtrack 72h forecast paths",
+    "Canvas debris-intensity heatmap toggle with gradient legend",
+    "Real Sentinel-2 scene preview overlay at true STAC footprint",
+    "SurfaceReadout showing SCL water/land/cloud composition with honest synthetic/estimate warnings",
+    "Advanced tools: min-confidence slider, dedupe/biofouling toggles, 72h forecast, change-vs-6mo, GeoTIFF export",
+    "GeoJSON export of detections/hotspots/trajectories/AOI (QGIS-ready)",
+    "Recent Sentinel-2 scenes list panel with cloud cover and source badges",
+    "SimilarSitesDrawer: per-hotspot Clay-embedding nearest-neighbour site retrieval"
+   ],
+   "uniqueValue": "The only page where the user defines an arbitrary AOI by drawing on the map and gets the ENTIRE pipeline computed on-the-fly for that exact box. The interactive draw-and-scan workflow, the live per-selection stage timeline, the SCL surface-honesty readout, and the on-demand AOI-scoped forecast/change/GeoTIFF/GeoJSON exports are all unique here. Every other page consumes pre-computed, system-wide results; this is the only interactive analysis surface. It is genuinely the quality bar and should stay standalone.",
+   "overlapsWith": [
+    {
+     "page": "Detections",
+     "what": "Renders individual FDI/CNN detections with class, confidence, FDI score, and area; a dedicated Detections page would list/table the same detection objects this page plots as map markers."
+    },
+    {
+     "page": "Hotspots",
+     "what": "Draws DBSCAN hotspot clusters with severity, detection count, confidence, tier, and coast ETA \u2014 the same hotspot entity a Hotspots page catalogs; this page shows them spatially for one AOI."
+    },
+    {
+     "page": "Pipeline",
+     "what": "The 6-stage live processing timeline (DOWNLOAD/FDI/CNN/DBSCAN/DRIFT/ALERT with durations) visualizes exactly the pipeline stages a Pipeline page would monitor."
+    },
+    {
+     "page": "Similarity & Fusion",
+     "what": "The SimilarSitesDrawer surfaces Clay-embedding nearest-neighbour similarity, retrieval class, novelty, and MLP+Clay fusion tier/affinity \u2014 the core content of a Similarity & Fusion page, embedded here per-hotspot."
+    },
+    {
+     "page": "Live Ops",
+     "what": "Live 30s auto-rescan mode with scan animation and 'this area right now' real-time posture overlaps with a Live Ops real-time monitoring view."
+    },
+    {
+     "page": "Alerts",
+     "what": "The ALERT pipeline stage and hotspot severity/ETA feed the same alerting concept an Alerts page would present."
+    },
+    {
+     "page": "Analytics",
+     "what": "Change-vs-6-months trend and aggregate stat tiles (candidate px, plastic, hotspots, avg confidence) duplicate metrics/trend analysis an Analytics page would own."
+    }
+   ],
+   "interactivity": "high",
+   "redundancyVerdict": "keep-standalone"
+  }
+ ],
+ "proposals": [
+  {
+   "philosophy": "Organize the sidebar around the operator's actual workflow \u2014 Monitor what's happening, Investigate why, Act on it \u2014 instead of by data type, and collapse every redundant dashboard/export/model mirror into the single page that owns that task.",
+   "navSections": [
+    {
+     "title": "Monitor",
+     "items": [
+      {
+       "label": "Command Center",
+       "mergesFrom": [
+        "Dashboard",
+        "Live Ops"
+       ],
+       "keptFeatures": [
+        "Role-aware welcome header + role-specific quick-action deep links (ADMIN/COASTGUARD/FIELD)",
+        "LiveStatusRail: engine/model/scan-queue/satellite/embedding-store status tiles",
+        "4 KPI StatCards (total detections, confirmed plastic, active hotspots, regions monitored)",
+        "Open-alerts glance with inline acknowledge",
+        "Priority hotspots list sorted by coast-ETA (soonest landfall first)",
+        "Awaiting-verification queue glance (PENDING detections)",
+        "Live WebSocket event feed with connection-state indicator + polling fallback",
+        "'Run all regions' fleet trigger (queued or direct mode)"
+       ],
+       "newInteractiveFeatures": [
+        "Draggable, pinnable widget grid \u2014 each operator arranges their own tiles per role, layout persisted",
+        "Live incident ticker you can pause, filter by event type (run/alert/job/schedule), and click-to-jump to source",
+        "One-click 'Run all regions' with an inline fleet progress bar (per-region chips fill as scans complete)",
+        "'Shift handover' generator \u2014 snapshots current posture (open alerts, priority hotspots, pending verifications) into a copyable briefing card",
+        "'What needs me now' focus mode that auto-surfaces only actionable items (unacked HIGH alerts, soon-to-landfall hotspots)"
+       ],
+       "rationale": "Dashboard was the app's only merge-candidate \u2014 a pure mirror of other pages whose sole original content was role routing. Live Ops is the real-time console. Fusing them yields one journey-start situational-awareness home (glance + act-fast) that removes the biggest redundancy while preserving Live Ops' genuinely unique WebSocket feed and fleet-run trigger."
+      },
+      {
+       "label": "Map Explorer",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Draw-AOI rectangle selector that runs the full FDI\u2192CNN\u2192DBSCAN\u2192drift pipeline live on the exact box",
+        "Quick-area seeds, 30s live rescan + countdown, manual rescan/clear",
+        "6-stage live processing timeline with per-stage durations + scan-line overlay",
+        "Class-filtered confidence-scaled detection markers and severity hotspot markers with MLP+Clay fusion affinity",
+        "Drift trajectories with uncertainty cones + on-demand 72h forecast/backtrack",
+        "Debris heatmap, real Sentinel-2 scene overlay, SCL surface-honesty readout",
+        "Advanced tools (min-confidence, dedupe/biofouling, change-vs-6mo, GeoTIFF/GeoJSON export) and SimilarSitesDrawer"
+       ],
+       "newInteractiveFeatures": [
+        "Time-scrubber to replay the AOI across its recent Sentinel-2 scenes and watch detections/drift evolve",
+        "Split-screen dual-AOI compare \u2014 draw two boxes and diff their stats/detections side by side",
+        "Draggable drift 'release pin' \u2014 drop a virtual particle anywhere and animate its 72h forecast",
+        "Bookmarkable watch-boxes that can be promoted into scheduled monitored regions"
+       ],
+       "rationale": "The beloved gold standard and the only interactive draw-and-scan analysis surface. It stays untouched and standalone as the spatial-awareness anchor of Monitor; new features deepen its draw/simulate identity without diluting the bar it sets."
+      },
+      {
+       "label": "Alerts",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Status filter (All/Open/Acknowledged) and severity filter (All/High/Medium/Low)",
+        "Open-count badge in header",
+        "Per-alert rows: type icon, SeverityPill, type badge, relative timeAgo, title, message",
+        "Inline acknowledge with pending state and animated in/out",
+        "Empty-state and skeleton loading cards"
+       ],
+       "newInteractiveFeatures": [
+        "Drag-to-build routing rules (e.g. 'HIGH + coast-ETA < 6h \u2192 notify Coast Guard') via a visual condition builder",
+        "Bulk triage \u2014 multi-select to bulk-acknowledge, plus per-alert snooze and escalate actions",
+        "Mini-map thumbnail per alert that opens that exact spot in Map Explorer",
+        "Live 'new alert' toast stream with urgency cues, driven by the same WebSocket feed"
+       ],
+       "rationale": "The only page owning the alert acknowledge/clear lifecycle. It stays as the 'queue' lens of Monitor (aggregate = Command Center, spatial = Map, queue = Alerts). The rule-builder + bulk actions turn a passive read-list into an active triage console."
+      }
+     ]
+    },
+    {
+     "title": "Investigate",
+     "items": [
+      {
+       "label": "Detections & Review",
+       "mergesFrom": [
+        "Active Learning"
+       ],
+       "keptFeatures": [
+        "Full sortable, multi-filter table (region, class, location, confidence bar, FDI, area, status, date)",
+        "Filter bar with 0-90 day time-window range slider and clear-filters",
+        "'Why this detection?' explain drawer (FDI vs threshold, classifier explanation, model held-out accuracy/recall)",
+        "Inline Confirm plastic / False alarm / Reset labeling, role-gated to COASTGUARD+",
+        "Export labeled set CSV (active-learning)",
+        "Per-row deep link to the DetectionDetail (:id) drill-in",
+        "PENDING review queue and pending/confirmed/false-alarm stat tiles with retrain-readiness progress bar"
+       ],
+       "newInteractiveFeatures": [
+        "Rapid-review mode \u2014 keyboard-driven card stack (J/K to move, C/F to label) for blitzing the PENDING queue",
+        "Live retrain-readiness gauge that fills as you label, with a 'N labels from retrain-ready' nudge",
+        "Lasso / bulk-select on the table to label many detections at once",
+        "Side-by-side spectral compare \u2014 pin two detections and diff FDI/confidence/class to calibrate judgment"
+       ],
+       "rationale": "Active Learning is just a PENDING-filtered slice of the same useDetections list using the same label mutation and export \u2014 it holds no unique data. Folding its review queue and retrain-readiness meter into Detections creates one canonical 'browse the records, decide the truth' workbench, matching the Investigate task exactly. DetectionDetail remains reachable as its row-level drill-in."
+      },
+      {
+       "label": "Hotspots",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Severity filter toggle (All/High/Medium/Low)",
+        "Responsive grid of hotspot cards with detection count, confidence %, coast-landfall ETA",
+        "Centroid lat/lon and animated HIGH SeverityPill",
+        "Active-hotspot count badge",
+        "Link to the HotspotDetail (:id) drill-in, plus loading/empty states"
+       ],
+       "newInteractiveFeatures": [
+        "Triage kanban \u2014 drag hotspot cards across lanes (New \u2192 Watching \u2192 Dispatch), persisting a triage state",
+        "Brushable severity-vs-ETA scatter: box-select clusters to filter the grid to the selection",
+        "Inline 'trace to source' 48h backtrack button on each card without leaving the list",
+        "What-if merge/split \u2014 select nearby clusters to preview a combined footprint before acting"
+       ],
+       "rationale": "Distinct cluster (DBSCAN) granularity vs raw detections, with its own drill-in plus drift/backtrack. Kept standalone in Investigate; the drag-triage board and brushable scatter turn a generic card grid into an active prioritization surface. HotspotDetail stays reachable as its drill-in."
+      },
+      {
+       "label": "Model Intelligence",
+       "mergesFrom": [
+        "Model Health",
+        "Similarity & Fusion"
+       ],
+       "keptFeatures": [
+        "Model stat tiles (arch, held-out accuracy, macro-F1, training dataset/class count)",
+        "Per-class precision/recall bars",
+        "Live confusion matrix with MARIDA/MADOS dataset selector + Evaluate button",
+        "Operating-regime & validation card: CONFIRMED-tier calibration, MLP+Clay fusion thresholds, PLP independent validation, honesty panel",
+        "Engine capabilities card (config chips, spectral indices, feature list, version/region count)",
+        "Clay index status panel, embedded-sites picker, per-site fusion tier / retrieval class / novelty flag, temporal-change card",
+        "Nearest-reference-sites neighbour list, by-class fingerprint explorer, raw 1024-d embedding search"
+       ],
+       "newInteractiveFeatures": [
+        "Interactive 2D embedding projection \u2014 pan/zoom/click points, drag a point into 'search' to retrieve neighbours, color by class or novelty",
+        "Clickable confusion-matrix cells that open the actual misclassified detections behind each cell",
+        "Draggable fusion decision-boundary slider \u2014 move CONFIRMED/POSSIBLE thresholds and watch precision/recall + tier counts recompute live",
+        "'Explain this call' lookup \u2014 select a detection to trace its neighbours, fusion agreement, and position vs the boundary in one view"
+       ],
+       "rationale": "Both are specialist 'trust the AI' tools that already share the fusion-tier story \u2014 Model Health calibrates the CONFIRMED/POSSIBLE tiers, Similarity explains the embedding side that feeds them. Merging concentrates the whole 'why did the model decide this' narrative (which Detection detail and Map both link to) into one AI-diagnostics page, with interactive embedding + boundary controls."
+      },
+      {
+       "label": "Analytics & Reports",
+       "mergesFrom": [
+        "Reports"
+       ],
+       "keptFeatures": [
+        "4 KPI StatCards (avg confidence, total area km\u00b2, false-alarm rate, model F1)",
+        "Detection trend line chart (60 days, detections + confirmed)",
+        "Classification-mix donut and regional stacked bar chart",
+        "Region statistics table (detections/hotspots/high-severity per region)",
+        "Active-model summary card + live MARIDA/MADOS held-out evaluation",
+        "Exports: Detections CSV, Hotspots CSV, GeoJSON, full JSON snapshot, server situation-report PDF",
+        "Printable situation report with model-version badge and priority-hotspots list"
+       ],
+       "newInteractiveFeatures": [
+        "Date-range brush on the trend chart that re-filters every tile and table on the page",
+        "Compare-two-periods overlay (e.g. this month vs last) across all charts",
+        "Drag-to-build report canvas \u2014 arrange chart blocks + tables into a layout, then export the composed situation report as PDF",
+        "Scheduled-report setup \u2014 pick cadence and recipients to auto-generate the situation PDF"
+       ],
+       "rationale": "Reports surfaces zero new data \u2014 it only exports the exact aggregates Analytics already computes (useOverview/useByRegion/useDetections/useHotspots). Folding export/print into Analytics gives one 'analyze it, then ship it' insights page and closes the Investigate \u2192 communicate step, while the date-range brush and report-builder add genuine interactivity."
+      }
+     ]
+    },
+    {
+     "title": "Act",
+     "items": [
+      {
+       "label": "Pipeline",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Region selector + 'Run pipeline' button that executes a full run and renders results",
+        "SSE LiveScanProgress stepper with real per-stage durations and a live result strip",
+        "Six animated StageCards (ingest \u2192 FDI \u2192 classify \u2192 DBSCAN \u2192 Clay \u2192 drift \u2192 alerts)",
+        "ModelCard (test accuracy, macro-F1, per-class recall, MARIDA/MADOS provenance)",
+        "ScenesPanel of recent Sentinel-2 imagery with source badges",
+        "Run stat tiles, 'hotspots produced this run' list, 72h Lagrangian drift summary, engine/CNN status badges"
+       ],
+       "newInteractiveFeatures": [
+        "Pre-run knobs panel \u2014 drag sliders for FDI threshold, DBSCAN eps/min-samples, and windage before launching to see how params change output",
+        "Run replay/scrubber \u2014 scrub back through a completed run's stages and inspect each stage's intermediate output",
+        "Side-by-side run compare (two regions or two parameter sets) with diffed stats",
+        "'Promote run' action \u2014 one click turns a run's hotspots into alerts or a field dispatch"
+       ],
+       "rationale": "The only page that actually executes and observes a run as timed SSE stages. Kept in Act as the deliberate 'run it deep on one region' tool (distinct from Command Center's fleet-wide one-click trigger). Pre-run param knobs + replay turn it from a plain trigger into a real experimentation surface."
+      },
+      {
+       "label": "Field Ops",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "4 impact StatCards (active now, total operations, plastic collected kg, area cleared km\u00b2)",
+        "Status filter chips with live per-status counts",
+        "Grid of OperationCards with role-gated actions and advance-status workflow + toasts",
+        "New-operation creation modal (FIELD-gated) and file-mission-report modal",
+        "Per-operation PDF export and contextual empty states"
+       ],
+       "newInteractiveFeatures": [
+        "Dispatch kanban \u2014 drag operations across lifecycle columns (Dispatched \u2192 In Progress \u2192 Complete) to advance status",
+        "Map-based dispatch \u2014 drag a crew marker onto a hotspot to create an operation pre-filled with its target",
+        "Animated impact counters with a cumulative 'plastic collected' progress toward a season goal",
+        "In-page mission-report builder with live PDF preview (no modal round-trip)"
+       ],
+       "rationale": "The only write-heavy field-response lifecycle surface \u2014 the terminal Act step where detection/hotspot intelligence becomes a logged real-world response. The drag-dispatch board and map-based dispatch make the lifecycle tactile and clearly distinct from every read-oriented page."
+      }
+     ]
+    },
+    {
+     "title": "System",
+     "items": [
+      {
+       "label": "Settings",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Profile card (display name, username, email, role badge, clearance level)",
+        "Sign out",
+        "Two-factor status badge and setup flow (QR + manual secret + 6-digit verification)",
+        "Disable 2FA, and post-signup welcome banner that auto-opens 2FA setup"
+       ],
+       "newInteractiveFeatures": [
+        "Live 2FA enrollment tester \u2014 verify an authenticator code works before enabling",
+        "Personal notification preferences \u2014 toggle which alert types/severities push to you (feeds the Alerts routing rules)",
+        "Theme + default-landing-page picker (choose which view Command Center opens to per role)",
+        "Active-session list with per-device sign-out"
+       ],
+       "rationale": "The sole self-service account/security home; scope unchanged as a hard constraint. New notification preferences wire the individual user into the Alerts routing system, connecting System back to Monitor."
+      },
+      {
+       "label": "Admin",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "ADMIN-role gate with 403 fallback for non-admins",
+        "Users & roles table (displayName, username, email, RoleBadge, level, 2FA/TOTP status)",
+        "Monitored-regions list (code, displayName, center lat/lon, zoom)",
+        "System config cards: Services (engine/queue/classifier), Satellite (provider/mode/latest scene), Scheduler (endpoint, cadence, token guard)"
+       ],
+       "newInteractiveFeatures": [
+        "Inline role/clearance editor with a drag-to-change permission matrix and instant apply",
+        "Map-based region manager \u2014 draw/drag a new monitored region's box + centroid on a mini-map",
+        "Live service-health panel with a manual 'restart / re-poll' action and an editable scheduler cadence",
+        "Audit-log stream of admin actions (who changed what, when)"
+       ],
+       "rationale": "The only RBAC user-admin and region-registry surface; stays admin-only as a hard constraint. The map region editor and role matrix convert read-only config into direct management, and absorb the scattered service/satellite/scheduler status that other pages duplicated."
+      }
+     ]
+    }
+   ],
+   "removed": [
+    {
+     "page": "Dashboard",
+     "reason": "The app's only merge-candidate: a pure aggregator whose every widget is a condensed mirror of a dedicated page; its sole original content was the role-aware welcome and quick-action links.",
+     "whereItGoes": "Command Center (Monitor) \u2014 role routing, KPIs, and status rail preserved there."
+    },
+    {
+     "page": "Live Ops",
+     "reason": "Its at-a-glance health tiles and read-only alert/hotspot/verification mirrors overlapped Dashboard; it is the live half of the same operator home.",
+     "whereItGoes": "Command Center (Monitor) \u2014 its unique WebSocket event feed and 'Run all regions' fleet trigger become the live backbone of that page."
+    },
+    {
+     "page": "Active Learning",
+     "reason": "A PENDING-filtered slice of the same useDetections list using the identical label mutation and CSV export \u2014 no unique data of its own.",
+     "whereItGoes": "Detections & Review (Investigate) \u2014 as the review-queue mode plus the retrain-readiness gauge."
+    },
+    {
+     "page": "Model Health",
+     "reason": "Its fusion-tier calibration and CONFIRMED/POSSIBLE justification are two halves of the same 'trust the model' story as the similarity/embedding page.",
+     "whereItGoes": "Model Intelligence (Investigate) \u2014 confusion matrix, per-class metrics, live eval, and operating-regime card all retained."
+    },
+    {
+     "page": "Similarity & Fusion",
+     "reason": "The Clay embedding/neighbour/fusion explorer is the embedding-side complement to Model Health's classifier diagnostics; they share the fusion-tier concept.",
+     "whereItGoes": "Model Intelligence (Investigate) \u2014 embedding-space projection, neighbour retrieval, temporal change, and raw-embedding search retained."
+    },
+    {
+     "page": "Reports",
+     "reason": "Shows no new data \u2014 it only exports the exact aggregates Analytics already computes (useOverview/useByRegion/useDetections/useHotspots) and a printable version of them.",
+     "whereItGoes": "Analytics & Reports (Investigate) \u2014 CSV/GeoJSON/JSON/PDF export and the printable situation report become an export panel on the analytics page."
+    }
+   ],
+   "itemCountBefore": 15,
+   "itemCountAfter": 11,
+   "biggestWins": [
+    "Two dashboards become one: Dashboard (a pure mirror, the only merge-candidate) and Live Ops fuse into a single role-aware Command Center \u2014 the journey's start point \u2014 eliminating the app's most redundant page while keeping the unique WebSocket live feed and fleet-run trigger.",
+    "Detections absorbs Active Learning into one 'browse + judge' workbench instead of a full table plus a near-duplicate PENDING slice, gaining a keyboard rapid-review mode and a live retrain-readiness gauge.",
+    "Two model pages become 'Model Intelligence': Model Health and Similarity & Fusion share the fusion-tier story, so they unite into one AI-diagnostics surface with an interactive embedding map, clickable confusion matrix, and a draggable decision-boundary.",
+    "Reports folds into Analytics: because Reports only re-exported Analytics' own numbers, they become one 'analyze then ship' page with a date-range brush and a drag-to-build report canvas.",
+    "Sidebar drops from 15 to 11 items and is re-grouped by operator task (Monitor \u2192 Investigate \u2192 Act, plus System) instead of by data type, so navigation follows how a duty officer actually works.",
+    "Map Explorer stays the untouched gold standard, and every consolidated page gains concrete draw/drag/simulate/act features (kanban dispatch, boundary sliders, param knobs, report canvas) so no two pages feel same-y."
+   ]
+  },
+  {
+   "philosophy": "One home that shows what's happening and lets you act, one map to investigate, one records workspace, one analysis surface, one model lab, plus the two irreducible action surfaces (run the pipeline, dispatch a crew). Anything that was a read-only mirror of another page's data becomes a tab inside the page that genuinely owns that data \u2014 so every top-level item is a distinct modality, not a different view of the same numbers.",
+   "navSections": [
+    {
+     "title": "Monitor",
+     "items": [
+      {
+       "label": "Command Center",
+       "mergesFrom": [
+        "Dashboard",
+        "Live Ops (OpsBoard)",
+        "Alerts"
+       ],
+       "keptFeatures": [
+        "Role-aware welcome header with role-specific quick-action deep links (from Dashboard)",
+        "4 live health tiles: Python engine, BullMQ queue, satellite source (live/demo), open-alert count",
+        "Live WebSocket event feed with connection-state indicator and polling fallback",
+        "'Run all regions' scheduled-run trigger (queued or direct mode)",
+        "Open-alerts list with inline acknowledge (useAckAlert) and severity/status filtering",
+        "Priority hotspots sorted by coast ETA (soonest landfall first)",
+        "Headline KPI stat cards and a recent-detections strip"
+       ],
+       "newInteractiveFeatures": [
+        "Live 'watch floor' event ticker with pause/resume and live severity-chip filtering you toggle mid-stream",
+        "Single pulsing 'situation level' gauge that fuses open alerts + imminent-landfall hotspots into one live threat score; click to see its contributors",
+        "Drag-to-reorder and show/hide status/KPI tiles into a per-user saved board layout",
+        "Swipe/drag an alert card to acknowledge or escalate, with an undo toast",
+        "'Run all regions' fires an inline progress ring that fills per-region in real time, then deep-links to Pipeline for the full stage view",
+        "Click any health tile to expand a last-hour latency/uptime sparkline"
+       ],
+       "rationale": "The old Dashboard was a launcher built entirely from condensed mirrors of six other pages, and Live Ops was the real duty-officer console; fused, they become the single role-aware home where an operator sees live system state and acts. Alerts triage lives here because this is exactly where you watch and clear \u2014 Live Ops already duplicated the ack list, so folding the inbox in removes a redundant page instead of a capability."
+      },
+      {
+       "label": "Map Explorer",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Draw/pick an AOI and run the full FDI-CNN-DBSCAN-drift pipeline live for that exact box",
+        "Live 30s auto-rescan with countdown, manual rescan/clear, animated scan-line",
+        "6-stage live processing timeline with per-stage durations",
+        "Class-filtered confidence-scaled detection markers and severity hotspot markers with MLP+Clay fusion affinity",
+        "Drift trajectories with uncertainty cones, on-demand 72h forecast + backtrack",
+        "Debris-intensity heatmap, real Sentinel-2 scene overlay, SCL surface-honesty readout",
+        "Advanced tools (min-confidence slider, dedupe/biofouling, change-vs-6mo, GeoTIFF/GeoJSON export) and per-hotspot SimilarSitesDrawer"
+       ],
+       "newInteractiveFeatures": [
+        "Time-slider to scrub the AOI across recent scene dates and watch detections/hotspots animate through time",
+        "Swipe-compare curtain between two scene dates (before/after) over the same AOI",
+        "Save named AOIs and re-run any of them with one click (persist your monitoring boxes)"
+       ],
+       "rationale": "Untouchable gold standard and the app's only interactive analysis surface \u2014 kept fully intact and standalone per the hard constraint. Nothing merges in or out; the additions are optional polish in its own draw-and-scan idiom, so it stays the quality bar every other page is measured against."
+      },
+      {
+       "label": "Detections",
+       "mergesFrom": [
+        "Hotspots",
+        "Active Learning"
+       ],
+       "keptFeatures": [
+        "Sortable, multi-filter master table (region/status/class/min-confidence/0-90d time window) of all detections",
+        "'Why this detection?' explain drawer with FDI-vs-threshold bar and model held-out metrics",
+        "Inline confirm / false-alarm / reset labeling gated to COASTGUARD+, and labeled-set CSV export",
+        "Per-row deep link to the DetectionDetail (/detections/:id) drill-in",
+        "Severity-ranked hotspot cluster cards (detection count, confidence, coast ETA, centroid) with deep link to the HotspotDetail (/hotspots/:id) drill-in",
+        "Active-learning pending queue with 4 stat tiles and retrain-readiness progress bar"
+       ],
+       "newInteractiveFeatures": [
+        "Keyboard rapid-label mode in the Review Queue tab (J/K navigate, C/F confirm/false-alarm) to blaze through labeling like an email triage inbox",
+        "Shift-click bulk-select rows for batch confirm/reject/export (labeling at scale)",
+        "Drag-to-reorder columns and save named filter 'views' pinned to the tab bar",
+        "Clusters tab: interactive severity-vs-coast-ETA quadrant scatter where each hotspot is a point; brush-select the imminent/high-severity quadrant to filter the card list",
+        "Pin two detections into a side-by-side evidence compare",
+        "Live 'N new since you opened' pill that streams incoming detections in and merges on click"
+       ],
+       "rationale": "Detections (raw rows), Hotspots (their DBSCAN clusters), and Active Learning (a PENDING-only slice that reuses the exact same inline labeling controls) are one dataset at three granularities. Collapsing them into a single records workspace with Detections / Clusters / Review-Queue tabs kills two nav items with zero capability loss; both DetectionDetail and HotspotDetail drill-ins stay reachable from their respective tabs."
+      }
+     ]
+    },
+    {
+     "title": "Operate",
+     "items": [
+      {
+       "label": "Pipeline",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Region selector + 'Run pipeline' that executes the full end-to-end run and renders its results",
+        "SSE-streamed live stage stepper with real per-stage durations and a live result strip",
+        "Six animated stage cards (ingest / FDI / classify / DBSCAN / Clay / drift-alert)",
+        "Recent Sentinel-2 scenes panel with tile/platform/date/cloud-cover and STAC/mock source badges",
+        "Run stat tiles, 'hotspots produced this run' list, and 72h drift summary with real-vs-synthetic forcing badge",
+        "Engine online/offline and CNN trained/heuristic status badges"
+       ],
+       "newInteractiveFeatures": [
+        "Multi-region run queue rendered as CI-style swimlanes \u2014 several regions processing at once, each a live lane with its own stage progress",
+        "Stage inspector: click a completed stage to expand its artifact (FDI mask thumbnail, DBSCAN cluster preview) so the stepper becomes a drill-in",
+        "Pre-run parameter panel (min-confidence, dedupe, biofouling) so a run is configurable, not one-button",
+        "Abort a running scan mid-flight",
+        "'Replay' a past run's stage timeline as an animation"
+       ],
+       "rationale": "The only surface that actually executes and observes a run stage-by-stage \u2014 genuinely distinct from Command Center's fire-and-forget 'Run all'. Kept standalone; the borrowed classifier model card slims to a link into Intelligence so this page stays about the run, not the model."
+      },
+      {
+       "label": "Field Ops",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "4 impact stat cards: active now, total operations, plastic collected (kg), area cleared (km2)",
+        "Status filter chips with live per-status counts",
+        "Operation cards with role-gated advance-status workflow and toast feedback",
+        "New-operation creation modal (FIELD-clearance gated) and file-mission-report modal",
+        "Per-operation PDF export"
+       ],
+       "newInteractiveFeatures": [
+        "Kanban board: drag operation cards across status columns (Dispatched -> In Progress -> Complete) to advance them (drag = act)",
+        "Quick-dispatch from a hotspot: one tap pre-fills the create form from a selected cluster",
+        "Mini-map in the dispatch flow showing crew origin, hotspot target, and coastline ETA",
+        "Live crew status that updates as field teams report in",
+        "Animated impact meter (plastic collected / area cleared) that ticks up as operations close"
+       ],
+       "rationale": "The only write-heavy, real-world task-lifecycle surface in the app \u2014 creating dispatches, advancing crew status, filing/exporting mission reports. It has no merge target, and re-skinning it as a Kanban board makes it unmistakably different from every other list-shaped page."
+      }
+     ]
+    },
+    {
+     "title": "Analyze",
+     "items": [
+      {
+       "label": "Analytics",
+       "mergesFrom": [
+        "Reports"
+       ],
+       "keptFeatures": [
+        "Detection-trend time series (detections vs confirmed) over the selected window",
+        "Classification-mix donut and per-region stacked bar + region statistics table",
+        "Detection-focused KPI cards (avg confidence, total area km2, false-alarm rate)",
+        "Reports exports: Detections CSV, Hotspots CSV, GeoJSON FeatureCollection, full JSON snapshot, server situation-report PDF",
+        "Printable situation-report card with model-version badge and priority-hotspots summary"
+       ],
+       "newInteractiveFeatures": [
+        "Draggable date-range brush on the trend chart that live cross-filters every donut, bar, and table below it",
+        "Click a donut slice or region bar to facet-filter the whole analytics surface",
+        "'Build a report' canvas: drag chart/table blocks in, reorder, then export that exact layout to PDF (merges Reports' export into what you're looking at)",
+        "Period-vs-period compare: pick two windows and overlay a diff",
+        "Play button that animates the trend accreting day-by-day"
+       ],
+       "rationale": "Analytics owns the temporal and regional aggregations; Reports just re-displayed those same numbers so you could download them. Folding export in as a drag-to-build report canvas means you export exactly what you analyzed, and the model card + live ONNX eval that Analytics awkwardly borrowed move out to Intelligence where they belong."
+      },
+      {
+       "label": "Intelligence",
+       "mergesFrom": [
+        "Model Health"
+       ],
+       "keptFeatures": [
+        "Clay index status, embedded-site picker, and per-site fusion tier + retrieval class + novelty flag",
+        "Temporal-change card, nearest-neighbour similarity bars, by-class fingerprint explorer, raw 1024-d embedding search",
+        "Confusion matrix with MARIDA/MADOS dataset selector and on-demand Evaluate",
+        "Per-class precision/recall bars and 4 model stat tiles (arch, accuracy, macro-F1, dataset)",
+        "Operating-regime / PLP independent-validation honesty card and engine capabilities card"
+       ],
+       "newInteractiveFeatures": [
+        "Pan/zoom 2D embedding map (UMAP-style scatter) with hover-preview and lasso-select to read the class mix of any region of fingerprint space",
+        "Drag two sites into a compare tray for a head-to-head similarity + fusion-agreement readout",
+        "Fusion-threshold what-if slider: drag the CONFIRMED/POSSIBLE decision boundary and watch how many current hotspots flip tiers live (simulate)",
+        "Interactive confusion matrix: click a cell to pull up the misclassified example detections behind it",
+        "Live re-evaluate: pick a dataset, run, and watch the matrix animate to the new numbers"
+       ],
+       "rationale": "Similarity & Fusion and Model Health are two views of one subject \u2014 how the model thinks (embedding/fusion) and how well it performs (diagnostics). Uniting them into a single model lab ends the model-card duplication that leaked into Analytics, Pipeline, and Live Ops, and gives the ML analyst one specialist home instead of two overlapping ones."
+      }
+     ]
+    },
+    {
+     "title": "System",
+     "items": [
+      {
+       "label": "Settings",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Profile card (display name, username, email, role badge, clearance level)",
+        "Sign-out",
+        "2FA status badge with QR + manual-secret setup, 6-digit verification, and disable flow",
+        "Post-signup welcome banner that auto-opens 2FA setup"
+       ],
+       "newInteractiveFeatures": [
+        "Active-session / device list with one-click revoke",
+        "Live-preview theme/density toggle for the app shell",
+        "In-page 2FA test challenge to confirm your authenticator before enabling"
+       ],
+       "rationale": "Sole home for self-service account and security functions; kept standalone and minimal per the hard constraint, with nothing merged in."
+      },
+      {
+       "label": "Admin",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "ADMIN-role gate with 403 fallback for non-admins",
+        "Users & roles table (name, username, email, role badge, level, 2FA/TOTP status)",
+        "Monitored-regions registry (code, name, center lat/lon, zoom)",
+        "System config cards: Services, Satellite, Scheduler (endpoint/cadence/token guard)"
+       ],
+       "newInteractiveFeatures": [
+        "Inline role editing \u2014 drag a user onto a role or edit clearance in place, with confirm",
+        "Register a region by drawing its box on a small map (borrows Map Explorer's idiom, admin-scoped)",
+        "Live audit-log feed of admin actions",
+        "Preview-as-role: impersonate COASTGUARD/FIELD to see the app as they do"
+       ],
+       "rationale": "The only RBAC user/role-admin and region-registry surface; admin-only and always reachable, but gated and outside the standard 8-item count \u2014 exactly its status before consolidation. The three status cards it duplicated are now clearly owned by Command Center and Intelligence."
+      }
+     ]
+    }
+   ],
+   "removed": [
+    {
+     "page": "Dashboard",
+     "reason": "Pure aggregator/launcher \u2014 its only genuinely original element was the role-aware header and quick-action shortcuts; every data widget was a condensed mirror of a dedicated page.",
+     "whereItGoes": "Command Center: the role-aware welcome header, quick actions, and KPI overview become Command's top strip."
+    },
+    {
+     "page": "Live Ops (OpsBoard)",
+     "reason": "Renamed and expanded rather than deleted \u2014 its live WebSocket feed, health tiles, and 'Run all regions' trigger were the genuinely unique operator content; the rest was a read-only mirror.",
+     "whereItGoes": "Command Center (its backbone) \u2014 becomes the app's live home floor."
+    },
+    {
+     "page": "Alerts",
+     "reason": "A standalone ack/triage inbox that Live Ops already duplicated; triage belongs where operators actually watch, not in its own nav item.",
+     "whereItGoes": "Command Center -> 'Inbox' panel with the full status/severity filters and inline acknowledge lifecycle intact."
+    },
+    {
+     "page": "Hotspots",
+     "reason": "The same detection data as Detections, aggregated into DBSCAN clusters \u2014 overlapping subject matter at a different granularity, not a separate destination.",
+     "whereItGoes": "Detections -> 'Clusters' tab (severity-ranked cards + new quadrant scatter); the HotspotDetail /hotspots/:id drill-in stays reachable from it."
+    },
+    {
+     "page": "Active Learning",
+     "reason": "Essentially a PENDING-only filtered slice of the Detections list that reuses the exact same inline confirm/false-alarm controls and CSV export.",
+     "whereItGoes": "Detections -> 'Review Queue' tab, carrying the retrain-readiness progress bar and stat tiles plus a new keyboard rapid-label mode."
+    },
+    {
+     "page": "Reports",
+     "reason": "Every number it exported is already shown by Analytics; its only unique job is producing downloadable files and a printable situation report.",
+     "whereItGoes": "Analytics -> 'Export & Report' tab, upgraded into a drag-to-build report canvas so you export exactly what you're analyzing."
+    },
+    {
+     "page": "Model Health",
+     "reason": "Model diagnostics that share the 'how is the model doing' remit with Similarity & Fusion, and whose model card was already duplicated into Analytics, Pipeline, and Live Ops.",
+     "whereItGoes": "Intelligence -> 'Report Card' tab (confusion matrix, per-class metrics, live eval, PLP validation, engine capabilities) beside the embedding/fusion explorer."
+    }
+   ],
+   "itemCountBefore": 14,
+   "itemCountAfter": 8,
+   "biggestWins": [
+    "14 -> 8 top-level items (-43%): every survivor is a distinct modality \u2014 live console, map, records table, BI charts, model lab, run-observability, crew workflow \u2014 with Admin remaining an admin-only gated route as before.",
+    "Killed the Dashboard mirror entirely: its widgets were condensed copies of six other pages, so only its role-aware launcher survives, now inside the live Command Center.",
+    "Collapsed the three 'detected-things' lists (Detections rows, Hotspot clusters, Active-Learning queue) into ONE records workspace with tabs \u2014 same data, three granularities, two fewer nav items, zero capability lost.",
+    "Moved Alerts triage to where triage actually happens (Command Center inbox) instead of a separate page that merely duplicated Live Ops' acknowledge list.",
+    "Ended model-card duplication scattered across Analytics/Pipeline/Live Ops by uniting Similarity & Fusion + Model Health into a single Intelligence model lab.",
+    "Folded Reports into Analytics as a drag-to-build report canvas, so exports come from the exact charts you're viewing rather than a page that re-listed the same numbers.",
+    "Gave every consolidated page a signature NEW interaction so none feels same-y: Kanban drag on Field Ops, lasso on the embedding map, a fusion-threshold what-if slider, keyboard rapid-labeling, CI-style pipeline swimlanes, and a customizable drag-to-arrange Command board \u2014 while Map Explorer is preserved untouched as the gold standard."
+   ]
+  },
+  {
+   "philosophy": "Collapse the redundant monitoring aggregators into one live command center, fold every export/rollup into the page that already computes its numbers, and reinvest the saved space in a coherent, interactive Intelligence section that puts the model, its embedding space, the human-in-the-loop, and the live pipeline front and center. Map Explorer stays the untouched interactive hero, and every surviving page gets a distinct interaction verb (draw, scrub, toggle, swipe, tune-threshold, kanban-drag, date-brush, step-through) so no two pages ever feel same-y.",
+   "navSections": [
+    {
+     "title": "Monitor",
+     "items": [
+      {
+       "label": "Live Ops",
+       "mergesFrom": [
+        "Dashboard",
+        "Alerts"
+       ],
+       "keptFeatures": [
+        "4 live health tiles: Python engine, BullMQ queue, satellite source (live/demo), open-alert count",
+        "'Run all regions' trigger (api.scheduledRun, queued or direct)",
+        "Live WebSocket event feed with connection-state indicator + polling fallback",
+        "Priority hotspots list sorted by ETA-to-coast (soonest landfall first)",
+        "Awaiting-verification PENDING queue peek + recent pipeline activity log",
+        "Full alerts inbox from Alerts: severity + status filters with per-row animated acknowledge",
+        "Role-aware welcome header and role-specific quick-action deep links (from Dashboard)",
+        "Headline KPI StatCards: total detections, confirmed plastic, active hotspots, regions monitored"
+       ],
+       "newInteractiveFeatures": [
+        "Draggable triage board: pin/reorder open alerts and priority hotspots into an 'incident' lane with live countdown-to-landfall timers",
+        "One-click 'Acknowledge to Dispatch' combo that turns an alert into a Field Ops draft without leaving the console",
+        "Desktop/sound notification toggle that fires on new high-severity WebSocket events, with a 'since you were away' digest",
+        "Clickable live-regions strip that solo-filters the event feed and priority board to a single region"
+       ],
+       "rationale": "Dashboard was a flagged merge-candidate whose every widget mirrored a dedicated page, and Alerts' only unique asset (the ack lifecycle) was already partially duplicated here. Folding both into the real-time WebSocket console produces one lean 'duty officer' command center instead of three overlapping monitoring surfaces."
+      },
+      {
+       "label": "Map Explorer",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Draw-to-scan AOI selector running the full FDI to CNN to DBSCAN to drift pipeline live for the drawn box",
+        "Live 30s auto-rescan + animated 6-stage processing timeline with per-stage durations",
+        "Per-class detection markers and severity hotspot markers with MLP+Clay fusion affinity in popups",
+        "Drift trajectories with uncertainty cones + on-demand 72h forecast and change-vs-6-months",
+        "Debris-intensity heatmap, real Sentinel-2 scene overlay, and SCL surface-honesty readout",
+        "GeoTIFF and QGIS-ready GeoJSON export; SimilarSitesDrawer per-hotspot Clay retrieval",
+        "Map markers remain the spatial entry point into the DetectionDetail and HotspotDetail drill-ins"
+       ],
+       "newInteractiveFeatures": [
+        "Temporal scrubber: drag a scene-date slider to replay the same AOI across successive Sentinel-2 passes and watch debris drift and change animate",
+        "Dual-AOI compare: draw two boxes and get side-by-side metrics with change deltas",
+        "What-if drift simulator with wind/current/windage sliders that re-run the 72h forecast live to test scenarios",
+        "Pin-and-annotate: drop labeled pins on the map and export them with the AOI as a shareable briefing packet"
+       ],
+       "rationale": "Untouched gold standard and hard-constraint keeper. The new temporal-scrub and scenario-simulation interactions deepen its lead as the only draw-and-analyze surface without diluting what already makes it beloved."
+      },
+      {
+       "label": "Detections & Hotspots",
+       "mergesFrom": [
+        "Hotspots"
+       ],
+       "keptFeatures": [
+        "Canonical sortable, multi-filter detections table: region, class, confidence bar, FDI, area, status, date",
+        "Filter bar with min-confidence and a 0-90 day time-window range slider",
+        "'Why this detection?' explainability drawer: FDI vs threshold, classifier explanation, honest caveats, held-out accuracy/recall",
+        "Inline role-gated confirm / false-alarm labeling + 'Export labeled set' CSV",
+        "Severity-ranked hotspot cards with detection count, confidence, coast ETA, and centroid coords (from Hotspots)",
+        "Severity filter toggle (All/High/Medium/Low)",
+        "Deep links preserved to /detections/:id and /hotspots/:id detail views"
+       ],
+       "newInteractiveFeatures": [
+        "Granularity toggle: one control zooms the same result set between 'Raw detections' (table) and 'Clustered hotspots' (cards) so users inspect individual pixels or their DBSCAN aggregation without changing pages",
+        "Brush/multi-select rows to bulk-confirm or bulk-reject a batch in a single action, feeding active learning",
+        "Hover a row or card to preview its location on a mini-map thumbnail and highlight its cluster membership",
+        "Saveable filter presets plus a shareable filtered-view URL"
+       ],
+       "rationale": "Detections and Hotspots were two filterable grids over the same model outputs at different granularities (raw pixels vs DBSCAN clusters). A single catalog with a raw-to-clustered toggle removes the redundant second grid while keeping both drill-in detail routes reachable."
+      }
+     ]
+    },
+    {
+     "title": "Intelligence",
+     "items": [
+      {
+       "label": "AI Lab",
+       "mergesFrom": [
+        "Model Health",
+        "Similarity & Fusion"
+       ],
+       "keptFeatures": [
+        "Model report-card stat tiles: classifier arch, held-out accuracy, macro-F1, training dataset/class count",
+        "Per-class precision/recall bars and the live confusion matrix with MARIDA/MADOS selector + Evaluate action",
+        "Operating-regime honesty panel: CONFIRMED-tier calibration and PLP independent deployed-target validation",
+        "Engine capabilities card: spectral indices, feature list, config chips, engine version",
+        "Clay index-status panel + embedded-sites picker (region, coords, observation count)",
+        "Per-site MLP+Clay fusion tier, retrieval class, novelty/anomaly flag, and temporal change/drift card",
+        "Nearest-reference-site neighbour list with similarity bars, by-class fingerprint explorer, and raw 1024-d embedding paste-search"
+       ],
+       "newInteractiveFeatures": [
+        "Interactive 2D embedding map (UMAP/t-SNE projection of Clay space): pan/zoom, click any point to retrieve its neighbours and reveal its fusion tier \u2014 the visual centerpiece for examiners",
+        "Draggable fusion decision-boundary slider: move the MLP+Clay agreement threshold and watch CONFIRMED/POSSIBLE precision-recall trade-offs recompute live",
+        "Click a confusion-matrix cell to pull up the actual misclassified detections behind that error",
+        "'Fusion referee' widget: pick a site and step through the MLP vote vs Clay vote resolving into the final tier"
+       ],
+       "rationale": "Model Health (classifier diagnostics) and Similarity & Fusion (embedding space) both answer 'how good is, and what does, the AI think', and both revolve around the MLP+Clay fusion that labels the entire app. Unifying them into one tabbed AI Lab (Classifier / Embeddings / Fusion) creates the flagship ML showcase and de-duplicates the fusion explanation that currently appears on both."
+      },
+      {
+       "label": "Active Learning",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Pending-queue stat tiles: pending count, confirmed plastic, false alarms",
+        "Retrain-readiness progress bar (totalLabelled / 50)",
+        "Region and classification filters over the PENDING queue",
+        "Review rows with class badge, coords, confidence bar, FDI score",
+        "Role-gated Confirm / False-alarm buttons with a read-only banner for lower clearance",
+        "Export labelled set (CONFIRMED + FALSE_ALARM) to CSV"
+       ],
+       "newInteractiveFeatures": [
+        "Swipe/keyboard rapid-label arena: one card at a time with hotkeys (left = false alarm, right = confirm, up = skip) for high-throughput labeling",
+        "Uncertainty-sampling queue order: the model surfaces its least-confident detections first, each with a 'why I'm unsure' chip",
+        "Live retrain-readiness ring that fills and celebrates as you cross the threshold, with a session streak counter",
+        "'Simulate retrain' preview that projects expected F1/recall gain from the freshly labelled set before you export"
+       ],
+       "rationale": "The only page that WRITES ground-truth labels, so it stays standalone. Re-imagined as a focused, gamified human-in-the-loop arena with uncertainty sampling and a simulated-gain preview so it feels nothing like the read-only Detections catalog it used to be a filtered slice of."
+      },
+      {
+       "label": "Pipeline",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Region selector + 'Run pipeline' trigger executing the full end-to-end run",
+        "LiveScanProgress SSE stage-by-stage stepper with real per-stage durations",
+        "Six animated StageCards: ingest, FDI, MLP classify, DBSCAN, Clay, drift, alert",
+        "Run stat tiles (candidate pixels, plastic detections, hotspots, avg confidence)",
+        "'Hotspots produced this run' list + 72h Lagrangian drift summary with real-vs-synthetic forcing badge",
+        "Recent Sentinel-2 scenes panel with STAC/mock source badges and engine/CNN status badges"
+       ],
+       "newInteractiveFeatures": [
+        "Pre-run parameter tray: set min-confidence, dedupe, biofouling filter and region set BEFORE launch so each run is a configurable experiment",
+        "Step / pause / replay controls on the live stage runner \u2014 walk the pipeline one stage at a time to inspect intermediate outputs",
+        "A/B run comparison: run two configs and diff their detections, hotspots, and stage durations side by side",
+        "Stage-drill: click any stage card to expand the actual data it emitted (candidate mask, class votes, cluster members)"
+       ],
+       "rationale": "Kept as the end-to-end ML-architecture showcase (FDI to CNN to DBSCAN to Clay to drift), but its interaction signature is deliberately process-oriented (configure/step/compare) rather than spatial, so it never reads as a duplicate of Map Explorer. The borrowed ModelCard moves to AI Lab and the system-wide 'run all' trigger lives on Live Ops."
+      }
+     ]
+    },
+    {
+     "title": "Operate",
+     "items": [
+      {
+       "label": "Field Ops",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Summary StatCards: active now, total operations, plastic collected (kg), area cleared (km2)",
+        "Status filter chips with live per-status counts",
+        "Operation cards with role-gated advance-status workflow (DISPATCHED / IN_PROGRESS / ...)",
+        "New-operation creation modal + file-mission-report modal (clearance gated)",
+        "Per-operation PDF export"
+       ],
+       "newInteractiveFeatures": [
+        "Kanban board: drag operation cards across lifecycle lanes to advance their status with toast feedback",
+        "Map-based dispatch: spin up an op straight from a hotspot pin and auto-suggest the nearest available crew",
+        "Live mission timeline with animated impact counters (kg collected / km2 cleared ticking up)",
+        "Crew workload heat-strip showing who is assigned to what right now"
+       ],
+       "rationale": "The only write-heavy field-response lifecycle in the app, turning detections/hotspots into logged real-world action. Kept standalone with a kanban drag interaction that no other page uses, plus direct hotspot-to-dispatch linkage that keeps HotspotDetail's dispatch path intact."
+      },
+      {
+       "label": "Analytics & Reports",
+       "mergesFrom": [
+        "Reports",
+        "Dashboard"
+       ],
+       "keptFeatures": [
+        "Detection trend line chart (last 60 days: detections + confirmed) \u2014 absorbs Dashboard's 30-day trend tile",
+        "Classification-mix donut and regional stacked-bar breakdown + per-region stats table",
+        "Summary KPI StatCards: avg confidence, total area, false-alarm rate, model F1",
+        "Export cards from Reports: Detections CSV, Hotspots CSV, GeoJSON FeatureCollection, JSON snapshot, server situation-report PDF",
+        "Printable situation-report card with model-version badge + print / save-as-PDF",
+        "Priority-hotspots top-6 list with severity, coords, ETA"
+       ],
+       "newInteractiveFeatures": [
+        "Date-range brush on the trend chart: drag to zoom any window and every other chart plus the export re-scope to that period",
+        "Cross-filter: click a region bar or a class slice and the whole page and the report snapshot filter to it",
+        "Drag-and-drop report builder: choose which cards/charts go into the exported PDF, reorder them, then generate",
+        "Compare-two-periods overlay (this month vs last) with delta callouts"
+       ],
+       "rationale": "Analytics owns the temporal/regional aggregate charts; Reports only re-displayed those same numbers plus export buttons, and Dashboard's charts were condensed mirrors of the same aggregations. Merging all three yields one 'analyze, filter, export' surface where the report is literally the analysis on screen."
+      }
+     ]
+    },
+    {
+     "title": "System",
+     "items": [
+      {
+       "label": "Settings",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "Profile card: display name, username, email, role badge, clearance level",
+        "Sign out",
+        "Two-factor status badge + QR/manual-secret setup, 6-digit verification, and disable flow",
+        "Post-signup welcome banner that auto-opens 2FA setup"
+       ],
+       "newInteractiveFeatures": [
+        "Active-session manager: view logged-in devices/sessions and revoke any of them with one click",
+        "Personal preferences: theme, default landing region, and notification-channel toggles wired to Live Ops alerts",
+        "In-page 2FA 'test challenge' to verify the authenticator works before relying on it"
+       ],
+       "rationale": "Required standalone home for the current user's own account and security. Adds lightweight self-service (session revocation, preferences) so it is interactive without straying into Admin's org-level scope."
+      },
+      {
+       "label": "Admin",
+       "mergesFrom": [],
+       "keptFeatures": [
+        "ADMIN role gate with 403 fallback for non-admins",
+        "Users & roles table: display name, username, email, role badge, level, 2FA/TOTP status",
+        "Monitored-regions registry: code, display name, center lat/lon, zoom level",
+        "System config cards: Services (engine/queue/classifier), Satellite (provider/mode/latest scene), Scheduler (endpoint/cadence/token guard)"
+       ],
+       "newInteractiveFeatures": [
+        "Inline role/clearance editing directly in the users table with optimistic save and an audit trail",
+        "Map-pick region editor: drag a marker to set a monitored region's centroid/zoom instead of typing coordinates",
+        "Live service controls: restart-engine / flush-queue / force-rescan trigger buttons beside each health card (admin-gated)",
+        "Searchable audit log of who labeled, dispatched, and acknowledged what"
+       ],
+       "rationale": "Required, admin-only. The only RBAC user-management and region-registry surface; its previously read-only status cards gain real controls so it becomes a genuine management console rather than a mirror of Live Ops."
+      }
+     ]
+    }
+   ],
+   "removed": [
+    {
+     "page": "Dashboard",
+     "reason": "Explicit merge-candidate: a pure aggregator/launcher whose every data widget was a condensed mirror of a dedicated page; its only original element was the role-aware welcome + quick-action shortcuts.",
+     "whereItGoes": "Role launcher, KPI rail, and live health tiles fold into Live Ops; the detection-trend / by-class / by-region charts fold into Analytics & Reports."
+    },
+    {
+     "page": "Alerts",
+     "reason": "Its ack/triage lifecycle overlaps the live console, which already lists and acknowledges open alerts; a standalone inbox is not needed once ops is unified.",
+     "whereItGoes": "Becomes the full Alerts panel inside Live Ops, keeping severity + status filters and animated per-row acknowledge."
+    },
+    {
+     "page": "Hotspots",
+     "reason": "A filterable card grid over the same model outputs as Detections, just at cluster granularity rather than raw-detection granularity.",
+     "whereItGoes": "Becomes the 'Clustered' view of the Detections & Hotspots catalog (raw-to-clustered toggle); the HotspotDetail drill-in stays reachable from the cards and from Map Explorer markers."
+    },
+    {
+     "page": "Model Health",
+     "reason": "Classifier diagnostics revolve around the very MLP+Clay fusion that Similarity & Fusion explains from the embedding side; kept apart they duplicate the fusion/tier story.",
+     "whereItGoes": "AI Lab, 'Classifier' tab: report-card tiles, per-class bars, live confusion matrix, and the PLP/operating-regime validation panel."
+    },
+    {
+     "page": "Similarity & Fusion",
+     "reason": "The embedding-space half of the same 'how good is the AI' question, sharing the fusion calibration with Model Health.",
+     "whereItGoes": "AI Lab, 'Embeddings' and 'Fusion' tabs: Clay index status, embedded-site picker, neighbour retrieval, temporal change, raw-embedding search, and fusion threshold tuning."
+    },
+    {
+     "page": "Reports",
+     "reason": "Every number it displayed is shown elsewhere; its actual job was export buttons plus a printable rollup that duplicated Analytics' by-region table and Hotspots data.",
+     "whereItGoes": "Analytics & Reports: the CSV/GeoJSON/JSON/PDF export cards and printable situation report become a drag-and-drop report builder attached to the live charts."
+    }
+   ],
+   "itemCountBefore": 15,
+   "itemCountAfter": 10,
+   "biggestWins": [
+    "15 sidebar items to 10: the three overlapping monitoring pages (Dashboard, Live Ops, Alerts) collapse into one real-time command center, so operational monitoring is lean and single-surface.",
+    "A flagship AI Lab merges classifier diagnostics + Clay embedding explorer + fusion calibration into one tabbed ML showcase, de-duplicating the MLP+Clay fusion story that was previously spread across Model Health, Similarity & Fusion, and Map Explorer.",
+    "The Intelligence section (AI Lab, Active Learning, Pipeline) becomes a coherent, examiner-facing home for the ML differentiators: how good the model is, how humans improve it, and how it runs end-to-end.",
+    "Detections and Hotspots fuse into one catalog with a raw-to-clustered granularity toggle, and Reports dissolves into Analytics as a report builder, so no surviving page's only job is re-displaying numbers shown elsewhere; both DetectionDetail and HotspotDetail drill-ins remain reachable.",
+    "Every page earns a distinct interaction verb (draw/scrub, toggle/brush, tune-threshold, swipe-label, step-through, kanban-drag, date-brush, map-pick) so no two pages feel same-y, with Map Explorer preserved untouched as the interactive hero."
+   ]
+  }
+ ],
+ "final": {
+  "summary": "Go workflow-first for structure but intelligence-forward for the ML core: collapse the three monitoring mirrors (Dashboard + Live Ops + Alerts) into one live Command Center, fuse the two detection grids into one raw-to-clustered Records catalog, unify Model Health + Similarity into a tabbed AI Lab, and fold Reports (plus Dashboard's charts) into Analytics. This takes the sidebar from 14 to 10 items where every survivor is a distinct interaction modality, keeps Map Explorer untouched as the gold standard, preserves Active Learning as the standalone human-in-the-loop showcase, and keeps both detail routes reachable.",
+  "itemCountBefore": 14,
+  "itemCountAfter": 10,
+  "recommendedNav": [
+   {
+    "section": "Monitor",
+    "items": [
+     {
+      "label": "Command Center",
+      "absorbs": [
+       "Dashboard",
+       "Live Ops",
+       "Alerts"
+      ],
+      "whatItBecomes": "The single role-aware duty-officer home: live health tiles, WebSocket event feed, 'Run all regions' fleet trigger, priority-hotspots-by-ETA, a full alerts inbox with acknowledge lifecycle, and the KPI/quick-action launcher that was Dashboard's only original content.",
+      "newInteractive": [
+       "Single 'situation level' gauge fusing open HIGH alerts + imminent-landfall hotspots into one live threat score; click to expand its contributors",
+       "Draggable incident lane: pin/reorder alerts and priority hotspots with live countdown-to-landfall timers, layout persisted per user",
+       "Swipe an alert card to acknowledge/escalate with undo toast, plus one-click 'Acknowledge -> Dispatch' that opens a pre-filled Field Ops draft",
+       "'Run all regions' fires an inline per-region progress ring that fills as scans complete, then deep-links into Pipeline for the full stage view",
+       "'What needs me now' focus mode auto-surfacing only actionable items (unacked HIGH, soon-to-landfall, pending verification)"
+      ]
+     },
+     {
+      "label": "Map Explorer",
+      "absorbs": [],
+      "whatItBecomes": "Untouched gold standard: the only draw-an-AOI-and-run-the-full-pipeline-live surface, with the 6-stage timeline, drift cones, SCL honesty readout, heatmap, scene overlay, exports, and per-hotspot SimilarSitesDrawer all intact.",
+      "newInteractive": [
+       "Temporal scrubber: drag a scene-date slider to replay the AOI across successive Sentinel-2 passes and watch detections/drift/change animate",
+       "Dual-AOI compare: draw two boxes and diff their stats and detections side by side",
+       "What-if drift simulator with wind/current/windage sliders that re-run the 72h forecast live",
+       "Save named watch-boxes and re-run any with one click; promote a box into a scheduled monitored region"
+      ]
+     },
+     {
+      "label": "Records (Detections & Hotspots)",
+      "absorbs": [
+       "Hotspots"
+      ],
+      "whatItBecomes": "One canonical catalog of model outputs at two granularities via a Raw<->Clustered toggle: the full sortable multi-filter detections table with the 'Why this detection?' explain drawer and inline confirm/false-alarm labeling, plus the severity-ranked hotspot cluster cards. Both /detections/:id and /hotspots/:id drill-ins stay reachable from here.",
+      "newInteractive": [
+       "Granularity toggle that zooms the same result set between raw detections (table) and DBSCAN clusters (cards) without leaving the page",
+       "Brushable severity-vs-coast-ETA quadrant scatter on the Clusters view: box-select the imminent/high-severity quadrant to filter the cards",
+       "Shift-click / lasso bulk-select rows for batch confirm/reject/export in one action",
+       "Hover any row or card for a mini-map thumbnail that highlights its cluster membership; saveable named filter presets with shareable filtered-view URLs"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Intelligence",
+    "items": [
+     {
+      "label": "AI Lab",
+      "absorbs": [
+       "Model Health",
+       "Similarity & Fusion"
+      ],
+      "whatItBecomes": "The flagship ML showcase with Classifier / Embeddings / Fusion tabs: report-card tiles, per-class precision-recall, live confusion matrix with MARIDA/MADOS eval, PLP operating-regime honesty panel, engine capabilities, plus the Clay index, embedded-site picker, neighbour retrieval, temporal change, and raw-embedding search.",
+      "newInteractive": [
+       "Interactive 2D embedding projection (UMAP/t-SNE): pan/zoom, click a point to retrieve neighbours and reveal its fusion tier, lasso a region to read its class mix",
+       "Draggable fusion decision-boundary slider: move the MLP+Clay CONFIRMED/POSSIBLE threshold and watch precision-recall and how many current hotspots flip tiers recompute live",
+       "Clickable confusion-matrix cells that pull up the actual misclassified detections behind each error",
+       "'Fusion referee': pick a site and step through the MLP vote vs Clay vote resolving into the final tier"
+      ]
+     },
+     {
+      "label": "Active Learning",
+      "absorbs": [],
+      "whatItBecomes": "The only page that WRITES ground-truth labels, reframed as a focused human-in-the-loop arena distinct from Records' browse-and-inspect labeling: pending-queue stat tiles, retrain-readiness bar, region/class filters, role-gated confirm/false-alarm, and labeled-set CSV export.",
+      "newInteractive": [
+       "Swipe/keyboard rapid-label arena (left=false alarm, right=confirm, up=skip) for high-throughput labeling",
+       "Uncertainty-sampling queue order: the model surfaces its least-confident detections first, each with a 'why I'm unsure' chip",
+       "Live retrain-readiness ring that fills and celebrates as you cross the threshold, with a session streak counter",
+       "'Simulate retrain' preview projecting expected F1/recall gain from the freshly labeled set before export"
+      ]
+     },
+     {
+      "label": "Pipeline",
+      "absorbs": [],
+      "whatItBecomes": "The only surface that actually executes and observes a run stage-by-stage (ingest -> FDI -> classify -> DBSCAN -> Clay -> drift -> alert) via SSE, with per-stage durations, run stat tiles, hotspots-produced list, drift summary, and scenes panel. The borrowed model card slims to a link into AI Lab.",
+      "newInteractive": [
+       "Pre-run parameter tray (min-confidence, DBSCAN eps/min-samples, dedupe, biofouling, windage) so each run is a configurable experiment",
+       "Step / pause / replay controls on the live stage runner to walk the pipeline one stage at a time",
+       "Stage-drill: click a completed stage card to expand its actual artifact (FDI mask, cluster members, class votes)",
+       "A/B run comparison: run two regions or two configs and diff detections, hotspots, and stage durations; abort a running scan mid-flight"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Operate",
+    "items": [
+     {
+      "label": "Field Ops",
+      "absorbs": [],
+      "whatItBecomes": "The only write-heavy field-response lifecycle surface: impact stat cards, status-filter chips, role-gated advance-status workflow, new-operation and mission-report modals, and per-operation PDF export.",
+      "newInteractive": [
+       "Kanban board: drag operation cards across lifecycle lanes (Dispatched -> In Progress -> Complete) to advance status with toast feedback",
+       "Map-based dispatch: spin up an op straight from a hotspot pin with the nearest available crew auto-suggested",
+       "In-page mission-report builder with live PDF preview (no modal round-trip)",
+       "Animated impact meters (kg collected / km2 cleared) ticking up toward a season goal, plus a crew-workload heat-strip"
+      ]
+     },
+     {
+      "label": "Analytics & Reports",
+      "absorbs": [
+       "Reports"
+      ],
+      "whatItBecomes": "One analyze-then-ship surface: detection-trend time series, classification-mix donut, per-region stacked bar + stats table, KPI cards, and the live held-out eval, plus every Reports export (CSV, GeoJSON, JSON snapshot, situation-report PDF) and the printable rollup. Also absorbs Dashboard's trend/by-class/by-region charts.",
+      "newInteractive": [
+       "Draggable date-range brush on the trend chart that live cross-filters every donut, bar, table, and the export scope",
+       "Click a donut slice or region bar to facet-filter the whole surface and the report snapshot",
+       "Drag-and-drop report builder: choose and reorder which charts/tables go into the exported PDF, so you ship exactly what you analyzed",
+       "Compare-two-periods overlay (this month vs last) with delta callouts"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "System",
+    "items": [
+     {
+      "label": "Settings",
+      "absorbs": [],
+      "whatItBecomes": "Sole self-service account/security home: profile card, sign out, and the full 2FA enroll/verify/disable flow with post-signup welcome banner. Scope unchanged.",
+      "newInteractive": [
+       "Active-session/device list with one-click revoke",
+       "In-page 2FA test challenge to confirm the authenticator works before enabling",
+       "Personal notification preferences (alert types/severities/channels) wired to Command Center's alert stream",
+       "Live-preview theme/density toggle and a default-landing-view picker per role"
+      ]
+     },
+     {
+      "label": "Admin",
+      "absorbs": [],
+      "whatItBecomes": "The only RBAC user/role admin and region-registry surface, admin-gated with a 403 fallback: users & roles table, monitored-regions registry, and the Services/Satellite/Scheduler config cards (now clearly owned here rather than duplicated across pages).",
+      "newInteractive": [
+       "Inline role/clearance editing in the users table with optimistic save and an audit trail",
+       "Map-pick region editor: draw/drag a monitored region's box and centroid on a mini-map instead of typing coordinates",
+       "Live service controls (restart-engine / flush-queue / force-rescan) beside each health card, with editable scheduler cadence",
+       "Searchable audit log of who labeled, dispatched, and acknowledged what; preview-as-role impersonation"
+      ]
+     }
+    ]
+   }
+  ],
+  "deletions": [
+   {
+    "page": "Dashboard (/app index)",
+    "reason": "The app's only flagged merge-candidate: a pure aggregator whose every data widget was a condensed mirror of a dedicated page. Its unique content (role-aware welcome + quick-action links) survives in Command Center; its trend/by-class/by-region charts move to Analytics & Reports."
+   },
+   {
+    "page": "Live Ops (/app/ops)",
+    "reason": "Its at-a-glance health tiles and read-only alert/hotspot/verification lists overlapped Dashboard; it was the live half of the same operator home. Renamed and expanded into Command Center, carrying its genuinely unique WebSocket feed and 'Run all regions' trigger as the backbone."
+   },
+   {
+    "page": "Alerts (/app/alerts)",
+    "reason": "A standalone ack/triage inbox that Live Ops already duplicated. Triage belongs where operators actually watch, so it becomes Command Center's Inbox panel with the full status/severity filters and animated per-row acknowledge lifecycle intact."
+   },
+   {
+    "page": "Hotspots (/app/hotspots)",
+    "reason": "The same model outputs as Detections at DBSCAN-cluster granularity rather than raw-pixel granularity - overlapping subject matter, not a separate destination. Becomes the Clustered view of the Records catalog; the /hotspots/:id drill-in stays reachable from the cluster cards and Map markers."
+   },
+   {
+    "page": "Model Health (/app/model)",
+    "reason": "Classifier diagnostics revolve around the exact MLP+Clay fusion that Similarity & Fusion explains from the embedding side; kept apart they duplicate the fusion/tier story, and its model card already leaked into Analytics/Pipeline/Live Ops. Becomes AI Lab's Classifier tab."
+   },
+   {
+    "page": "Similarity & Fusion (/app/intelligence)",
+    "reason": "The embedding-space half of the same 'how good is / what does the AI think' question, sharing fusion calibration with Model Health. Becomes AI Lab's Embeddings and Fusion tabs (Clay index, neighbour retrieval, temporal change, raw-embedding search, threshold tuning)."
+   },
+   {
+    "page": "Reports (/app/reports)",
+    "reason": "Displays no new data - it only exports the exact aggregates Analytics already computes (useOverview/useByRegion/useDetections/useHotspots) plus a printable version. Becomes the Export & Report builder attached to Analytics' live charts, so you export exactly what you analyzed."
+   }
+  ],
+  "migrationMap": [
+   {
+    "oldRoute": "/app (index, Dashboard)",
+    "newHome": "Command Center - role launcher, KPI rail, and live health tiles become its top strip; /app index now renders Command Center"
+   },
+   {
+    "oldRoute": "/app/ops (Live Ops / OpsBoard)",
+    "newHome": "Command Center - WebSocket feed, health tiles, and 'Run all regions' become its live backbone; old /app/ops redirects to /app"
+   },
+   {
+    "oldRoute": "/app/alerts",
+    "newHome": "Command Center -> Inbox panel/tab (full severity+status filters and acknowledge lifecycle); old route redirects to /app#inbox"
+   },
+   {
+    "oldRoute": "/app/map (Map Explorer)",
+    "newHome": "Map Explorer - unchanged, standalone gold standard"
+   },
+   {
+    "oldRoute": "/app/detections",
+    "newHome": "Records -> Raw detections view (default); route can stay as /app/detections"
+   },
+   {
+    "oldRoute": "/app/detections/:id (DetectionDetail)",
+    "newHome": "Preserved as-is; deep-linkable drill-in reachable from Records rows and Map markers"
+   },
+   {
+    "oldRoute": "/app/hotspots",
+    "newHome": "Records -> Clustered view (severity cards + quadrant scatter); old route redirects to /app/detections?view=clusters"
+   },
+   {
+    "oldRoute": "/app/hotspots/:id (HotspotDetail)",
+    "newHome": "Preserved as-is; deep-linkable drill-in reachable from the Clustered cards and Map markers"
+   },
+   {
+    "oldRoute": "/app/intelligence (Similarity & Fusion)",
+    "newHome": "AI Lab -> Embeddings/Fusion tabs; old route redirects to /app/ai-lab?tab=embeddings"
+   },
+   {
+    "oldRoute": "/app/model (Model Health)",
+    "newHome": "AI Lab -> Classifier tab; old route redirects to /app/ai-lab?tab=classifier"
+   },
+   {
+    "oldRoute": "/app/active-learning",
+    "newHome": "Active Learning - kept standalone in the Intelligence section, reframed as the rapid-label arena"
+   },
+   {
+    "oldRoute": "/app/pipeline",
+    "newHome": "Pipeline - kept standalone; borrowed model card slims to a link into AI Lab"
+   },
+   {
+    "oldRoute": "/app/operations (Field Ops)",
+    "newHome": "Field Ops - kept standalone, re-skinned as a kanban lifecycle board"
+   },
+   {
+    "oldRoute": "/app/analytics",
+    "newHome": "Analytics & Reports - kept as the base surface; absorbs Dashboard's charts and Reports' exports"
+   },
+   {
+    "oldRoute": "/app/reports",
+    "newHome": "Analytics & Reports -> Export & Report builder tab; old route redirects to /app/analytics?tab=export"
+   },
+   {
+    "oldRoute": "/app/settings",
+    "newHome": "Settings - kept standalone, scope unchanged"
+   },
+   {
+    "oldRoute": "/app/admin",
+    "newHome": "Admin - kept standalone, admin-gated"
+   },
+   {
+    "oldRoute": "/dashboard (legacy redirect)",
+    "newHome": "Continues to redirect to /app (now Command Center)"
+   }
+  ],
+  "interactiveHighlights": [
+   "AI Lab's interactive 2D Clay embedding projection with a draggable MLP+Clay fusion decision-boundary slider that recomputes precision-recall and flips hotspot tiers live - the examiner-facing centerpiece of the ML story",
+   "Records' Raw<->Clustered granularity toggle over one result set, with a brushable severity-vs-coast-ETA quadrant scatter to box-select the imminent/high-severity clusters",
+   "Command Center's fused 'situation level' threat gauge plus swipe-to-acknowledge and one-click 'Acknowledge -> Dispatch' that turns an alert into a Field Ops draft",
+   "Map Explorer's temporal scrubber replaying an AOI across Sentinel-2 passes, plus a what-if drift simulator with wind/current/windage sliders",
+   "Active Learning's swipe/keyboard rapid-label arena with uncertainty-sampling queue order and a 'Simulate retrain' F1-gain preview",
+   "Pipeline's step/pause/replay stage runner with a pre-run parameter tray and A/B run comparison - process-oriented so it never reads like Map Explorer",
+   "Analytics & Reports' date-range brush that cross-filters every chart AND the export scope, feeding a drag-and-drop report builder so you ship exactly what you analyzed",
+   "Field Ops' kanban dispatch board with map-based dispatch straight from a hotspot pin and animated impact meters"
+  ],
+  "openQuestions": [
+   "Active Learning: keep it as a standalone Intelligence-section item (recommended, for the ML showcase and its distinct uncertainty-sampling/simulate-retrain identity) or fold it into Records as a Review Queue tab to reach 9 items? It functionally reuses Records' label mutation and CSV export.",
+   "Alerts as a Command Center panel vs a standalone nav item: folding it in best satisfies the live-feed de-duplication mandate, but power users who live in the alert queue may want a dedicated top-level entry. Acceptable to also expose it as a pinned deep-link.",
+   "Section taxonomy: I grouped by operator task (Monitor / Intelligence / Operate / System). Do you prefer this, or a flatter no-section list of 10, or Proposal A's Monitor/Investigate/Act framing?",
+   "Naming: 'Command Center' vs 'Live Ops', 'AI Lab' vs 'Model Intelligence', 'Records' vs 'Detections & Hotspots'. Which labels fit your users' and examiners' vocabulary?",
+   "Should Admin count toward the visible item total or remain a role-gated route that only ADMINs ever see in the sidebar (my assumption - it keeps the effective count at 9 for non-admins)?",
+   "Redirect strategy: keep permanent redirects for all six retired routes (/app/ops, /app/alerts, /app/hotspots, /app/intelligence, /app/model, /app/reports) so old bookmarks and in-app deep links never 404 - confirm you want these preserved rather than hard-removed.",
+   "Command Center per-role default layout: should the draggable widget board ship with distinct ADMIN/COASTGUARD/FIELD presets, and should layout persistence be server-side (per account) or local-only?"
+  ]
+ }
+}

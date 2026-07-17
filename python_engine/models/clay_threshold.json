@@ -1,0 +1,204 @@
+{
+  "curve": [
+    {
+      "tau": 0.05,
+      "valP": 0.3083,
+      "valR": 0.9951,
+      "valF1": 0.4708,
+      "rfoRecall": 0.8978,
+      "rfoWaterFp": 0.5007,
+      "testMacroF1": 0.4722
+    },
+    {
+      "tau": 0.1,
+      "valP": 0.3965,
+      "valR": 0.9632,
+      "valF1": 0.5617,
+      "rfoRecall": 0.8311,
+      "rfoWaterFp": 0.3422,
+      "testMacroF1": 0.5846
+    },
+    {
+      "tau": 0.15,
+      "valP": 0.4603,
+      "valR": 0.9313,
+      "valF1": 0.6161,
+      "rfoRecall": 0.7778,
+      "rfoWaterFp": 0.243,
+      "testMacroF1": 0.6257
+    },
+    {
+      "tau": 0.2,
+      "valP": 0.5115,
+      "valR": 0.9004,
+      "valF1": 0.6524,
+      "rfoRecall": 0.7244,
+      "rfoWaterFp": 0.1881,
+      "testMacroF1": 0.6546
+    },
+    {
+      "tau": 0.25,
+      "valP": 0.5429,
+      "valR": 0.8685,
+      "valF1": 0.6682,
+      "rfoRecall": 0.6889,
+      "rfoWaterFp": 0.1511,
+      "testMacroF1": 0.6807
+    },
+    {
+      "tau": 0.3,
+      "valP": 0.5809,
+      "valR": 0.8344,
+      "valF1": 0.685,
+      "rfoRecall": 0.64,
+      "rfoWaterFp": 0.1185,
+      "testMacroF1": 0.6953
+    },
+    {
+      "tau": 0.35,
+      "valP": 0.6048,
+      "valR": 0.7949,
+      "valF1": 0.687,
+      "rfoRecall": 0.6089,
+      "rfoWaterFp": 0.0889,
+      "testMacroF1": 0.703
+    },
+    {
+      "tau": 0.4,
+      "valP": 0.624,
+      "valR": 0.759,
+      "valF1": 0.6849,
+      "rfoRecall": 0.5822,
+      "rfoWaterFp": 0.08,
+      "testMacroF1": 0.71
+    },
+    {
+      "tau": 0.45,
+      "valP": 0.6524,
+      "valR": 0.6957,
+      "valF1": 0.6733,
+      "rfoRecall": 0.5333,
+      "rfoWaterFp": 0.0667,
+      "testMacroF1": 0.7113
+    },
+    {
+      "tau": 0.5,
+      "valP": 0.6795,
+      "valR": 0.6396,
+      "valF1": 0.659,
+      "rfoRecall": 0.4756,
+      "rfoWaterFp": 0.0578,
+      "testMacroF1": 0.7121
+    },
+    {
+      "tau": 0.55,
+      "valP": 0.7123,
+      "valR": 0.5579,
+      "valF1": 0.6257,
+      "rfoRecall": 0.4222,
+      "rfoWaterFp": 0.0459,
+      "testMacroF1": 0.7078
+    },
+    {
+      "tau": 0.6,
+      "valP": 0.7283,
+      "valR": 0.4475,
+      "valF1": 0.5544,
+      "rfoRecall": 0.3422,
+      "rfoWaterFp": 0.0385,
+      "testMacroF1": 0.6985
+    },
+    {
+      "tau": 0.65,
+      "valP": 0.7368,
+      "valR": 0.333,
+      "valF1": 0.4587,
+      "rfoRecall": 0.2756,
+      "rfoWaterFp": 0.0281,
+      "testMacroF1": 0.6865
+    },
+    {
+      "tau": 0.7,
+      "valP": 0.7447,
+      "valR": 0.2042,
+      "valF1": 0.3205,
+      "rfoRecall": 0.2133,
+      "rfoWaterFp": 0.0148,
+      "testMacroF1": 0.6709
+    },
+    {
+      "tau": 0.75,
+      "valP": 0.7297,
+      "valR": 0.1091,
+      "valF1": 0.1898,
+      "rfoRecall": 0.12,
+      "rfoWaterFp": 0.0059,
+      "testMacroF1": 0.6564
+    },
+    {
+      "tau": 0.8,
+      "valP": 0.7647,
+      "valR": 0.035,
+      "valF1": 0.067,
+      "rfoRecall": 0.0533,
+      "rfoWaterFp": 0.0,
+      "testMacroF1": 0.6418
+    },
+    {
+      "tau": 0.85,
+      "valP": 0.7812,
+      "valR": 0.0112,
+      "valF1": 0.0221,
+      "rfoRecall": 0.0178,
+      "rfoWaterFp": 0.0,
+      "testMacroF1": 0.631
+    },
+    {
+      "tau": 0.9,
+      "valP": 1.0,
+      "valR": 0.0049,
+      "valF1": 0.0098,
+      "rfoRecall": 0.0044,
+      "rfoWaterFp": 0.0,
+      "testMacroF1": 0.628
+    },
+    {
+      "tau": 0.95,
+      "valP": 0.0,
+      "valR": 0.0,
+      "valF1": 0.0,
+      "rfoRecall": 0.0,
+      "rfoWaterFp": 0.0,
+      "testMacroF1": 0.6236
+    }
+  ],
+  "argmax": {
+    "tau": "argmax",
+    "valP": null,
+    "valR": null,
+    "valF1": null,
+    "rfoRecall": 0.5422,
+    "rfoWaterFp": 0.0756,
+    "testMacroF1": 0.7109
+  },
+  "tauF1": {
+    "tau": 0.35,
+    "valP": 0.6048,
+    "valR": 0.7949,
+    "valF1": 0.687,
+    "rfoRecall": 0.6089,
+    "rfoWaterFp": 0.0889,
+    "testMacroF1": 0.703
+  },
+  "tauPrecise": {
+    "tau": 0.55,
+    "valP": 0.7123,
+    "valR": 0.5579,
+    "valF1": 0.6257,
+    "rfoRecall": 0.4222,
+    "rfoWaterFp": 0.0459,
+    "testMacroF1": 0.7078
+  },
+  "selection": "operating points chosen on MARIDA+MADOS val (Plastic F1 max; precision>=0.70)",
+  "updated": "2026-07-09T12:18:11Z"
+}

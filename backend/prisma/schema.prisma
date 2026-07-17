@@ -1,0 +1,431 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Marine Plastic Tracker
+// Prisma schema — PostgreSQL 15 + PostGIS 3.3
+// ═══════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  // postgis intentionally NOT declared yet: geometry is stored as plain lat/lon
+  // floats (see Detection/Hotspot), and the portable dev cluster in infra/pgsql
+  // doesn't bundle PostGIS. Re-add it (Docker/StackBuilder cluster) together
+  // with the first real geometry column.
+  extensions = [pgcrypto, unaccent]
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum RoleName {
+  ADMIN
+  COASTGUARD
+  FIELD
+}
+
+enum DetectionStatus {
+  PENDING
+  CONFIRMED
+  FALSE_ALARM
+}
+
+enum SeverityLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum AlertType {
+  HOTSPOT
+  COAST_PROXIMITY
+  INFRASTRUCTURE
+  SYSTEM
+}
+
+enum PipelineStage {
+  DOWNLOAD
+  FDI
+  CNN
+  DBSCAN
+  DRIFT
+  ALERT
+}
+
+enum PipelineStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// Field-operation lifecycle: a detection/hotspot becomes an actionable task.
+enum OperationStatus {
+  PLANNED
+  DISPATCHED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// After-action outcome recorded on the mission report.
+enum OperationOutcome {
+  CLEARED
+  PARTIAL
+  NOT_FOUND
+  STOOD_DOWN
+}
+
+// ── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         RoleName  @default(FIELD)
+  totpSecret   String?   @map("totp_secret")
+  totpEnabled  Boolean   @default(false) @map("totp_enabled")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  refreshTokens RefreshToken[]
+  userRegions   UserRegion[]
+  auditLogs     AuditLog[]
+  apiKeys       ApiKey[]
+
+  @@map("users")
+}
+
+// Region = a named coastal/ocean monitoring zone.
+// One user can monitor many regions via UserRegion (many-to-many).
+model Region {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  code        String  @unique // short code: MUM, GOA, KCH, CHN, AND …
+  displayName String  @map("display_name")
+  centerLat   Float   @map("center_lat")
+  centerLon   Float   @map("center_lon")
+  zoomLevel   Int     @default(8) @map("zoom_level")
+  // { north, south, east, west } in decimal degrees
+  boundingBox Json    @map("bounding_box")
+  isActive    Boolean @default(true) @map("is_active")
+
+  userRegions     UserRegion[]
+  satelliteImages SatelliteImage[]
+  detections      Detection[]
+  hotspots        Hotspot[]
+
+  @@map("regions")
+}
+
+model UserRegion {
+  userId   String @map("user_id")
+  regionId String @map("region_id")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  region Region @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, regionId])
+  @@map("user_regions")
+}
+
+// A Sentinel-2 scene downloaded from the Copernicus Open Access Hub.
+model SatelliteImage {
+  id              String   @id @default(cuid())
+  sceneId         String   @unique @map("scene_id") // Sentinel product ID
+  platform        String   @default("Sentinel-2A")
+  tile            String // MGRS tile e.g. "44NKL"
+  acquisitionDate DateTime @map("acquisition_date")
+  cloudCoverPct   Float    @map("cloud_cover_pct")
+  regionId        String?  @map("region_id")
+  region          Region?  @relation(fields: [regionId], references: [id])
+  storagePath     String?  @map("storage_path")
+  fileSizeBytes   BigInt?  @map("file_size_bytes")
+  // { resolution, bands[], crs, boundingBox }
+  bandsMeta       Json     @default("{}") @map("bands_meta")
+  isProcessed     Boolean  @default(false) @map("is_processed")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  detections   Detection[]
+  pipelineLogs PipelineLog[]
+
+  @@index([acquisitionDate])
+  @@index([regionId])
+  @@map("satellite_images")
+}
+
+// A single floating-debris candidate extracted from one Sentinel-2 scene.
+// Geometry stored as plain lat/lon; PostGIS geometry column added in Phase 4.
+model Detection {
+  id       String         @id @default(cuid())
+  imageId  String         @map("image_id")
+  image    SatelliteImage @relation(fields: [imageId], references: [id])
+  regionId String?        @map("region_id")
+  region   Region?        @relation(fields: [regionId], references: [id])
+
+  lat            Float
+  lon            Float
+  // Plastic | Algae | Sea_Foam | Water
+  classification String
+  confidence     Float // CNN softmax 0.0–1.0
+  fdiScore       Float  @map("fdi_score") // Floating Debris Index value
+  areaSqKm       Float  @map("area_sq_km")
+  pixelCount     Int    @default(1) @map("pixel_count")
+
+  status      DetectionStatus @default(PENDING)
+  validatedBy String?         @map("validated_by") // user id
+  validatedAt DateTime?       @map("validated_at")
+
+  // Raw per-band reflectances + computed FDI stored for audit
+  rawBandValues Json     @default("{}") @map("raw_band_values")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  trajectories Trajectory[]
+  alerts       Alert[]
+
+  @@index([lat, lon])
+  @@index([regionId])
+  @@index([status])
+  @@index([classification])
+  @@index([createdAt])
+  @@map("detections")
+}
+
+// DBSCAN cluster of Detection points. eps=0.09°, min_samples=3.
+// HIGH ≥10 detections | MEDIUM ≥5 | LOW ≥3.
+model Hotspot {
+  id       String  @id @default(cuid())
+  label    String // e.g. "MUM-H1"
+  regionId String? @map("region_id")
+  region   Region? @relation(fields: [regionId], references: [id])
+
+  centroidLat    Float         @map("centroid_lat")
+  centroidLon    Float         @map("centroid_lon")
+  detectionCount Int           @map("detection_count")
+  severity       SeverityLevel
+  confidence     Float
+  etaHours       Float?        @map("eta_hours") // null = open ocean, no coast ETA
+
+  isActive      Boolean  @default(true) @map("is_active")
+  firstDetected DateTime @map("first_detected")
+  lastDetected  DateTime @updatedAt @map("last_detected")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([regionId])
+  @@index([severity])
+  @@index([isActive])
+  @@map("hotspots")
+}
+
+// 72-hour Lagrangian ensemble drift path.
+// pathData JSON shape:
+//   { points: [{t: 0..72, lat, lon}], cone: [{t, latMin, latMax, lonMin, lonMax}] }
+model Trajectory {
+  id          String    @id @default(cuid())
+  detectionId String    @map("detection_id")
+  detection   Detection @relation(fields: [detectionId], references: [id], onDelete: Cascade)
+
+  pathData      Json     @map("path_data")
+  // Windage coefficients used for the ensemble (e.g. [0.015, 0.02, 0.025, 0.03])
+  windageCoeffs Float[]  @map("windage_coeffs")
+  horizonHours  Int      @default(72) @map("horizon_hours")
+  // "demo" | "cmems+era5"
+  dataSource    String   @default("demo") @map("data_source")
+  computedAt    DateTime @default(now()) @map("computed_at")
+
+  @@index([detectionId])
+  @@map("trajectories")
+}
+
+model Alert {
+  id          String     @id @default(cuid())
+  detectionId String?    @map("detection_id")
+  detection   Detection? @relation(fields: [detectionId], references: [id])
+
+  type     AlertType
+  severity SeverityLevel
+  title    String
+  message  String
+
+  sentVia String[]  @map("sent_via") // ["whatsapp", "email", "sms"]
+  sentAt  DateTime? @map("sent_at")
+  isAcked Boolean   @default(false) @map("is_acked")
+  ackedBy String?   @map("acked_by")
+  ackedAt DateTime? @map("acked_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([type])
+  @@index([severity])
+  @@index([isAcked])
+  @@index([createdAt])
+  @@map("alerts")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// Append-only audit trail — never updated, never deleted.
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String // "LOGIN" | "DETECTION_CONFIRM" | "EXPORT_CSV" …
+  resource  String? // "Detection:cuid123"
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// Pipeline run log — one row per stage per image.
+model PipelineLog {
+  id          String          @id @default(cuid())
+  imageId     String?         @map("image_id")
+  image       SatelliteImage? @relation(fields: [imageId], references: [id])
+  stage       PipelineStage
+  status      PipelineStatus
+  startedAt   DateTime        @default(now()) @map("started_at")
+  completedAt DateTime?       @map("completed_at")
+  durationMs  Int?            @map("duration_ms")
+  errorMsg    String?         @map("error_msg")
+  metadata    Json            @default("{}")
+
+  @@index([imageId])
+  @@index([stage, status])
+  @@index([startedAt])
+  @@map("pipeline_logs")
+}
+
+// ML model registry — tracks which weights are active.
+model ModelVersion {
+  id              String   @id @default(cuid())
+  name            String
+  version         String   @unique
+  architecture    String   @default("ResNet-50")
+  trainedOn       String[] @map("trained_on") // ["MARIDA", "MADOS"]
+  storagePath     String   @map("storage_path")
+  f1Score         Float?   @map("f1_score")
+  precision       Float?
+  recall          Float?
+  confusionMatrix Json?    @map("confusion_matrix")
+  isActive        Boolean  @default(false) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("model_versions")
+}
+
+// ── Field operations ──────────────────────────────────────────────────────────
+// A field-response task: dispatch a cleanup/patrol crew against a hotspot or
+// detection and track it through to a filed mission report. This is the bridge
+// from "the satellite detected plastic" to "someone was sent to act on it".
+//
+// hotspotId / detectionId are SOFT references (plain strings, not FK relations):
+// hotspots are recomputed and replaced on every pipeline run, so a hard FK with
+// cascade would silently delete completed operations. targetLat/targetLon
+// snapshot the location so the op survives the source hotspot being recomputed.
+model Operation {
+  id       String          @id @default(cuid())
+  code     String          @unique // human ref e.g. "OP-2026-0007"
+  title    String
+  status   OperationStatus @default(PLANNED)
+  priority SeverityLevel   @default(MEDIUM)
+
+  hotspotId   String? @map("hotspot_id") // soft ref → hotspots.id
+  detectionId String? @map("detection_id") // soft ref → detections.id
+  regionCode  String? @map("region_code") // MUM, GOA, KCH, CHN, AND
+
+  targetLat Float? @map("target_lat") // location snapshot
+  targetLon Float? @map("target_lon")
+
+  assignedTeam String? @map("assigned_team") // free-text crew / vessel
+  assignedToId String? @map("assigned_to_id") // User id (COASTGUARD/FIELD)
+
+  notes        String?
+  plannedAt    DateTime? @map("planned_at")
+  dispatchedAt DateTime? @map("dispatched_at")
+  completedAt  DateTime? @map("completed_at")
+
+  createdById String?  @map("created_by_id") // User id
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  events OperationEvent[]
+  report MissionReport?
+
+  @@index([status])
+  @@index([regionCode])
+  @@index([hotspotId])
+  @@index([createdAt])
+  @@map("operations")
+}
+
+// Append-only status/comment timeline for one operation (audit trail).
+model OperationEvent {
+  id          String           @id @default(cuid())
+  operationId String           @map("operation_id")
+  operation   Operation        @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  status      OperationStatus? // set when this event is a status change
+  note        String?
+  byId        String?          @map("by_id") // User id
+  at          DateTime         @default(now())
+
+  @@index([operationId])
+  @@map("operation_events")
+}
+
+// The after-action report filed when an operation completes (1:1 with Operation).
+model MissionReport {
+  id          String    @id @default(cuid())
+  operationId String    @unique @map("operation_id")
+  operation   Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+
+  summary            String
+  outcome            OperationOutcome
+  plasticCollectedKg Float?           @map("plastic_collected_kg")
+  areaClearedSqKm    Float?           @map("area_cleared_sq_km")
+  teamSize           Int?             @map("team_size")
+  photosCount        Int              @default(0) @map("photos_count")
+
+  filedById String?  @map("filed_by_id") // User id
+  filedAt   DateTime @default(now()) @map("filed_at")
+
+  @@map("mission_reports")
+}
+
+// API keys for programmatic access (researchers / CI pipelines).
+model ApiKey {
+  id         String    @id @default(cuid())
+  keyHash    String    @unique @map("key_hash") // SHA-256 of the raw key
+  label      String
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime? @map("expires_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  isRevoked  Boolean   @default(false) @map("is_revoked")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("api_keys")
+}

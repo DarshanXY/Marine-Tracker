@@ -1,0 +1,232 @@
+{
+  "arch": "frozen Clay v1.5 encoder (1024-d cls token) + MLP head 1024-256-4",
+  "trainEmbeddings": 27231,
+  "valBest": 0.7688,
+  "perDataset": {
+    "test_marida": {
+      "acc": 0.8201,
+      "macroF1": 0.7342,
+      "perClass": {
+        "Plastic": {
+          "precision": 0.2706,
+          "recall": 0.5853,
+          "f1": 0.3701
+        },
+        "Algae": {
+          "precision": 0.8382,
+          "recall": 0.8276,
+          "f1": 0.8329
+        },
+        "Sea_Foam": {
+          "precision": 0.9641,
+          "recall": 0.7623,
+          "f1": 0.8514
+        },
+        "Water": {
+          "precision": 0.9237,
+          "recall": 0.845,
+          "f1": 0.8826
+        }
+      },
+      "confusion": [
+        [
+          223,
+          26,
+          6,
+          126
+        ],
+        [
+          183,
+          1368,
+          0,
+          102
+        ],
+        [
+          18,
+          23,
+          295,
+          51
+        ],
+        [
+          400,
+          215,
+          5,
+          3380
+        ]
+      ],
+      "n": 6421
+    },
+    "test_mados": {
+      "acc": 0.7228,
+      "macroF1": 0.6912,
+      "perClass": {
+        "Plastic": {
+          "precision": 0.2578,
+          "recall": 0.63,
+          "f1": 0.3659
+        },
+        "Algae": {
+          "precision": 0.8529,
+          "recall": 0.741,
+          "f1": 0.793
+        },
+        "Sea_Foam": {
+          "precision": 0.934,
+          "recall": 0.6951,
+          "f1": 0.797
+        },
+        "Water": {
+          "precision": 0.9068,
+          "recall": 0.7298,
+          "f1": 0.8087
+        }
+      },
+      "confusion": [
+        [
+          613,
+          210,
+          6,
+          144
+        ],
+        [
+          946,
+          2964,
+          11,
+          79
+        ],
+        [
+          30,
+          11,
+          269,
+          77
+        ],
+        [
+          789,
+          290,
+          2,
+          2919
+        ]
+      ],
+      "n": 9360
+    }
+  },
+  "combined": {
+    "acc": 0.7624,
+    "macroF1": 0.7109,
+    "perClass": {
+      "Plastic": {
+        "precision": 0.2611,
+        "recall": 0.6174,
+        "f1": 0.367
+      },
+      "Algae": {
+        "precision": 0.8482,
+        "recall": 0.7663,
+        "f1": 0.8052
+      },
+      "Sea_Foam": {
+        "precision": 0.9495,
+        "recall": 0.7287,
+        "f1": 0.8246
+      },
+      "Water": {
+        "precision": 0.9158,
+        "recall": 0.7874,
+        "f1": 0.8468
+      }
+    },
+    "confusion": [
+      [
+        836,
+        236,
+        12,
+        270
+      ],
+      [
+        1129,
+        4332,
+        11,
+        181
+      ],
+      [
+        48,
+        34,
+        564,
+        128
+      ],
+      [
+        1189,
+        505,
+        7,
+        6299
+      ]
+    ],
+    "n": 15781
+  },
+  "baselinePp11": {
+    "acc": 0.7585,
+    "macroF1": 0.6905,
+    "perClass": {
+      "Plastic": {
+        "precision": 0.7941,
+        "recall": 0.4586,
+        "f1": 0.5815
+      },
+      "Algae": {
+        "precision": 0.9552,
+        "recall": 0.5203,
+        "f1": 0.6736
+      },
+      "Sea_Foam": {
+        "precision": 0.8175,
+        "recall": 0.5904,
+        "f1": 0.6857
+      },
+      "Water": {
+        "precision": 0.6999,
+        "recall": 0.9939,
+        "f1": 0.8213
+      }
+    },
+    "confusion": [
+      [
+        621,
+        15,
+        21,
+        697
+      ],
+      [
+        113,
+        2941,
+        81,
+        2518
+      ],
+      [
+        43,
+        79,
+        457,
+        195
+      ],
+      [
+        5,
+        44,
+        0,
+        7951
+      ]
+    ],
+    "n": 15781
+  },
+  "rfoHoldout": {
+    "clay": {
+      "debrisRecall": 0.5422,
+      "waterFp": 0.0756
+    },
+    "pp11": {
+      "debrisRecall": 0.2222,
+      "waterFp": 0.0044
+    },
+    "n": 900
+  },
+  "deltaMacroF1": 0.0204,
+  "verdict": "WINS"
+}

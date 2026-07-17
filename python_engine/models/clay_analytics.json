@@ -1,0 +1,121 @@
+{
+  "retrieval": {
+    "k1": {
+      "acc": 0.6927,
+      "macroF1": 0.633
+    },
+    "k5": {
+      "acc": 0.711,
+      "macroF1": 0.6371
+    },
+    "k10": {
+      "acc": 0.7312,
+      "macroF1": 0.6596
+    }
+  },
+  "fewShot": {
+    "shot1": 0.3546,
+    "shot5": 0.4698,
+    "shot20": 0.5458,
+    "shot100": 0.5557
+  },
+  "anomaly": {
+    "inDistributionMean": 0.1226,
+    "newSeasMean": 0.1503,
+    "separation": 0.0276
+  },
+  "findSimilarDemo": [
+    {
+      "queryTrueClass": "Plastic",
+      "neighbours": [
+        {
+          "class": "Water",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.8536
+        },
+        {
+          "class": "Water",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.8456
+        },
+        {
+          "class": "Plastic",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.8442
+        },
+        {
+          "class": "Plastic",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.8442
+        },
+        {
+          "class": "Plastic",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.8416
+        }
+      ]
+    },
+    {
+      "queryTrueClass": "Plastic",
+      "neighbours": [
+        {
+          "class": "Plastic",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.9132
+        },
+        {
+          "class": "Plastic",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.9131
+        },
+        {
+          "class": "Sea_Foam",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.9093
+        },
+        {
+          "class": "Sea_Foam",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.9093
+        },
+        {
+          "class": "Sea_Foam",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.9092
+        }
+      ]
+    },
+    {
+      "queryTrueClass": "Plastic",
+      "neighbours": [
+        {
+          "class": "Algae",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.9806
+        },
+        {
+          "class": "Plastic",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.963
+        },
+        {
+          "class": "Plastic",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.9596
+        },
+        {
+          "class": "Plastic",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.9574
+        },
+        {
+          "class": "Algae",
+          "source": "MARIDA+MADOS",
+          "similarity": 0.9565
+        }
+      ]
+    }
+  ],
+  "referenceLibrarySize": 27231,
+  "updated": "2026-07-10T18:52:57Z"
+}

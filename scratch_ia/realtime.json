@@ -1,0 +1,330 @@
+{
+ "audits": [
+  {
+   "subsystem": "orchestration-realtime",
+   "currentState": "partial-real",
+   "howItWorksNow": "All the real-time machinery exists and does real work, but nothing schedules itself by default \u2014 there is NO continuous scanner running out of the box. The chain is: an EXTERNAL trigger must hit backend `POST|GET /api/pipeline/scheduled-run` (backend/src/routes/pipeline.routes.ts:208). That handler enumerates monitored regions (from Prisma `region` table, falling back to hardcoded ['MUM','GOA','KCH','CHN','AND'] at line 225) and, if `queueAvailable()` is true, enqueues one BullMQ job per region and returns 202 immediately (lines 229-239). The BullMQ worker (backend/src/lib/queue.ts:97 `startWorker`) runs each job = real engine HTTP call `runOnEngine` + `persistRun` to Postgres, concurrency 1, 3 attempts with exponential backoff, and emits WebSocket events on complete/fail. `startWorker()` is ALWAYS called at boot (index.ts:111) and BullMQ reconnects to Redis forever. If Redis is down, `queueAvailable()` returns false and scheduled-run falls back to running each region serially inline, blocking up to 120s each (lines 242-260) \u2014 still real, just synchronous with no retries. Live push (backend/src/lib/live.ts) is a real in-process EventEmitter \u2192 WebSocketServer on /ws/live that broadcasts run/job/schedule events to dashboards; best-effort, UI polls as fallback. The actual periodic trigger is NOT in Node or Python \u2014 the engine has 'no in-process loop of its own' (pipeline_runner.py header) and the architecture explicitly forbids an in-process APScheduler (auto-detect.ps1:11). Instead it is Windows-side: infra/auto-detect.ps1 is a PowerShell loop that curls scheduled-run every -IntervalHours (default 6h), and infra/install-scheduled-tasks.ps1 registers two Windows Scheduled Tasks \u2014 MPT-Watchdog (at-logon, runs infra/watchdog.ps1 which keeps Postgres/Redis/engine/backend alive and restarts dead ports) and MPT-AutoDetect (repeats every N hours, runs auto-detect.ps1 -RunOnce). Portable Redis binaries are present (infra/redis/redis-server.exe) but start-redis.cmd 'does not auto-start' \u2014 only the watchdog brings it up. So continuous real-time scanning happens ONLY after the user runs install-scheduled-tasks.ps1 once (and stays logged in). ci.yml has no `schedule:` cron; no cloud scheduler is wired.",
+   "fallbackTrigger": "Three independent degradations: (1) If the Windows Scheduled Tasks are never installed (install-scheduled-tasks.ps1 not run) and auto-detect.ps1 is not looping, there is ZERO automatic scanning \u2014 the system is manual-trigger only (in-app 'Run all regions' button or a hand-curl). (2) If Redis is down (start-redis.cmd not run / watchdog not supervising), scheduled-run and /run silently drop from the queued path to blocking inline execution \u2014 no retries, no backoff, no 202 ack. (3) If the Python engine on :8000 is unreachable, /pipeline/run returns demoPipelineResult()/offlineAoiResult() marked demoMode:true (pipeline.routes.ts:172) instead of real detections.",
+   "toMakeFullyReal": [
+    {
+     "step": "Add a self-contained BullMQ repeatable-job scheduler in the worker process",
+     "who": "code (me)",
+     "detail": "In startWorker() (backend/src/lib/queue.ts), register queue.add() with `repeat: { pattern: <cron> }` per region (or one 'sweep' job that fans out) so the backend schedules its own per-region sweeps whenever Redis is up \u2014 removing the dependency on the external Windows Task Scheduler / auto-detect.ps1 entirely. This is the 'proper scheduler + worker' the task asks for and needs no OS-level cron."
+    },
+    {
+     "step": "Gate redundant scans on new-scene availability",
+     "who": "code (me)",
+     "detail": "Before enqueuing a region, have the engine (or a Node STAC check) confirm a Sentinel-2 scene newer than the last persisted run exists; skip otherwise. Avoids re-processing identical imagery every 6h given the ~5-day revisit."
+    },
+    {
+     "step": "Set SCHEDULER_TOKEN and pass it through",
+     "who": "user-credential",
+     "detail": "env.schedulerToken defaults to '' = open in dev (backend/src/lib/env.ts:60). Set SCHEDULER_TOKEN in backend env and pass -Token to auto-detect.ps1 so the cron endpoint isn't anonymously triggerable in production."
+    },
+    {
+     "step": "Run install-scheduled-tasks.ps1 once and stay logged in",
+     "who": "user-hardware",
+     "detail": "Registers MPT-Watchdog (keeps Redis/engine/backend/Postgres alive) and MPT-AutoDetect. Requires a Windows host that stays powered on and logged in; logon-triggered tasks die at logoff/shutdown. Alternatively provision an always-on host."
+    },
+    {
+     "step": "Ensure Redis is running for the queued path",
+     "who": "user-service",
+     "detail": "Start infra/start-redis.cmd or let the watchdog supervise it, so scheduled-run takes the fast 202 queued path with retries instead of blocking inline."
+    },
+    {
+     "step": "Provide real satellite credentials so engine runs are real",
+     "who": "user-credential",
+     "detail": "The engine must be online with Sentinel Hub / STAC creds (separate subsystem) or every scheduled sweep persists demo/offline results \u2014 orchestration can only be as real as the engine it calls."
+    }
+   ],
+   "capabilityUpgrades": [
+    "Replace the external OS-cron trigger with BullMQ repeatable jobs so the Node worker is a true always-on internal scheduler (survives without Windows Task Scheduler, portable to Linux/containers).",
+    "Event-driven scanning instead of fixed 6h cadence: subscribe to a STAC 'new scene' feed / poll STAC per region and enqueue a run the moment fresh imagery lands, making 'real-time' bounded only by satellite revisit rather than a coarse timer.",
+    "Raise worker concurrency and run multiple engine replicas so per-region sweeps run in parallel instead of concurrency:1 serial.",
+    "Harden the WebSocket: add auth on /ws/live, per-client subscription filtering, and event backfill/replay on reconnect so the UI can drop polling and rely on push.",
+    "Deploy engine+backend+worker+Redis+Postgres as real supervised services (NSSM/systemd or docker-compose with restart:always) instead of logon-scoped Scheduled Tasks, removing the 'must stay logged in' constraint.",
+    "Add a heartbeat/last-run-age metric and alert when a region hasn't been scanned within its SLA, so a stalled scheduler is visible."
+   ],
+   "blockers": [
+    "Continuous operation currently requires a Windows machine that stays powered on AND logged in \u2014 the watchdog and auto-detect run as at-logon Scheduled Tasks, so logoff/shutdown stops all automatic scanning.",
+    "The queued/retry path requires Redis running locally; without the watchdog supervising it, Redis does not auto-start and sweeps degrade to blocking inline execution.",
+    "True sub-hour 'real-time' is physically bounded by Sentinel-2's ~5-day revisit \u2014 without additional data sources, more frequent scans reprocess the same imagery.",
+    "End-to-end realness depends on the Python engine having live satellite credentials; orchestration cannot be more real than the engine it drives."
+   ],
+   "effort": "M"
+  },
+  {
+   "subsystem": "classifier-model",
+   "currentState": "fully-real",
+   "howItWorksNow": "By default the trained per-pixel MLP runs for real. python_engine/ml/model_loader.py::get_model() loads python_engine/models/marinenet.onnx (input shape [N,11], the 11-feature GPU-trained MLP) via onnxruntime, which IS installed (ORT 1.27.0 verified). is_available() returns True, input_kind()==\"pixel\", uses_patches()==False. So inference_engine.classify(bands,fdi) builds the 11 engineered features in _features() (B04,B06,B08,B8A,B11,FDI,NDVI,PI,MNDWI,NDVI_RE,BRIGHT \u2014 matching FEATURE_NAMES and metrics.json exactly), calls predict() which runs the ONNX session and softmax-argmaxes to (class,confidence). I verified this end-to-end: infer.classify(...) returns a real model prediction, not the heuristic. batch_classifier.classify_candidates() reports mode==\"per-pixel model\" and main_pipeline surfaces model_loaded=True. The interpretable heuristic (fdi/ndvi/brightness thresholds at inference_engine.py lines 97-111) is only reached when predict() returns None. Held-out metrics in metrics.json are real (MARIDA+MADOS official splits, testAccuracy 0.9886, macroF1 0.787, GPU-trained on RTX 4050). The patch CNN (marinenet_patch.onnx) and Clay head are opt-in second stages, not the default. NOTE: inference runs on CPUExecutionProvider only \u2014 the loader hardcodes providers=[\"CPUExecutionProvider\"] and the installed ORT build exposes only Azure+CPU providers (no CUDA), so there is no GPU inference at runtime even though a 4050 exists.",
+   "fallbackTrigger": "classify() silently drops to the spectral heuristic whenever get_model() returns None, which happens if (a) the weights file is missing \u2014 CNN_MODEL_PATH points to a nonexistent path or models/marinenet.onnx is deleted (model_loader.py line 53-54); or (b) onnxruntime import or InferenceSession construction throws \u2014 the bare `except Exception` at model_loader.py line 59-60 swallows ALL errors and sets _MODEL=None with no log, no warning, no raise; or (c) a patch model is set as CNN_MODEL_PATH \u2014 then uses_patches()==True and any single-pixel classify() call skips the model and uses the heuristic. There is NO env flag or config that forces the model to be present, and no startup validation, so a broken/missing model degrades to heuristic invisibly (only observable indirectly via model_loaded=false in /health and mode==\"heuristic\" in the pipeline event detail).",
+   "toMakeFullyReal": [
+    {
+     "step": "Add a REQUIRE_MODEL / strict-mode guard",
+     "who": "code (me)",
+     "detail": "Add REQUIRE_MODEL env (default true for prod) checked at FastAPI startup: if get_model() is None or input_kind()=='none', raise and refuse to boot instead of silently serving the heuristic. Wire into python_engine/main.py or a lifespan hook."
+    },
+    {
+     "step": "Stop swallowing load errors silently",
+     "who": "code (me)",
+     "detail": "In model_loader.get_model() replace the bare `except Exception: _MODEL=None` (lines 59-60) with a logged warning/error (module logger) capturing the exception, so ORT/weight failures are visible in logs rather than invisibly falling back."
+    },
+    {
+     "step": "Guarantee the weights ship and are validated",
+     "who": "code (me)",
+     "detail": "Add a fast integrity check at load: assert input shape==[N,11] and run a canary feature vector, comparing argmax against a stored expected label (onnxAgreement is already 1.0 in metrics.json). Fail loudly on mismatch so a corrupt/wrong ONNX cannot masquerade as real."
+    },
+    {
+     "step": "Pin onnxruntime in the default runtime env",
+     "who": "code (me)",
+     "detail": "onnxruntime>=1.17 is already in python_engine/requirements.txt line 24; add an explicit import-time check + clear install message so a missing ORT surfaces as an error, not a heuristic fallback."
+    },
+    {
+     "step": "Install a CUDA-enabled ONNX runtime for GPU inference",
+     "who": "user-hardware",
+     "detail": "Current ORT build exposes only CPU/Azure providers. To use the RTX 4050 at inference, user installs onnxruntime-gpu (matching CUDA/cuDNN for their driver). The per-pixel MLP is tiny so CPU is already real-time; GPU matters mainly for the patch CNN / batch scenes."
+    }
+   ],
+   "capabilityUpgrades": [
+    "GPU inference: change model_loader.get_model() to request providers=['CUDAExecutionProvider','CPUExecutionProvider'] (with graceful CPU fallback) once onnxruntime-gpu is installed; add an ORT_PROVIDERS env to control it. Biggest win for the patch CNN and multi-scene batch runs, minor for the tiny per-pixel MLP.",
+    "Patch + per-pixel ensemble: today CNN_MODEL_PATH selects ONE model exclusively. Load both marinenet.onnx and marinenet_patch.onnx and fuse per candidate \u2014 e.g. per-pixel MLP for the point call, patch CNN for spatial context \u2014 via weighted-probability or a gating rule. metrics.json already shows the tradeoff (per-pixel macroF1 0.787 vs patch 0.555), so weight the per-pixel higher; useful mainly to boost debris recall in ambiguous patches.",
+    "Probability calibration: current predict()/predict_patches() apply raw softmax with no temperature scaling; add a fitted temperature (or isotonic) per class from the held-out MARIDA+MADOS logits so confidence values are trustworthy for the 0.85 AUTO_CONFIRM threshold in confidence_filter.py. Store the temperature in metrics.json and apply in predict().",
+    "RFO cross-domain option: ship marinenet_pp11_rfo.onnx as a selectable operating point (env-switchable) for new-sea deployments where debris recall (0.409 vs 0.222) matters more than the MARIDA/MADOS benchmark \u2014 with a clear model-card note it trades benchmark F1 for generalization.",
+    "Ensemble with the Clay tier as calibrated fusion: fusion_thresholds.json already calibrates a CONFIRMED/POSSIBLE tier (targetPrecision 0.92); expose it as the default confidence pathway rather than opt-in so the per-pixel MLP + Clay affinity jointly gate Plastic calls at patch scale."
+   ],
+   "blockers": [
+    "GPU inference requires the user to install onnxruntime-gpu with a CUDA/cuDNN stack matching their driver \u2014 the currently installed ORT is CPU/Azure-only. Not blocking for real-time (per-pixel MLP is fast on CPU), only for large batch/patch throughput.",
+    "No hard blocker for the core goal: the real per-pixel ONNX already loads and runs by default. The only gap is defensive \u2014 nothing guarantees it STAYS real if weights go missing or ORT breaks, because the fallback is silent."
+   ],
+   "effort": "S"
+  },
+  {
+   "subsystem": "drift-forcing",
+   "currentState": "partial-real",
+   "howItWorksNow": "With DEMO_MODE=false (confirmed in repo-root .env) and online, the forcing IS real. python_engine/trajectory/forecast.py::_forcing() tries gridded CMEMS/ERA5 first, that raises, then falls to data_interpolator.fetch_forcing() \u2192 REAL keyless Open-Meteo: ocean_current_velocity/direction from marine-api.open-meteo.com (fetch_ocean_currents.py) + wind_speed_10m/direction from api.open-meteo.com (fetch_wind_data.py). fetch_forcing() gap-fills nulls, converts to m/s, and builds (u,v) vectors \u2014 currents flow-toward, winds negated to blow-from \u2014 cached 1h per ~11km (0.1\u00b0) cell, failures negative-cached 5min. dataSource on the live response reads \"open-meteo\". BUT the forcing is a RELEASE-POINT hourly TIME SERIES, not a gridded field: integrate_members()/back_track() index forcing[\\\"u_cur\\\"][min(t,len-1)] purely by hour and never resample at the parcel's moving position \u2014 spatially fixed, temporally advected. Over a 72\u2013120h horizon the parcel leaves the source cell and the physics degrades. The ensemble is 4 windage members only (0.015\u20130.03, ensemble_model.DEFAULT_WINDAGE); the cone is the windage min/max envelope with NO current perturbation or stochastic diffusion. ETA/landfall are effectively OFF: forecast_route.py calls fc.forecast(..., coast_lon=None), so coast_eta_hours() returns None and landfall_stats() returns probability 0.0 for every request. gridded_forcing.py is a documented stub: available() is False (copernicusmarine/xarray NOT installed in .venv) and fetch_gridded_forcing() raises NotImplementedError even if deps+creds were present \u2014 the field sampler is unwritten.",
+   "fallbackTrigger": "Three descending fallbacks in forecast._forcing(): (1) DEMO_MODE=true \u2192 forcing=None \u2192 synthetic sine/cosine field (lagrangian_model.synthetic_current/synthetic_wind); currently false, so inactive. (2) gridded_forcing.fetch_gridded_forcing() ALWAYS raises today (deps copernicusmarine+xarray+cdsapi absent from .venv, and the sampler is a NotImplementedError stub) \u2192 falls to point Open-Meteo. (3) Open-Meteo HTTP failure \u2014 offline, timeout (10s), or a live 0.1\u00b0 cell inside the 5-min negative cache \u2014 raises \u2192 synthetic field. Separately, ETA/landfall are always null/0.0 because the route hard-codes coast_lon=None regardless of forcing.",
+   "toMakeFullyReal": [
+    {
+     "step": "Install the heavy geo stack into python_engine/.venv",
+     "who": "code (me)",
+     "detail": "pip install copernicusmarine xarray cdsapi netCDF4 (+ pin in requirements). This flips gridded_forcing.available()'s import check; CMEMS_USERNAME/PASSWORD and CDS_API_KEY/URL are already FILLED in root .env."
+    },
+    {
+     "step": "Write the CMEMS gridded current sampler in gridded_forcing.fetch_gridded_forcing()",
+     "who": "code (me)",
+     "detail": "Use copernicusmarine.open_dataset on the global analysis-forecast phy product (uo/vo surface, cmems_mod_glo_phy_anfc_0.083deg) subset to a bbox around (lat,lon) padded for the horizon's drift range + time window; return a callable sampler(lat,lon,t)->(u,v) via xarray .interp (bilinear space + linear time). Replace the point-series index in lagrangian_model/back_tracker with a call to this sampler at the parcel's CURRENT position each step \u2014 this is the release-point\u2192gridded fix."
+    },
+    {
+     "step": "Add the ERA5 10m-wind gridded source via cdsapi",
+     "who": "code (me)",
+     "detail": "Retrieve reanalysis-era5-single-levels 10m_u/v_component_of_wind for the same bbox/window, cache the NetCDF, expose the same sampler interface, and fuse with currents in the integrator (currents + windage*wind). Note ERA5 reanalysis lags ~5 days; for true real-time forward drift use CMEMS wind or Open-Meteo winds for the forecast segment and reserve ERA5 for back-track/hindcast/validation."
+    },
+    {
+     "step": "Enable a real coast ETA and validate it",
+     "who": "code (me)",
+     "detail": "Stop passing coast_lon=None in forecast_route.py: derive the nearest coastline from a coastline geometry (e.g. Natural Earth / GSHHG) and compute the true great-circle crossing time instead of the longitude-only coast_eta_hours heuristic; propagate landfall probability from the ensemble."
+    },
+    {
+     "step": "Build a drifter-track validation harness",
+     "who": "code (me)",
+     "detail": "Add a script that pulls NOAA GDP / Copernicus drifter trajectories, seeds the model at each drifter's start, runs the gridded forecast, and reports separation-distance skill (e.g. Liu-Weisberg skill score, 24/48/72h) \u2014 turns 'realistic' into 'validated'."
+    },
+    {
+     "step": "Provision CMEMS + CDS access at scale",
+     "who": "user-credential",
+     "detail": "Credentials exist in .env but must be confirmed active: accept the current Copernicus Marine + CDS-Beta licences and, if request volume grows, ensure the accounts aren't rate-limited. No code change \u2014 account state only."
+    },
+    {
+     "step": "Provide compute/disk for gridded subsets",
+     "who": "user-hardware",
+     "detail": "Gridded CMEMS/ERA5 NetCDF subsets are tens\u2013hundreds of MB per AOI/window and the copernicusmarine/xarray/netCDF4 stack is far heavier than the current stdlib-urllib path; ensure the host has the disk + memory (no GPU needed)."
+    }
+   ],
+   "capabilityUpgrades": [
+    "Gridded field sampling: resample currents+winds at the parcel's moving (lat,lon,t) via xarray bilinear interpolation each RK/Euler step, replacing the fixed release-point time series \u2014 the single biggest realism gain for multi-day drift.",
+    "Physically-driven ensemble spread: perturb currents with a stochastic turbulent-diffusion term (random-walk with an eddy-diffusivity Kh) and sample windage from a distribution, so the cone reflects true oceanographic uncertainty instead of only 4 windage members.",
+    "Higher-order integration + variable dt: swap the forward-Euler 1h step in integrate_members for RK4 with sub-hourly steps to cut truncation error on curved current paths.",
+    "Drifter-track validation harness with a skill-score report (Liu\u2013Weisberg), producing a defensible ETA confidence interval rather than an unvalidated point estimate.",
+    "Stokes drift + tidal currents: add CMEMS wave Stokes-drift (VSDX/VSDY) and tidal components for realistic coastal-zone transport near landfall.",
+    "Land masking / beaching: use the gridded land mask to stop or beach parcels at the coast instead of the longitude-crossing ETA heuristic."
+   ],
+   "blockers": [
+    "gridded_forcing.fetch_gridded_forcing() is an unwritten stub \u2014 it raises NotImplementedError even when deps+creds are present, so NO agency-standard forcing path exists yet.",
+    "copernicusmarine, xarray, cdsapi are not installed in python_engine/.venv, so gridded is unreachable regardless.",
+    "The integrator (lagrangian_model.integrate_members, back_tracker.back_track) is architecturally point-based: it indexes a 1-D time series by hour and has no hook to sample a field at the moving parcel position \u2014 needs refactor, not just a new data source.",
+    "ETA is dead in production: forecast_route.py passes coast_lon=None, so etaHours is always None and landfall probability always 0.0; there is no coastline geometry in the repo.",
+    "No validation harness or drifter dataset exists \u2014 model skill is currently unquantified.",
+    "ERA5 reanalysis latency (~5 days) makes it unsuitable for the real-time FORWARD segment; a wind source split is required."
+   ],
+   "effort": "L"
+  },
+  {
+   "subsystem": "clay-similarity (Clay v1.5 foundation-model second stage)",
+   "currentState": "partial-real",
+   "howItWorksNow": "There are two distinct Clay paths and both use REAL Clay v1.5 embeddings (not synthetic vectors), but neither runs live-by-default.\n\n1) LIVE tier-2 re-scoring (python_engine/ml/clay_live.py::enrich_hotspots, wired into main_pipeline.py at lines 207, 276, 387). After the MLP produces hotspots, the engine cuts a 64x64x5 chip per hotspot (5 real bands, FDI dropped) and POSTs it to a GPU sidecar. The engine itself is deliberately torch-free (py3.14, onnxruntime+numpy), so it cannot embed; it only does urllib HTTP + numpy k-NN/fusion. The sidecar (python_engine/clay_service.py) is the REAL thing: it loads the frozen Clay v1.5 encoder (5.1GB clay-v1.5.ckpt is present on disk), runs mask_ratio=0 -> encoder -> class token [N,1024] on GPU (~36ms/chip warm), and returns embeddings. When the sidecar is up this is genuinely live real-time Clay on every scan: knn_predict + anomaly_score against the reference ClayIndex + confidence_fusion.hotspot_tier -> CONFIRMED/POSSIBLE. HOWEVER the sidecar must be started manually (conda run -n mpt-train python clay_service.py); nothing auto-launches it (no startup script references it). clay_live.available() health-pings 127.0.0.1:8010; if down (the default), enrich_hotspots returns 0 and hotspots keep their MLP-only result \u2014 the CLAY stage log is simply not emitted.\n\n2) Per-hotspot similarity/change endpoints (ml/similarity_service.py). These serve from prebuilt artifacts, NOT live torch: models/clay_index.npz (52MB, real Clay embeddings of MARIDA/MADOS/RFO test chips, built offline on GPU via clay_embed.py + clay_index.build_from_caches) and models/hotspot_embeddings.npz (per-site store). The reference index and its embeddings are real. The per-site store is currently populated by seed_hotspot_store.py, which takes REAL cached test embeddings but assigns them SYNTHETIC monitored-site coords (CHN/AND/MUM...) and fabricates temporal drift by blending toward Plastic/Water exemplars so /similarity/change has something to show. The genuine per-site flow exists (engine spools chips to models/embed_queue/ via embedding_spool.py -> GPU node ml/embed_hotspots.py drains + embeds -> appends real fingerprints), and there are 18 real queued .npz chip files sitting in embed_queue/ right now \u2014 but the GPU drain step has not been run, so those real scanned sites are not yet served; hotspot(key) returns pending=True for them.",
+   "fallbackTrigger": "Live Clay is skipped whenever the GPU sidecar is not reachable at CLAY_SERVICE_URL (default http://127.0.0.1:8010) \u2014 which is the default state because nothing auto-starts clay_service.py and it requires the mpt-train conda env (torch + claymodel) on a CUDA GPU. clay_live.available() returns False -> enrich_hotspots returns 0 -> hotspots stay MLP-only, no CLAY stage. Separately, per-site similarity falls to pending/seeded data whenever ml.embed_hotspots has not been run to drain models/embed_queue/ into the store; without that GPU drain the served per-site embeddings are the synthetic-keyed seed rows, not real scanned hotspots. (CLAY_LIVE=0 also hard-disables tier-2.)",
+   "toMakeFullyReal": [
+    {
+     "step": "Run the Clay GPU sidecar as an always-on managed service alongside the engine",
+     "who": "user-hardware",
+     "detail": "clay_service.py must run in the mpt-train conda env (torch + claymodel + the 5.1GB clay-v1.5.ckpt) on a CUDA GPU (RTX 4050 per the clay_embed recipe). It is a manual stdlib-HTTP server today; it must stay up for live tier-2 to fire on every scan."
+    },
+    {
+     "step": "Add a supervised launcher + startup wiring for the sidecar and thread its health into the pipeline UX",
+     "who": "code (me)",
+     "detail": "Write a launch script/systemd-or-NSSM wrapper (or a conda-run subprocess supervisor) that starts clay_service.py with the engine, restarts on crash, and surface sidecar-down as an explicit status instead of a silent skip. Optionally warm the model on boot to avoid the first-scan 4.8GB load stall."
+    },
+    {
+     "step": "Convert ml.embed_hotspots into a watch loop and run it as a service to auto-drain the chip queue",
+     "who": "code (me)",
+     "detail": "embed_hotspots.py already has a --once default; add the --watch poll loop it hints at so spooled real chips in models/embed_queue/ (18 pending now) are embedded and appended to hotspot_embeddings.npz continuously. Must run in the GPU env (user-hardware)."
+    },
+    {
+     "step": "Stop seeding synthetic sites; let real scans populate the per-site store",
+     "who": "code (me)",
+     "detail": "seed_hotspot_store.py injects real embeddings under fabricated monitored-site coords and blended fake temporal drift. Gate it behind a demo flag (or remove) once the spool->drain path has populated real sites, so /similarity/hotspot and /similarity/change reflect actual scanned locations and real acquisition timestamps threaded from embedding_spool.spool_sites ts."
+    },
+    {
+     "step": "Provide a persistently-running GPU host",
+     "who": "user-service",
+     "detail": "Real-time Clay on every scan requires a GPU node co-located with (or reachable from) the engine that stays up 24/7. Today the GPU env is used offline/interactively; production real-time needs it as a standing service (point the engine at it via CLAY_SERVICE_URL if remote)."
+    },
+    {
+     "step": "Re-run scans over real Sentinel-2 scenes to fill the store",
+     "who": "data",
+     "detail": "The store only becomes fully real once actual scans over real AOIs spool chips and the drain embeds them. Requires the satellite ingestion path to be feeding real arr6 scenes (upstream subsystem)."
+    }
+   ],
+   "capabilityUpgrades": [
+    "Fine-tune / LoRA the frozen Clay v1.5 encoder on MARIDA + MADOS labelled chips (the caches already exist: patches_*_marida/mados.npz) to make embeddings class-discriminative for marine plastic instead of relying on mean-centring to fight the ViT anisotropy/cone-effect noted in clay_index.py. Add a small LoRA adapter in load_clay() and a train_clay_lora.py in the mpt-train env; rebuild clay_index.npz from adapted embeddings.",
+    "Emit DENSE patch tokens (encoder output [:,1:,:], the P per-chip tokens) instead of only the class token [:,0,:] in clay_embed.embed_chips, enabling per-pixel/patch segmentation of plastic within a 64x64 chip rather than one fingerprint per hotspot \u2014 turns tier-2 from a chip-level verdict into a spatial mask.",
+    "Train a lightweight linear/MLP head on Clay embeddings (train_clay_head.py already exists) to replace the retrieval k-NN classifier with a calibrated classifier, and validate against tune_clay_threshold.py / validate_plp_clay.py.",
+    "Batch multiple hotspots per sidecar /embed call (already supported, bs=16) and add GPU-side caching keyed by site_key so re-scanned sites skip re-embedding \u2014 cuts live latency further.",
+    "Fuse the live Clay tier-2 verdict back into the persisted per-site store during the scan (currently live tier-2 and the batch store are separate paths), so every scan both re-scores AND records a real timestamped observation for change detection in one pass."
+   ],
+   "blockers": [
+    "The engine is intentionally torch-free (py3.14, onnxruntime+numpy), so Clay can NEVER run in-process \u2014 real-time Clay is architecturally bound to an out-of-process GPU sidecar that must be running.",
+    "No orchestration/startup script launches clay_service.py or ml.embed_hotspots; both are manual conda-run commands today, so the live + real-per-site paths are dormant by default.",
+    "GPU dependency: requires a CUDA GPU + mpt-train conda env with torch, claymodel, yaml and the 5.1GB checkpoint; not available in the engine runtime.",
+    "The sidecar is a single-threaded stdlib ThreadingHTTPServer with no auth/queueing \u2014 fine for local dev, not a hardened production service.",
+    "The per-site store is currently seeded with synthetic site keys and fabricated temporal blends (seed_hotspot_store.py), so change-detection output is not real until real scans drain the queue."
+   ],
+   "effort": "L"
+  },
+  {
+   "subsystem": "backend-data (DEMO_MODE + mock fallback layer)",
+   "currentState": "partial-real",
+   "howItWorksNow": "Every read/write branches on isDemo() = env.DEMO_MODE || !dataMode.dbHealthy (backend/src/lib/dataMode.ts:68-70). The committed local .env sets DEMO_MODE=false, SATELLITE_PROVIDER=cdse with real Sentinel Hub OAuth creds, DATABASE_URL to the portable PG at infra/pgsql, and infra/pgdata is initialized \u2014 so when Postgres and the Python engine on :8000 are both up, the backend genuinely serves live Prisma data and persistRun() lands real detections/hotspots/alerts/logs in Postgres (pipelinePersist.service.ts). At startup probeDatabase() runs SELECT 1; a 30s poll (startDbHealthPolling) self-heals to live when PG returns. BUT there are three silent-fallback layers: (1) repo.ts pick() serves mock.ts on isDemo() OR on ANY Prisma query error, logging only a warn; (2) persistRun returns null (no write) whenever isDemo(); (3) pipeline.routes.ts returns demoPipelineResult()/offlineAoiResult() on any engine fetch failure. The only signal to clients is the X-Data-Source: demo|db header, /health, and /api/pipeline/status \u2014 the API never hard-errors when degraded. Code-level defaults are demo: env.ts:69 defaults DEMO_MODE to true when unset and env.ts:85 defaults SATELLITE_PROVIDER to 'demo', and .env is gitignored so a fresh clone boots in demo.",
+   "fallbackTrigger": "Any one of: DEMO_MODE=true (or DEMO_MODE unset, since env.ts defaults it to true); Postgres unreachable so startup SELECT 1 or the 30s health poll fails (dbHealthy=false); any individual Prisma query throwing inside repo.ts pick() (e.g. empty/unmigrated DB, missing regions) \u2014 that request silently returns mock even while dbHealthy=true; or the Python engine on :8000 being unreachable, which returns demo/offline pipeline results.",
+   "toMakeFullyReal": [
+    {
+     "step": "Flip code defaults to real so demo is opt-in, not the fallback",
+     "who": "code (me)",
+     "detail": "In backend/src/lib/env.ts change DEMO_MODE default from true\u2192false (line 69) and SATELLITE_PROVIDER default from 'demo'\u2192'cdse' (line 85). Update .env.example DEMO_MODE=true\u2192false, SATELLITE_PROVIDER=demo\u2192cdse, VITE_DEMO_MODE=true\u2192false so a fresh clone doesn't silently boot demo."
+    },
+    {
+     "step": "Make degradation loud/opt-in instead of silent",
+     "who": "code (me)",
+     "detail": "Add a STRICT_DB (or DATA_STRICT) flag: when set, repo.ts pick() rethrows instead of returning mock, persistRun throws instead of returning null, and the pipeline route returns 503 instead of demoPipelineResult(). Prevents 'looks real but is mock' states. Optionally drop mock.ts from the real path entirely once DB is guaranteed."
+    },
+    {
+     "step": "Start the portable Postgres cluster",
+     "who": "user-service",
+     "detail": "Run infra\\start-db.cmd (portable PG 17.5, data in infra/pgdata \u2014 already initialized). Backend's DATABASE_URL already points at postgresql://mpt_user:...@localhost:5432/marine_plastic."
+    },
+    {
+     "step": "Apply schema and seed only regions+users",
+     "who": "data",
+     "detail": "cd backend && npm run db:push (no migration files exist \u2014 migrations/ is empty) then npm run db:seed for the 5 regions + 3 login users. For truly-real dashboards, trim seed.ts so it does NOT insert the 8 demo detections/hotspots/alerts (they mirror mock.ts) \u2014 let the engine persist real detections; or wipe those seed rows after seeding."
+    },
+    {
+     "step": "Run the Python detection engine against a real satellite provider",
+     "who": "user-service",
+     "detail": "Start FastAPI engine on :8000 (PYTHON_ENGINE_URL). Real Sentinel Hub creds are already in .env (SENTINEL_HUB_CLIENT_ID/SECRET, provider=cdse). Then POST /api/pipeline/run (or the scheduled-run cron) persists real detections via pipelinePersist.service.ts."
+    },
+    {
+     "step": "(Optional) Start Redis for queued runs",
+     "who": "user-service",
+     "detail": "infra\\start-redis.cmd enables BullMQ; without it runs execute inline (direct path) \u2014 not a blocker for real data."
+    },
+    {
+     "step": "(Optional) Wire real drift forcing creds",
+     "who": "user-credential",
+     "detail": "CDS_API_KEY / CMEMS creds are present in .env but the file itself notes they are 'not consumed by the code yet' \u2014 real ERA5/CMEMS forcing in the drift model is future work, currently the trajectory dataSource stays 'demo'."
+    }
+   ],
+   "capabilityUpgrades": [
+    "Add a visible server-side data-source state endpoint that distinguishes the THREE modes clients currently can't tell apart: forced-demo (DEMO_MODE=true), degraded-demo (DB down), and live \u2014 right now X-Data-Source collapses the last two into 'demo'.",
+    "Emit a startup/rotating WARN or metric each time pick() catches a live-query error and serves mock, so silent per-query fallbacks (schema drift, empty tables) are observable instead of buried in logs.",
+    "Replace prisma db push with real migration files (backend/prisma/migrations is empty) so the schema is reproducible/versioned for real deployments.",
+    "Split seed.ts into seed-core (regions + users, required for real) and seed-demo (the 8 sample detections) so a real deployment can seed only what it needs without polluting dashboards with fake detections.",
+    "Add a health gate that fails the process (or a readiness probe) when DEMO_MODE=false but DB is unreachable at boot, instead of silently serving mock \u2014 makes 'fully real' verifiable in CI/deploy."
+   ],
+   "blockers": [
+    "Postgres must be running and reachable (portable cluster via infra\\start-db.cmd) \u2014 a user-controlled service; when down the backend silently serves mock.ts.",
+    "The Python detection engine must be running on :8000 with a working satellite provider \u2014 a user-controlled service; when down /pipeline/run returns demo/offline results and nothing is persisted.",
+    "DB must be schema-pushed and seeded with at least the 5 regions + login users, else pick() queries and scheduled-run region attribution fall back to mock/hardcoded region codes.",
+    "Real satellite credentials (Sentinel Hub) are required for genuine imagery \u2014 already present in the local .env, but a fresh clone using .env.example would lack them."
+   ],
+   "effort": "M"
+  },
+  {
+   "subsystem": "satellite-ingest (REAL Sentinel-2 pixel ingestion)",
+   "currentState": "partial-real",
+   "howItWorksNow": "Real ingest is fully wired and, on the user's actual machine, live. Two distinct real paths exist plus one synthetic fallback:\n\n1) SCENE DISCOVERY (metadata) \u2014 download.search_scenes() POSTs to the AWS Element84 Earth Search STAC (https://earth-search.aws.element84.com/v1/search) for collection sentinel-2-l2a with the AOI bbox and a trailing datetime window (days_back 30-45). This is KEYLESS and genuinely real: it returns real sceneId, tile (MGRS), acquisitionDate, eo:cloud_cover, footprint bbox and thumbnail href. predict_route.py uses it for the scene list; is_live_provider() (provider in aws-stac/cdse/sentinelhub) gates it.\n\n2) PIXEL REFLECTANCE (the actual data) \u2014 download._real_ingest() -> band_loader.fetch_bands() calls the CDSE Sentinel Hub Process API (sh.dataspace.copernicus.eu/api/v1/process) with an OAuth2 client-credentials token (identity.dataspace.copernicus.eu, CDSE realm). The evalscript pulls 6 float32 channels [B04,B06,B08,B8A,B11,SCL] as a GeoTIFF decoded by tifffile (no GDAL). cloud_masker.split_scl separates the 5 reflectance bands + SCL; surface_from_scl gives real water/land/cloud %; threshold_applier.extract_candidates computes vectorised FDI (Biermann 2020) and keeps pixels where FDI>threshold AND SCL in {2,6,7} (cloud_filter.KEEP_SCL). This is REAL surface reflectance.\n\nI verified the wiring against the live repo .env (NOT the committed .env.example): SATELLITE_PROVIDER=cdse, DEMO_MODE=false, SENTINEL_HUB_CLIENT_ID/SECRET populated. band_loader.available() returned True, and get_token() succeeded against CDSE (returned a real 1593-char access token) \u2014 so the credentials are VALID and pixel ingest is genuinely enabled. A live fetch_bands() test failed here only because this sandbox blocks DNS to sh.dataspace.copernicus.eu (the identity host resolved fine); on a normally-networked machine this path returns real pixels.\n\nQuality caveats that keep it short of 'fully real-time': fetch_bands requests a 256x256 raster over the whole region bbox (~1.5\u00b0\u2248165 km) => ~600-640 m per pixel, i.e. it heavily DOWNSAMPLES Sentinel-2's native 10-20 m \u2014 sub-pixel/small debris rafts are averaged away. It also requests a leastCC MOSAIC over a 30-day window (mosaickingOrder=leastCC, maxCloudCoverage=100, days_back=30), so the 'scene' is a trailing composite, not the latest single overpass; the acquisition date shown to the UI comes from a SEPARATE STAC call and need not match the mosaic actually used.",
+   "fallbackTrigger": "Synthetic ('demo') pixels are served when EITHER (a) band_loader.available() is False \u2014 numpy or tifffile missing, OR SATELLITE_PROVIDER not in {sentinelhub,cdse}, OR SENTINEL_HUB_CLIENT_ID/SECRET empty; OR (b) available() is True but _real_ingest raises ANY exception (invalid/expired creds -> 401, quota -> 429, network/DNS failure after 3 retries, empty scene, or tiff decode error) \u2014 download.scene_for/scene_for_bbox catch it and return SceneData(source='demo', _synthetic_region/_synthetic_bbox(...)). The committed .env.example ships SATELLITE_PROVIDER=demo + DEMO_MODE=true, so a FRESH clone is synthetic by default; only the user's live .env (provider=cdse, valid keys) flips it to real. In THIS sandbox the fetch silently degrades to synthetic because outbound DNS to the Process host is blocked.",
+   "toMakeFullyReal": [
+    {
+     "step": "Provide valid CDSE Sentinel Hub OAuth client id + secret (already done)",
+     "who": "user-credential",
+     "detail": "Verified live: SATELLITE_PROVIDER=cdse and the client-credentials pair in e:/Final Year Project/marine-plastic-tracker/.env authenticate \u2014 get_token() returned a real token. No further credential action needed unless the secret rotates."
+    },
+    {
+     "step": "Ensure the runtime host has outbound network to sh.dataspace.copernicus.eu and identity.dataspace.copernicus.eu",
+     "who": "user-service",
+     "detail": "Pixel fetch failed in this audit sandbox with 'getaddrinfo failed' (DNS blocked) to the Process host. On the deployment machine these two hosts (443) must be reachable, else every scan silently falls back to synthetic."
+    },
+    {
+     "step": "Confirm CDSE processing-unit quota headroom",
+     "who": "user-service",
+     "detail": "Free CDSE accounts have a monthly Processing Unit budget; a 256x256 6-band request is cheap but repeated region+AOI scans consume PUs. A 429 becomes a synthetic fallback (not retried by design in band_loader._read_url)."
+    },
+    {
+     "step": "Preserve native resolution by tiling the AOI instead of one 256x256 raster over the whole bbox",
+     "who": "code (me)",
+     "detail": "In band_loader.fetch_bands / download._real_ingest, size the output grid from bbox extent to target ~10-20 m/px (or split large region bboxes into 5.12 km tiles at 512px) and stitch. Current fixed 256px over ~1.5\u00b0 => ~600 m/px destroys the FDI signal for small debris."
+    },
+    {
+     "step": "Fetch the latest single overpass and report its true acquisition metadata",
+     "who": "code (me)",
+     "detail": "Switch mosaickingOrder to mostRecent (or query STAC for the newest low-cloud scene and pass its exact datetime as the timeRange), and have fetch_bands return the acquisition date/tile so main_pipeline reports the SAME scene it ingested rather than a separate STAC lookup."
+    },
+    {
+     "step": "Cache/reuse the OAuth token",
+     "who": "code (me)",
+     "detail": "get_token() is called on every fetch_bands. Cache the token with its expiry (JWT exp) to cut latency and token-endpoint load."
+    },
+    {
+     "step": "Surface the fallback honestly in the API/UI",
+     "who": "code (me)",
+     "detail": "main_pipeline already sets provider and passes sd.error; ensure the frontend visibly flags source=='demo' with the error so a degraded scan is never mistaken for real (also flip VITE_DEMO_MODE=false which is still true in .env)."
+    }
+   ],
+   "capabilityUpgrades": [
+    "Native-resolution tiled ingest (10-20 m/px) with on-the-fly mosaicking so small debris rafts survive the FDI step instead of being spatially averaged out at the current ~600 m/px.",
+    "True latest-pass selection: use STAC to pick the newest acquisition per tile, fetch that exact datetime, and expose real acquisition timestamp + tile + measured cloud_cover per scan (moving from a 30-day leastCC composite to a dated single-overpass product).",
+    "Multi-temporal change detection: fetch the two most recent clear passes and diff FDI to distinguish transient floating debris from static bright features (foam/sunglint), leveraging the existing arr6 patch pipeline.",
+    "Sunglint / atmospheric residual masking beyond SCL: add a glint index (B8A/B11 geometry) to cut daytime specular false positives that SCL classes 2/6/7 still let through.",
+    "Token caching + CDSE 429 quota-aware backoff and a same-scene STAC/Process reconciliation so the reported scene always equals the ingested pixels.",
+    "Optional keyless real-pixel path via AWS S2 COGs on the Element84 STAC (band assets are public) as a no-CDSE-key fallback that is still REAL reflectance, only slower to read per-band."
+   ],
+   "blockers": [
+    "Outbound DNS/HTTPS to sh.dataspace.copernicus.eu is blocked in this audit sandbox, so an end-to-end live pixel fetch could not be proven here (token/identity host DID resolve, credentials confirmed valid).",
+    "Sentinel-2 revisit is ~5 days at India latitudes (2-sat constellation); combined with monsoon cloud cover, truly 'real-time' latest-clear-pixel data can be days old \u2014 a physical limit, not a code bug. The 30-day window exists to survive cloud gaps.",
+    "CDSE free-tier Processing-Unit quota caps scan frequency; heavy multi-region + AOI scanning can exhaust it and trigger synthetic fallback."
+   ],
+   "effort": "M"
+  }
+ ],
+ "roadmap": null
+}

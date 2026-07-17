@@ -1,0 +1,134 @@
+# ─── Secrets ──────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.cert
+
+# ─── Node / npm ───────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+backend/node_modules/
+frontend/node_modules/
+backend/dist/
+frontend/dist/
+
+# ─── Build outputs ────────────────────────────────────
+dist/
+build/
+out/
+.output/
+*.tsbuildinfo
+
+# ─── Vite ─────────────────────────────────────────────
+frontend/.vite/
+
+# ─── Python ───────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.env/
+pip-log.txt
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+*.egg-info/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+*.egg
+MANIFEST
+
+# ─── Jupyter ──────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ─── ML artefacts ─────────────────────────────────────
+models/weights/*.h5
+models/weights/*.pt
+models/weights/*.pth
+models/weights/*.onnx
+models/checkpoints/
+!models/weights/.gitkeep
+!models/checkpoints/.gitkeep
+# Clay foundation-model weights (4.8 GB) + regenerable GPU training caches
+python_engine/models/clay/
+python_engine/models/*.ckpt
+python_engine/models/*.npz
+# Per-site Clay embedding store + the offline chip queue (regenerable)
+python_engine/models/embed_queue/
+
+# ─── Data / imagery (keep seed, ignore large downloads) ──
+data/imagery/
+data/raw/
+data/cache/
+data/processed/
+data/ocean_data/
+data/wind_data/
+# Downloaded benchmark datasets (large; fetch via the S3 mirrors / provider)
+data/refinedfloatingobjects/
+data/floatingobjects/
+data/plp/
+data/durban/
+data/s2ships/
+# The two training benchmarks — 10 GB combined, re-fetch from Zenodo:
+# MARIDA 10.5281/zenodo.5151941, MADOS 10.5281/zenodo.10664073.
+# The MODEL they produce (python_engine/models/marinenet.onnx, ~15 KB) IS tracked.
+data/marida/
+data/MADOS/
+data/MADOS.zip
+# Unused 14 MB Natural-Earth download (no code reads it; ETA uses fixed per-region
+# coast longitudes in trajectory/coastline_loader.py).
+data/coastline/
+!data/.gitkeep
+!data/seed/
+
+# ─── IDE / Editor ─────────────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Logs ─────────────────────────────────────────────
+logs/
+*.log
+*.log.*
+
+# ─── Coverage / test artefacts ────────────────────────
+coverage/
+.nyc_output/
+
+# ─── Prisma generated client ──────────────────────────
+backend/node_modules/.prisma/
+
+# ─── Misc ─────────────────────────────────────────────
+.cache/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Local portable PostgreSQL (infra/start-db.cmd)
+infra/pgsql/
+infra/pgdata/
+
+infra/redis/

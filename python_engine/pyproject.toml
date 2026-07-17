@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "mpt-python-engine"
+version = "0.3.0"
+description = "FastAPI compute engine for Marine Plastic Tracker (domain-structured)"
+requires-python = ">=3.11"
+
+# ── Ruff (lint + format) ──────────────────────────────────────────
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+# Flat package: modules live at the python_engine root, grouped by domain.
+src = ["."]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # flake8-bugbear
+  "UP",  # pyupgrade
+  "N",   # pep8-naming
+  "S",   # flake8-bandit (security)
+]
+ignore = [
+  "S101",    # Use of assert is OK in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ── Pytest ────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths   = ["tests"]
+addopts     = "--tb=short"

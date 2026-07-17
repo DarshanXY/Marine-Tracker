@@ -1,0 +1,5 @@
+# Minimal deps to run the engine at ₹0 (pure-Python algorithms, synthetic scenes).
+#   python -m pip install -r requirements-demo.txt
+fastapi>=0.111
+uvicorn[standard]>=0.30
+pydantic>=2.7
