@@ -66,6 +66,25 @@ def reset_probe() -> None:
         _down_until = 0.0
 
 
+def status(timeout: float = 0.5) -> dict:
+    """Honest one-glance Clay status for the UI: is the 2nd-stage verifier live?
+    `available` True ⇒ every scan gets Clay CONFIRMED/POSSIBLE tiers; False ⇒ the
+    scan runs MLP-only (start clay_service.py on the GPU)."""
+    try:
+        from ml import similarity_service as sim
+        index_ready = sim._get() is not None
+    except Exception:  # noqa: BLE001
+        index_ready = False
+    up = available(timeout=timeout)
+    return {
+        "enabled": enabled(),
+        "available": up,
+        "indexReady": index_ready,
+        "url": URL,
+        "role": "second-stage verifier (foundation-model); CONFIRMED tier ~0.92 precision",
+    }
+
+
 def _plastic_affinity(idx, q, k: int = 10) -> float:
     """Similarity-weighted share of the k nearest reference sites that are Plastic —
     class-robust (unlike raw k-NN argmax, which the water-heavy library biases)."""

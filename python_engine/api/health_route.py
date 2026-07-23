@@ -16,6 +16,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from config import settings
+from ml import clay_live
 from ml import inference_engine as infer
 from ml import model_loader
 
@@ -29,6 +30,7 @@ class HealthResponse(BaseModel):
     demo_mode: bool
     model_loaded: bool
     model: dict | None = None
+    clay: dict | None = None   # 2nd-stage verifier status (on/off, so the UI can show it)
     satellite_provider: str
     satellite_configured: bool
     time: str
@@ -53,6 +55,7 @@ def health() -> HealthResponse:
         demo_mode=settings.demo_mode,
         model_loaded=infer.model_loaded(),
         model=model_loader.model_info(),
+        clay=clay_live.status(),
         satellite_provider=settings.satellite_provider,
         satellite_configured=settings.satellite_configured,
         time=datetime.now(timezone.utc).isoformat(),

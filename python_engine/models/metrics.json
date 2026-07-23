@@ -1,7 +1,7 @@
 {
   "perPixel": {
     "model": "marinenet.onnx",
-    "arch": "per-pixel MLP 11->64->32->16->4 (ReLU + dropout, GPU-trained AdamW)",
+    "arch": "per-pixel 3-seed ENSEMBLE of 256-128-64-32 MLPs (focal loss + class-balanced weights + folded per-class bias calibration), avg logits, GPU-trained",
     "input": "per-pixel features (raw; input standardisation baked into the ONNX)",
     "features": [
       "B04",
@@ -17,75 +17,76 @@
       "BRIGHT"
     ],
     "trainSamples": 1081615,
-    "trainAccuracy": 0.9909,
-    "testAccuracy": 0.9886,
-    "macroF1": 0.7871,
-    "balancedMacroF1": 0.8727,
+    "trainAccuracy": 0.9899,
+    "testAccuracy": 0.9899,
+    "macroF1": 0.8175,
+    "balancedMacroF1": 0.8776,
     "onnxAgreement": 1.0,
     "perClass": {
       "Plastic": {
-        "precision": 0.6636,
-        "recall": 0.8582,
-        "f1": 0.7485
+        "precision": 0.7761,
+        "recall": 0.8242,
+        "f1": 0.7994
       },
       "Algae": {
-        "precision": 0.6124,
-        "recall": 0.8311,
-        "f1": 0.7052
+        "precision": 0.6484,
+        "recall": 0.8221,
+        "f1": 0.725
       },
       "Sea_Foam": {
-        "precision": 0.609,
-        "recall": 0.823,
-        "f1": 0.7
+        "precision": 0.6814,
+        "recall": 0.8346,
+        "f1": 0.7503
       },
       "Water": {
-        "precision": 0.9983,
-        "recall": 0.9916,
-        "f1": 0.9949
+        "precision": 0.9976,
+        "recall": 0.9931,
+        "f1": 0.9953
       }
     },
     "confusion": [
       [
-        1162,
-        90,
-        40,
-        62
+        1116,
+        93,
+        10,
+        135
       ],
       [
-        366,
-        6090,
-        171,
-        701
+        186,
+        6024,
+        142,
+        976
       ],
       [
-        57,
-        8,
-        637,
-        72
+        48,
+        10,
+        646,
+        70
       ],
       [
-        166,
-        3756,
-        198,
-        486331
+        88,
+        3163,
+        150,
+        487050
       ]
     ],
     "perDataset": {
       "marida": {
-        "testAccuracy": 0.998,
-        "macroF1": 0.899,
+        "testAccuracy": 0.9981,
+        "macroF1": 0.9047,
         "samples": 153762
       },
       "mados": {
-        "testAccuracy": 0.9844,
-        "macroF1": 0.7466,
+        "testAccuracy": 0.9862,
+        "macroF1": 0.7843,
         "samples": 346145
       }
     },
     "device": "NVIDIA GeForce RTX 4050 Laptop GPU",
     "dataset": "REAL - MARIDA + MADOS (Kikaki et al. 2022/2024), official train/val/test splits; GPU-trained on RTX 4050",
     "trainedOn": "marida+mados",
-    "note": "GPU-retrained per-pixel MLP with 4 engineered spectral indices (PI, MNDWI, red-edge NDVI, brightness) from the same 5 bands. Beats the prior numpy MLP on the identical held-out test: macroF1 0.500->0.787, accuracy 0.895->0.989, Sea_Foam precision 0.016->0.61, Plastic F1 0.508->0.749. Prior model kept as marinenet_prev.onnx; 7-feature drop-in alternative kept as marinenet_pp7.onnx."
+    "note": "3-seed ensemble; prioritises PLASTIC reliability. Held-out: macroF1 0.8175, Plastic F1 0.799 (P 0.776 R 0.824), Algae 0.81, Foam 0.75, Water 0.997, balanced macroF1 0.878, new-seas water-FP 0.7%. High-confidence plastic tier at P>=0.648 -> 90% precision.",
+    "updated": "2026-07-22T16:00:15.240288+00:00"
   },
   "dataset": "REAL - MARIDA + MADOS (Kikaki et al. 2022/2024), official train/val/test splits (see perPixel.dataset for the shipped model)",
   "classes": [

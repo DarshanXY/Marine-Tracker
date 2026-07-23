@@ -5,7 +5,7 @@
  * Pure ocean/teal system; a soft ping ring marks a healthy signal.
  */
 import { motion } from 'framer-motion';
-import { Cpu, BrainCircuit, ListChecks, Satellite, Sparkles, type LucideIcon } from 'lucide-react';
+import { Cpu, BrainCircuit, ListChecks, Satellite, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { usePipelineStatus, useSatelliteStatus, useSimilarityInfo } from '@/hooks/useApi';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +48,10 @@ export function LiveStatusRail() {
   const queue = p?.queue;
   const satLive = sat.data?.mode === 'live';
   const embedded = sim.data?.siteStore?.embeddedSites ?? 0;
+  // Clay 2nd-stage verifier: available ⇒ every scan gets CONFIRMED/POSSIBLE tiers
+  // (≈0.92 plastic precision). Enabled-but-offline is a LOUD warn, not a silent gap.
+  const clayAvailable = p?.clay?.available ?? false;
+  const clayEnabled = p?.clay?.enabled ?? false;
 
   const queueValue = queue
     ? queue.state === 'up'
@@ -65,8 +69,9 @@ export function LiveStatusRail() {
         value={queueValue} />
       <StatusTile i={3} icon={Satellite} label="Satellite" tone={satLive ? 'ok' : 'info'}
         value={satLive ? 'Live feed' : 'Demo data'} />
-      <StatusTile i={4} icon={Sparkles} label="Embedding store" tone={embedded > 0 ? 'ok' : 'info'}
-        value={embedded > 0 ? `${embedded} sites` : 'Empty'} />
+      <StatusTile i={4} icon={ShieldCheck} label="Clay verifier"
+        tone={clayAvailable ? 'ok' : clayEnabled ? 'off' : 'info'}
+        value={clayAvailable ? `Verifying${embedded > 0 ? ` · ${embedded} sites` : ''}` : clayEnabled ? 'OFFLINE — start sidecar' : 'Disabled'} />
     </div>
   );
 }

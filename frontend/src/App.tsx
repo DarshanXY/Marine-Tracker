@@ -29,6 +29,7 @@ const Records = lazy(() => import('@/pages/Records'));               // merges D
 const AILab = lazy(() => import('@/pages/AILab'));                   // merges Model Health + Similarity & Fusion
 const AnalyticsReports = lazy(() => import('@/pages/AnalyticsReports')); // merges Analytics + Reports
 const MapExplorer = lazy(() => import('@/pages/MapExplorer'));
+const Areas = lazy(() => import('@/pages/Areas'));           // saved AOIs + 72h drift forecasting
 const Pipeline = lazy(() => import('@/pages/Pipeline'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const Operations = lazy(() => import('@/pages/Operations'));
@@ -116,6 +117,7 @@ export default function App() {
                 {/* Monitor */}
                 <Route index element={<CommandCenter />} />
                 <Route path="map" element={<MapExplorer />} />
+                <Route path="areas" element={<Areas />} />
                 <Route path="records" element={<Records />} />
                 <Route path="detections/:id" element={<DetectionDetail />} />
                 <Route path="hotspots/:id" element={<HotspotDetail />} />

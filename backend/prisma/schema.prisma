@@ -414,6 +414,84 @@ model MissionReport {
   @@map("mission_reports")
 }
 
+// ── Saved study areas ─────────────────────────────────────────────────────────
+// A Map Explorer AOI the analyst chose to KEEP. Map Explorer is transient — you
+// draw a box, the pipeline runs, and the result dies with the session. A
+// SavedArea makes that selection a durable record you can revisit, re-scan, and
+// forecast from, so an area can be tracked over time instead of re-drawn.
+//
+// `result` stores the whole PipelineResult payload (detections, hotspots,
+// trajectories, stats, scene) as JSON; the scalar columns above it are
+// denormalised headline figures so the list view renders without parsing it.
+model SavedArea {
+  id         String  @id @default(cuid())
+  name       String
+  notes      String?
+  regionCode String? @map("region_code") // MUM, GOA, KCH, CHN, AND
+
+  // AOI bounds in decimal degrees
+  north Float
+  south Float
+  east  Float
+  west  Float
+
+  // Run options that produced the stored scan (mirrors the AOI query key).
+  minConfidence Float   @default(0) @map("min_confidence")
+  dedupe        Boolean @default(false)
+  biofouling    Boolean @default(false)
+
+  // Denormalised headline stats (fast list rendering, no JSON parse).
+  candidatePixels Int    @default(0) @map("candidate_pixels")
+  detectionCount  Int    @default(0) @map("detection_count")
+  plasticCount    Int    @default(0) @map("plastic_count")
+  hotspotCount    Int    @default(0) @map("hotspot_count")
+  avgConfidence   Float  @default(0) @map("avg_confidence")
+  areaSqKm        Float  @default(0) @map("area_sq_km")
+  provider        String @default("synthetic") // sentinelhub | synthetic
+
+  // Full PipelineResult snapshot for this area.
+  result Json @default("{}")
+
+  lastScanAt  DateTime? @map("last_scan_at")
+  createdById String?   @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  forecasts AreaForecast[]
+
+  @@index([regionCode])
+  @@index([createdAt])
+  @@map("saved_areas")
+}
+
+// A 72-hour plastic drift forecast computed FROM a saved area and kept.
+// Retained as history (not overwritten) so successive forecasts for the same
+// area can be compared — the drift model's behaviour over time is itself a
+// result worth keeping.
+model AreaForecast {
+  id     String    @id @default(cuid())
+  areaId String    @map("area_id")
+  area   SavedArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  // Release point the forecast was integrated from (usually the top hotspot).
+  originLat Float @map("origin_lat")
+  originLon Float @map("origin_lon")
+
+  horizonHours        Int    @default(72) @map("horizon_hours")
+  landfallProbability Float  @map("landfall_probability")
+  etaHours            Float? @map("eta_hours") // null = no coast intercept in horizon
+  // cmems | open-meteo | demo — provenance of the forcing fields
+  dataSource          String @default("demo") @map("data_source")
+
+  // { points[], cone[], landfall{}, backtrack{}, windageCoeffs[] }
+  pathData   Json     @map("path_data")
+  computedAt DateTime @default(now()) @map("computed_at")
+
+  @@index([areaId])
+  @@index([computedAt])
+  @@map("area_forecasts")
+}
+
 // API keys for programmatic access (researchers / CI pipelines).
 model ApiKey {
   id         String    @id @default(cuid())

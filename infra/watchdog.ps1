@@ -94,9 +94,24 @@ function Start-Frontend {
         -WindowStyle Hidden
 }
 
+function Start-Clay {
+    # Clay GPU verifier (2nd-stage CONFIRMED tier). Loads a ~4.8 GB model on the GPU,
+    # so it binds :8010 only AFTER ~30 s — the caller enforces a cooldown so we never
+    # launch a second copy mid-load and OOM the 4050.
+    Write-Log 'starting Clay verifier on :8010'
+    $log = Join-Path $LogDir 'clay.log'
+    Start-Process -FilePath 'cmd.exe' `
+        -ArgumentList '/c', "set KMP_DUPLICATE_LIB_OK=TRUE && conda run -n mpt-train python clay_service.py --port 8010 > `"$log`" 2>&1" `
+        -WorkingDirectory (Join-Path $Root 'python_engine') `
+        -WindowStyle Hidden
+    $script:clayStartedAt = Get-Date
+}
+
 # Consecutive HTTP-failure counters for port-up-but-not-answering detection.
 $engineFails  = 0
 $backendFails = 0
+# Clay cold-load guard: never relaunch within this window of a start (GPU OOM guard).
+$clayStartedAt = [datetime]::MinValue
 
 function Invoke-Pass {
     # --- PostgreSQL (idempotent launcher, fire-and-forget) ---
@@ -132,6 +147,14 @@ function Invoke-Pass {
         }
     }
     else { $script:engineFails = 0 }
+
+    # --- Clay GPU verifier (:8010) — keep the 2nd-stage on so scans never silently
+    # drop to MLP-only. Cooldown: it binds the port only after a ~30 s GPU load, so
+    # don't relaunch within 90 s of a start or two copies would OOM the 4050. ---
+    if (-not (Test-Port 8010) -and ((Get-Date) - $script:clayStartedAt).TotalSeconds -gt 90) {
+        Write-Log 'Clay verifier :8010 down -> starting' 'WARN'
+        Start-Clay
+    }
 
     # --- Backend (port always; /health only with -HealthKill) ---
     if (-not (Test-Port 3001)) {

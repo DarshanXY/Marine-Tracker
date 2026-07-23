@@ -54,11 +54,38 @@ class Settings:
         "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token",
     )
 
+    # Plastic reliability tier. A plastic detection is HIGH-CONFIDENCE when its
+    # P(plastic) >= this threshold — calibrated on the held-out test to ~90%
+    # precision (P>=0.648 → precision 0.90, recall 0.57 for the ensemble). Hotspots
+    # (what dispatch acts on) are built from HIGH-CONFIDENCE plastic ONLY, so a crew
+    # is never sent to a low-confidence maybe. Lower it to widen recall, raise it
+    # (e.g. 0.79 → 95% precision) to only ever flag near-certain plastic.
+    plastic_high_conf: float = float(os.getenv("PLASTIC_HIGH_CONF", "0.648"))
+
     # Detection pipeline parameters (match the scientific spec).
     fdi_threshold: float = float(os.getenv("FDI_THRESHOLD", "0.02"))
     dbscan_eps_deg: float = float(os.getenv("DBSCAN_EPS_DEG", "0.09"))
     dbscan_min_samples: int = int(os.getenv("DBSCAN_MIN_SAMPLES", "3"))
     drift_horizon_hours: int = int(os.getenv("DRIFT_HORIZON_HOURS", "72"))
+
+    # Real-ingest quality gate. FDI is only physically meaningful over clear water,
+    # so we ask CDSE for a LEAST-cloud composite under `ingest_max_cloud`% within a
+    # `ingest_days_back`-day window, widening to `ingest_days_back_max` only when the
+    # first pull is still too cloudy. 100 → a monsoon scene returned cloud-top false
+    # positives; 25 was too strict → most pixels had no clear pass (nodata gaps,
+    # ~18% coverage). 50 is the sweet spot: leastCC compositing already picks the
+    # clearest pixels, so 50 gives FULL coverage at the same low effective cloud,
+    # while the scene filter still drops the worst passes.
+    ingest_max_cloud: int = int(os.getenv("INGEST_MAX_CLOUD", "50"))
+    ingest_days_back: int = int(os.getenv("INGEST_DAYS_BACK", "45"))
+    ingest_days_back_max: int = int(os.getenv("INGEST_DAYS_BACK_MAX", "180"))
+    # SCL classes kept as possible marine detections. Default 6 (water) + 7
+    # (unclassified — where 20 m debris rafts usually fall). Class 2 (dark area) is
+    # dropped by default: it is mostly terrain/cloud shadow and was the biggest
+    # land/haze false-positive leak. Set INGEST_KEEP_SCL="2,6,7" to restore it.
+    ingest_keep_scl: tuple[int, ...] = tuple(
+        int(x) for x in os.getenv("INGEST_KEEP_SCL", "6,7").split(",") if x.strip()
+    )
 
     @property
     def satellite_configured(self) -> bool:

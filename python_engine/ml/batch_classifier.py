@@ -8,6 +8,8 @@ correction is applied only if enabled (no-op by default → parity).
 """
 from __future__ import annotations
 
+from config import settings
+
 from . import biofouling_corrector as bio
 from . import inference_engine as infer
 from .area_estimator import pixel_area_km2
@@ -18,9 +20,12 @@ _PIXEL_AREA_KM2 = pixel_area_km2()
 
 
 def _detection(px: dict, fdi: float, cls: str, conf: float) -> dict:
+    # HIGH-CONFIDENCE only for plastic clearing the calibrated ~90%-precision bar.
+    high_conf = cls == "Plastic" and conf >= settings.plastic_high_conf
     return {
         "lat": px["lat"], "lon": px["lon"], "classification": cls, "confidence": conf,
         "fdi_score": round(fdi, 4), "area_sq_km": _PIXEL_AREA_KM2, "status": status_for(conf),
+        "high_confidence": high_conf,
     }
 
 

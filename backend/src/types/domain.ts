@@ -218,3 +218,77 @@ export interface OperationStats {
   plasticCollectedKg: number;
   areaClearedSqKm: number;
 }
+
+// ── Saved study areas ─────────────────────────────────────────────────────────
+
+/** A kept Map Explorer AOI: its bounds, the run options, and the stored scan. */
+export interface SavedAreaDto {
+  id: string;
+  name: string;
+  notes: string | null;
+  regionCode: string | null;
+  bbox: BoundingBox;
+  runOpts: { minConfidence: number; dedupe: boolean; biofouling: boolean };
+  stats: {
+    candidatePixels: number;
+    detections: number;
+    plastic: number;
+    hotspots: number;
+    avgConfidence: number;
+    areaSqKm: number;
+    provider: string;
+  };
+  lastScanAt: string | null;
+  createdById: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Full PipelineResult snapshot — only sent on the detail route. */
+  result?: unknown;
+  /** Forecast history, newest first — only sent on the detail route. */
+  forecasts?: AreaForecastDto[];
+  /** Cheap summary for the list view. */
+  forecastCount?: number;
+}
+
+/** One stored 72h drift forecast computed from a saved area. */
+export interface AreaForecastDto {
+  id: string;
+  areaId: string;
+  originLat: number;
+  originLon: number;
+  horizonHours: number;
+  landfallProbability: number;
+  etaHours: number | null;
+  dataSource: string;
+  pathData: unknown;
+  computedAt: string;
+}
+
+/** Payload for POST /api/areas. */
+export interface CreateAreaInput {
+  name: string;
+  notes?: string | null;
+  regionCode?: string | null;
+  bbox: BoundingBox;
+  runOpts?: { minConfidence?: number; dedupe?: boolean; biofouling?: boolean };
+  /** PipelineResult from the Map Explorer scan being saved (optional). */
+  result?: unknown;
+}
+
+/** Payload for PATCH /api/areas/:id — rename / annotate / replace the scan. */
+export interface UpdateAreaInput {
+  name?: string;
+  notes?: string | null;
+  result?: unknown;
+}
+
+/** Payload for POST /api/areas/:id/forecast (the engine's forecast response). */
+export interface SaveForecastInput {
+  originLat: number;
+  originLon: number;
+  horizonHours: number;
+  landfallProbability: number;
+  etaHours: number | null;
+  dataSource: string;
+  pathData: unknown;
+}

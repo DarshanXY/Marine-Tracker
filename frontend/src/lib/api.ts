@@ -9,11 +9,11 @@
  */
 import axios, { type AxiosInstance } from 'axios';
 import type {
-  AdminUser, Alert, AoiBBox, AoiRunOptions, AuthUser, Backtrack, ChangeResult, ClassStat,
+  AdminUser, Alert, AoiBBox, AoiRunOptions, AreaForecast, AuthUser, Backtrack, ChangeResult, ClassStat,
   CreateOperationInput, Detection, DetectionQuery, DetectionStatus, EngineCapabilities, FileReportInput, Hotspot, LoginPayload, ModelValidation,
   ModelEval, Operation, OperationStats, OperationStatus, OverviewStats, PipelineLogEntry,
   PipelineResult, PipelineStatusInfo, Region, RegionStat, SatelliteScene, SatelliteStatus,
-  ScenesResult, ServiceStatus, SimilarityDemo, SimilarityHotspot, SimilarityInfo, SimilaritySearch, SimilaritySites,
+  SavedArea, ScenesResult, ServiceStatus, SimilarityDemo, SimilarityHotspot, SimilarityInfo, SimilaritySearch, SimilaritySites,
   SiteChange, TrainingLabel, TrainingLabelSet, TrajectoryForecast,
   TrendPoint, TwoFactorSetup,
 } from '@/types';
@@ -124,16 +124,17 @@ async function patch<T>(url: string, fallback: () => T): Promise<T> {
 }
 
 /** POST with body, unwrapping `{ data }`. Throws on failure (no offline fallback —
- *  writes need the backend); react-query surfaces the error to the UI. */
-async function post<T>(url: string, body: unknown): Promise<T> {
-  const res = await http.post<{ data: T }>(url, body);
+ *  writes need the backend); react-query surfaces the error to the UI.
+ *  `timeout` overrides the 8s default for writes that wait on the engine. */
+async function post<T>(url: string, body: unknown, timeout?: number): Promise<T> {
+  const res = await http.post<{ data: T }>(url, body, timeout ? { timeout } : undefined);
   live = true;
   return res.data.data;
 }
 
 /** PATCH with body, unwrapping `{ data }`. Throws on failure. */
-async function patchBody<T>(url: string, body: unknown): Promise<T> {
-  const res = await http.patch<{ data: T }>(url, body);
+async function patchBody<T>(url: string, body: unknown, timeout?: number): Promise<T> {
+  const res = await http.patch<{ data: T }>(url, body, timeout ? { timeout } : undefined);
   live = true;
   return res.data.data;
 }
@@ -566,6 +567,37 @@ export const api = {
 
   fileMissionReport: (id: string, input: FileReportInput): Promise<Operation> =>
     post(`/api/operations/${id}/report`, input),
+
+  // ── Saved study areas ───────────────────────────────────────────────────────
+  areas: (params: { region?: string; limit?: number } = {}): Promise<SavedArea[]> =>
+    get('/api/areas', () => [], params),
+
+  area: (id: string): Promise<SavedArea | null> =>
+    get(`/api/areas/${id}`, () => null),
+
+  saveArea: (input: {
+    name: string;
+    bbox: AoiBBox;
+    notes?: string | null;
+    regionCode?: string | null;
+    runOpts?: { minConfidence: number; dedupe: boolean; biofouling: boolean };
+    result?: PipelineResult | null;
+    // A scan payload carries every detection, so allow well past the 8s default.
+  }): Promise<SavedArea> => post('/api/areas', input, 30_000),
+
+  updateArea: (id: string, input: { name?: string; notes?: string | null; result?: PipelineResult }): Promise<SavedArea> =>
+    patchBody(`/api/areas/${id}`, input, 30_000),
+
+  deleteArea: async (id: string): Promise<void> => {
+    await http.delete(`/api/areas/${id}`);
+    live = true;
+  },
+
+  /** Compute AND store a 72h drift forecast for a saved area. The engine call
+   *  happens server-side, so what gets persisted is the engine's own output —
+   *  a longer timeout than the plain forecast because it also writes. */
+  forecastArea: (id: string, body: { lat?: number; lon?: number; horizonHours?: number } = {}): Promise<AreaForecast> =>
+    post(`/api/areas/${id}/forecast`, body),
 
   // ── Server-side report exports (proper PDF / full-dataset CSV) ───────────────
   exportHotspotsPdf: (region?: string): Promise<void> =>

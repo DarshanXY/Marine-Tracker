@@ -88,7 +88,7 @@ export default function SimilarSitesDrawer({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-slate-900/30"
+            className="fixed inset-0 z-[210] bg-slate-900/30"
             onClick={onClose}
           />
           <motion.aside
@@ -96,7 +96,7 @@ export default function SimilarSitesDrawer({
             animate={{ x: 0 }}
             exit={{ x: 440 }}
             transition={{ type: 'tween', duration: 0.25 }}
-            className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto border-l border-border/70 bg-white p-5 shadow-glass"
+            className="fixed inset-y-0 right-0 z-[220] flex w-full max-w-md flex-col overflow-y-auto border-l border-border/70 bg-white p-5 shadow-glass"
             aria-label="Similar sites"
           >
             <div className="flex items-start justify-between">

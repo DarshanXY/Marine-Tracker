@@ -188,7 +188,7 @@ def _fetch_one(bbox: dict, width: int, height: int, token: str,
 
 
 def fetch_bands(bbox: dict, width: int | None = None, height: int | None = None,
-                target_m: float = 20.0, days_back: int = 30, max_cloud: int = 100,
+                target_m: float = 20.0, days_back: int = 30, max_cloud: int = 50,
                 timeout: int = 60, max_tiles: int = _MAX_TILES):
     """Return a float32 array (H, W, 6): 5 reflectance bands + SCL.
 

@@ -129,6 +129,78 @@ export const useForecast = () =>
 export const useChangeDetection = () =>
   useMutation({ mutationFn: (bbox: AoiBBox) => api.changeDetection(bbox) });
 
+// ── Saved study areas ─────────────────────────────────────────────────────────
+
+export const useAreas = (params: { region?: string; limit?: number } = {}) =>
+  useQuery({ queryKey: ['areas', params], queryFn: () => api.areas(params) });
+
+/** One area WITH its stored scan payload and forecast history. */
+export const useArea = (id: string | undefined) =>
+  useQuery({
+    queryKey: ['area', id],
+    queryFn: () => api.area(id as string),
+    enabled: Boolean(id),
+  });
+
+/** Invalidate both the list and the affected detail row after a write. */
+function useAreaInvalidation() {
+  const qc = useQueryClient();
+  return (id?: string) => {
+    void qc.invalidateQueries({ queryKey: ['areas'] });
+    if (id) void qc.invalidateQueries({ queryKey: ['area', id] });
+  };
+}
+
+export function useSaveArea() {
+  const invalidate = useAreaInvalidation();
+  return useMutation({
+    mutationFn: (input: Parameters<typeof api.saveArea>[0]) => api.saveArea(input),
+    onSuccess: (area) => invalidate(area.id),
+  });
+}
+
+export function useUpdateArea() {
+  const invalidate = useAreaInvalidation();
+  return useMutation({
+    mutationFn: ({ id, ...input }: { id: string } & Parameters<typeof api.updateArea>[1]) =>
+      api.updateArea(id, input),
+    onSuccess: (area) => invalidate(area.id),
+  });
+}
+
+export function useDeleteArea() {
+  const invalidate = useAreaInvalidation();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteArea(id),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/** Re-run the full pipeline for a saved area's box and store the fresh result,
+ *  so the area tracks the same water over time instead of freezing one scan.
+ *  Reuses the area's saved run options so successive scans stay comparable. */
+export function useRescanArea() {
+  const invalidate = useAreaInvalidation();
+  return useMutation({
+    mutationFn: async (area: { id: string; bbox: AoiBBox; runOpts: AoiRunOptions }) => {
+      const { result } = await api.analyzeAoi(area.bbox, 64, area.runOpts);
+      return api.updateArea(area.id, { result });
+    },
+    onSuccess: (area) => invalidate(area.id),
+  });
+}
+
+/** Compute + persist a 72h drift forecast for a saved area (server-side engine
+ *  call, so the stored path is the engine's own output). */
+export function useForecastArea() {
+  const invalidate = useAreaInvalidation();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; lat?: number; lon?: number; horizonHours?: number }) =>
+      api.forecastArea(id, body),
+    onSuccess: (fc) => invalidate(fc.areaId),
+  });
+}
+
 /** On-demand back-track — trace a parcel upstream to its likely source. */
 export const useBacktrack = () =>
   useMutation({ mutationFn: (p: { lat: number; lon: number; horizon?: number }) =>

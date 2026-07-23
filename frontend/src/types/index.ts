@@ -221,6 +221,9 @@ export interface PipelineDetection {
   fdiScore: number;
   areaSqKm: number;
   status: string;
+  /** Plastic only: P(plastic) cleared the calibrated ~90%-precision bar. The
+   *  reliable tier hotspots/dispatch act on. */
+  highConfidence?: boolean;
 }
 
 export interface PipelineHotspot {
@@ -253,9 +256,14 @@ export interface SurfaceComposition {
   landPct: number;
   cloudPct: number;
   otherPct: number;
-  label: 'water' | 'land' | 'cloud' | 'mixed';
+  label: 'water' | 'land' | 'cloud' | 'mixed' | 'no-observation';
   waterValid: boolean;
   source?: 'scl' | 'geographic-estimate';
+  /** Honest trust grade for FDI detections on this scene. */
+  reliability?: 'reliable' | 'degraded' | 'unusable' | 'unknown';
+  /** % of the AOI that had a clear observation (rest is cloud-gapped nodata).
+   *  water/land/cloud percentages are OF THIS OBSERVED area. */
+  coveragePct?: number;
 }
 
 export interface AoiRunOptions {
@@ -291,8 +299,69 @@ export interface TrajectoryForecast {
   landfall: Landfall;
   windageCoeffs: number[];
   horizonHours: number;
+  /** Landfall clamp: hour the drawn path ends, and why. `horizonHours` stays the
+   *  requested horizon; `pathEndHours` is where the path actually stops. */
+  pathEndHours?: number;
+  pathEndReason?: 'landfall' | 'horizon';
+  coastLon?: number | null;
+  coastModel?: string;
   dataSource: string;
   backtrack?: { points: ForecastPoint[]; cone: ForecastCone[] };
+}
+
+// ── Saved study areas ─────────────────────────────────────────────────────────
+
+/** One stored 72h drift forecast computed from a saved area. Kept as history so
+ *  successive runs over the same area stay comparable. */
+export interface AreaForecast {
+  id: string;
+  areaId: string;
+  originLat: number;
+  originLon: number;
+  horizonHours: number;
+  landfallProbability: number;
+  etaHours: number | null;
+  dataSource: string;
+  pathData: {
+    points?: ForecastPoint[];
+    cone?: ForecastCone[];
+    landfall?: Landfall;
+    windageCoeffs?: number[];
+    backtrack?: { points: ForecastPoint[]; cone: ForecastCone[] } | null;
+    /** Landfall clamp: where the drawn path ends and why. Absent on pre-clamp rows. */
+    pathEndHours?: number | null;
+    pathEndReason?: 'landfall' | 'horizon';
+    coastLon?: number | null;
+    coastModel?: string | null;
+  };
+  computedAt: string;
+}
+
+/** A Map Explorer AOI the analyst chose to keep. `result` and `forecasts` are
+ *  only populated by the detail route — the list omits the heavy scan payload. */
+export interface SavedArea {
+  id: string;
+  name: string;
+  notes: string | null;
+  regionCode: string | null;
+  bbox: AoiBBox;
+  runOpts: { minConfidence: number; dedupe: boolean; biofouling: boolean };
+  stats: {
+    candidatePixels: number;
+    detections: number;
+    plastic: number;
+    hotspots: number;
+    avgConfidence: number;
+    areaSqKm: number;
+    provider: string;
+  };
+  lastScanAt: string | null;
+  createdById: string | null;
+  createdAt: string;
+  updatedAt: string;
+  result?: PipelineResult | null;
+  forecasts?: AreaForecast[];
+  forecastCount?: number;
 }
 
 export interface ChangeWindow {
@@ -550,6 +619,8 @@ export interface PipelineStatusInfo {
   queue?: { state: 'up' | 'down'; counts: Record<string, number> | null };
   /** Internal continuous-scan scheduler (BullMQ repeatable sweep). */
   scheduler?: { enabled: boolean; intervalMinutes: number };
+  /** Clay 2nd-stage verifier status — available ⇒ every scan gets CONFIRMED/POSSIBLE tiers. */
+  clay?: { enabled: boolean; available: boolean; indexReady?: boolean; url?: string; role?: string };
 }
 
 /** A controllable backing process (engine / queue / DB / Clay sidecar). */

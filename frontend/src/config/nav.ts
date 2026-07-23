@@ -8,7 +8,7 @@
  * permanently redirect — see App.tsx — so old bookmarks never 404.
  */
 import {
-  Radar, Map as MapIcon, Layers, Cpu, Ship, FlaskConical,
+  Radar, Map as MapIcon, Layers, Cpu, Ship, FlaskConical, BookMarked,
   BarChart3, Settings as SettingsIcon, ShieldCheck, GraduationCap,
 } from 'lucide-react';
 
@@ -28,6 +28,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/app', label: 'Command Center', icon: Radar, end: true, keywords: 'home overview live ops alerts inbox feed dashboard situation fleet run all regions' },
       { to: '/app/map', label: 'Map Explorer', icon: MapIcon, keywords: 'aoi scan draw area map drift heatmap' },
+      { to: '/app/areas', label: 'Areas', icon: BookMarked, keywords: 'saved aoi study area bookmark watchlist trajectory forecast drift 72h prediction landfall rescan' },
       { to: '/app/records', label: 'Records', icon: Layers, keywords: 'detections hotspots clusters catalog table candidates fdi dbscan severity' },
     ],
   },

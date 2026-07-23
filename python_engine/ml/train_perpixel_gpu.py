@@ -81,16 +81,18 @@ class PerPixelNet(nn.Module):
     """MLP with input standardisation baked into forward() as buffers, so the
     exported ONNX consumes RAW features (matches the engine feeding raw features)."""
 
-    def __init__(self, in_dim: int, nclass: int = 4, pdrop: float = 0.15):
+    def __init__(self, in_dim: int, nclass: int = 4, pdrop: float = 0.15, widths=(64, 32, 16)):
         super().__init__()
         self.register_buffer("mean", torch.zeros(in_dim))
         self.register_buffer("std", torch.ones(in_dim))
-        self.net = nn.Sequential(
-            nn.Linear(in_dim, 64), nn.ReLU(inplace=True), nn.Dropout(pdrop),
-            nn.Linear(64, 32), nn.ReLU(inplace=True), nn.Dropout(pdrop),
-            nn.Linear(32, 16), nn.ReLU(inplace=True),
-            nn.Linear(16, nclass),
-        )
+        layers, prev = [], in_dim
+        for i, w in enumerate(widths):
+            layers += [nn.Linear(prev, w), nn.ReLU(inplace=True)]
+            if i < len(widths) - 1:
+                layers.append(nn.Dropout(pdrop))
+            prev = w
+        layers.append(nn.Linear(prev, nclass))
+        self.net = nn.Sequential(*layers)
 
     def set_norm(self, mean: torch.Tensor, std: torch.Tensor):
         self.mean.copy_(mean)
@@ -98,6 +100,65 @@ class PerPixelNet(nn.Module):
 
     def forward(self, x):
         return self.net((x - self.mean) / self.std)
+
+
+# ── Loss + imbalance helpers (opt-in; defaults reproduce the shipped recipe) ───
+class FocalLoss(nn.Module):
+    """Multi-class focal loss (Lin 2017). Down-weights easy, abundant pixels (Water
+    is 98% of the data) so gradient focuses on the hard rare classes — lifts minority
+    PRECISION, which is exactly what caps macro-F1 here. gamma=0 → weighted CE."""
+
+    def __init__(self, weight=None, gamma: float = 1.5, label_smoothing: float = 0.0):
+        super().__init__()
+        self.weight = weight
+        self.gamma = gamma
+        self.ls = label_smoothing
+
+    def forward(self, logits, target):
+        logp = torch.log_softmax(logits, dim=1)
+        ce = torch.nn.functional.nll_loss(logp, target, weight=self.weight, reduction="none")
+        pt = logp.gather(1, target[:, None]).squeeze(1).exp()
+        loss = ((1 - pt) ** self.gamma) * ce
+        if self.ls > 0:  # light label smoothing on the mean logp
+            loss = (1 - self.ls) * loss - self.ls * logp.mean(1) * (self.weight[target] if self.weight is not None else 1.0)
+        return loss.mean()
+
+
+def cb_weights(counts, beta: float = 0.999):
+    """Class-balanced weights via effective number of samples (Cui 2019):
+    w_c ∝ (1-beta)/(1-beta^n_c). Handles 1000:1 imbalance better than sqrt-inv."""
+    eff = 1.0 - np.power(beta, np.maximum(counts, 1))
+    w = (1.0 - beta) / eff
+    return w / w.mean()
+
+
+@torch.no_grad()
+def calibrate_bias(model, xva, yva, device, rounds: int = 3):
+    """Search a per-class additive LOGIT bias that maximises validation macro-F1,
+    then (caller) folds it into the final layer's bias → a true drop-in (argmax at
+    inference is unchanged, no threshold logic needed). Coordinate ascent over a
+    small grid per class; decoupling the decision boundary from raw argmax is the
+    single biggest macro-F1 lever for an extreme-imbalance classifier."""
+    model.eval()
+    logits = []
+    for i in range(0, len(xva), 65536):
+        xb = torch.from_numpy(xva[i:i + 65536]).to(device)
+        logits.append(model(xb).cpu().numpy())
+    logits = np.concatenate(logits) if logits else np.zeros((0, 4), "float32")
+    b = np.zeros(4, "float32")
+
+    def mf1(bias):
+        return _macro_f1(_prf(_confusion(yva, (logits + bias).argmax(1))))
+
+    best = mf1(b)
+    for _ in range(rounds):
+        for c in range(4):
+            for delta in (-1.5, -1.0, -0.5, -0.25, 0.25, 0.5, 1.0, 1.5):
+                trial = b.copy(); trial[c] += delta
+                score = mf1(trial)
+                if score > best:
+                    best, b = score, trial
+    return b, float(best)
 
 
 # ── Eval helpers ──────────────────────────────────────────────────────────────
@@ -173,18 +234,30 @@ def shipped_baseline(x7_test):
 
 
 # ── Train one candidate ───────────────────────────────────────────────────────
-def train_candidate(name, xtr, ytr, xva, yva, epochs, lr, batch, device, seed):
+def train_candidate(name, xtr, ytr, xva, yva, epochs, lr, batch, device, seed, cfg=None):
+    cfg = cfg or {}
     torch.manual_seed(seed)
     in_dim = xtr.shape[1]
     counts = np.bincount(ytr, minlength=4)
-    inv = np.array([len(ytr) / (4.0 * max(int(c), 1)) for c in counts])
-    wv = np.sqrt(inv); wv = wv / wv.mean()                      # mild sqrt-inv-freq
+    scheme = cfg.get("weights", "sqrtinv")
+    if scheme == "cb":
+        wv = cb_weights(counts, cfg.get("cb_beta", 0.999))
+    elif scheme == "none":
+        wv = np.ones(4)
+    else:
+        inv = np.array([len(ytr) / (4.0 * max(int(c), 1)) for c in counts])
+        wv = np.sqrt(inv); wv = wv / wv.mean()                  # mild sqrt-inv-freq
     w = torch.tensor(wv, dtype=torch.float32, device=device)
-    print(f"\n=== candidate {name}  ({in_dim} features)  class weights {np.round(wv,3).tolist()} ===")
+    widths = tuple(cfg.get("widths", (64, 32, 16)))
+    print(f"\n=== candidate {name}  ({in_dim} features)  loss={cfg.get('loss','ce')} "
+          f"weights={scheme} {np.round(wv,3).tolist()}  net={widths} ===")
 
-    model = PerPixelNet(in_dim).to(device)
+    model = PerPixelNet(in_dim, widths=widths).to(device)
     model.set_norm(torch.tensor(xtr.mean(0)).to(device), torch.tensor(xtr.std(0)).to(device))
-    crit = nn.CrossEntropyLoss(weight=w, label_smoothing=0.03)
+    if cfg.get("loss") == "focal":
+        crit = FocalLoss(weight=w, gamma=cfg.get("focal_gamma", 1.5), label_smoothing=0.03)
+    else:
+        crit = nn.CrossEntropyLoss(weight=w, label_smoothing=0.03)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
     use_amp = device.type == "cuda"
@@ -245,7 +318,18 @@ def main():
     ap.add_argument("--rfo", action="store_true",
                     help="add RefinedFloatingObjects points (6 new scenes) to training; "
                          "also evaluates on the RFO held-out scenes (durban+marmara)")
+    # ── macro-F1 improvement knobs (opt-in; omitting all reproduces the shipped recipe)
+    ap.add_argument("--loss", choices=("ce", "focal"), default="ce")
+    ap.add_argument("--focal-gamma", type=float, default=1.5)
+    ap.add_argument("--weights", choices=("sqrtinv", "cb", "none"), default="sqrtinv")
+    ap.add_argument("--cb-beta", type=float, default=0.999)
+    ap.add_argument("--hidden", default="64,32,16", help="MLP widths, comma-sep (e.g. 128,64,32,16)")
+    ap.add_argument("--calibrate", action="store_true",
+                    help="fold a val-optimised per-class logit bias into the export (drop-in; "
+                         "decouples the decision boundary from raw argmax to lift macro-F1)")
     args = ap.parse_args()
+    cfg = {"loss": args.loss, "focal_gamma": args.focal_gamma, "weights": args.weights,
+           "cb_beta": args.cb_beta, "widths": tuple(int(x) for x in args.hidden.split(","))}
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     dev_name = torch.cuda.get_device_name(0) if device.type == "cuda" else "CPU"
@@ -286,7 +370,14 @@ def main():
     trained = {}
     tag = "_rfo" if args.rfo else ""
     for name, (xtr, xva, xte, feats) in variants.items():
-        model, tr_acc = train_candidate(name, xtr, ytr, xva, yva, args.epochs, args.lr, args.batch, device, args.seed)
+        model, tr_acc = train_candidate(name, xtr, ytr, xva, yva, args.epochs, args.lr, args.batch, device, args.seed, cfg)
+        # Fold a val-optimised per-class logit bias into the final layer so the
+        # export is a true argmax drop-in (no threshold logic at inference).
+        if args.calibrate:
+            bvec, vmf1 = calibrate_bias(model, xva, yva, device)
+            with torch.no_grad():
+                model.net[-1].bias.add_(torch.tensor(bvec, dtype=model.net[-1].bias.dtype, device=device))
+            print(f"  calibrated bias {np.round(bvec,3).tolist()} → val macroF1 {vmf1:.4f} (folded into export)")
         trained[name] = model
         pte = _predict(model, xte, device)
         print(f"--- {name} held-out ---")

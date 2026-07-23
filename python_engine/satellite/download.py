@@ -70,9 +70,14 @@ def is_live_provider() -> bool:
     return settings.satellite_provider in {"aws-stac", "cdse", "sentinelhub"}
 
 
-def search_scenes(bbox: dict, region_code: str, days_back: int = 30, limit: int = 8) -> list[dict]:
+def search_scenes(bbox: dict, region_code: str, days_back: int = 30, limit: int = 8,
+                  max_cloud: int | None = None) -> list[dict]:
     """Real Sentinel-2 L2A scenes over a bbox in the last `days_back` days.
-    Raises on network/parse failure — callers decide the fallback."""
+    Raises on network/parse failure — callers decide the fallback.
+
+    When `max_cloud` is given, only scenes at/under that cloud % are returned,
+    ordered clearest-first — so a scene reference matches the least-cloud composite
+    the ingest actually classifies. Without it, results stay newest-first (browser)."""
     url = os.getenv("AWS_STAC_URL", DEFAULT_STAC_URL).rstrip("/") + "/search"
     end = datetime.now(timezone.utc)
     start = end - timedelta(days=days_back)
@@ -97,15 +102,27 @@ def search_scenes(bbox: dict, region_code: str, days_back: int = 30, limit: int 
             "thumbnail": thumb.get("href"),
             "bbox": f.get("bbox"),  # [w,s,e,n] footprint for the map overlay
         })
-    scenes.sort(key=lambda s: s["acquisitionDate"], reverse=True)
+    scenes.sort(key=lambda s: s["acquisitionDate"], reverse=True)  # newest first
+    if max_cloud is not None:
+        # Clearest first, newest breaking ties (stable sort preserves date order).
+        scenes = [s for s in scenes if s["cloudCoverPct"] <= max_cloud]
+        scenes.sort(key=lambda s: s["cloudCoverPct"])
     return scenes
 
 
 def scene_ref_for_bbox(bbox: dict) -> dict | None:
-    """Newest real Sentinel-2 scene covering an AOI (dict) or None on failure."""
+    """Clearest recent real Sentinel-2 scene covering an AOI (dict), or None.
+
+    Prefers a scene under the cloud ceiling so the displayed reference matches the
+    least-cloud composite the ingest classifies; falls back to the newest scene if
+    nothing clear exists (the reliability grade then flags the scan honestly)."""
     try:
-        scenes = search_scenes(bbox, "AOI", days_back=45, limit=1)
-        return scenes[0] if scenes else None
+        clear = search_scenes(bbox, "AOI", days_back=settings.ingest_days_back_max,
+                              limit=8, max_cloud=settings.ingest_max_cloud)
+        if clear:
+            return clear[0]
+        newest = search_scenes(bbox, "AOI", days_back=settings.ingest_days_back_max, limit=1)
+        return newest[0] if newest else None
     except Exception:  # noqa: BLE001 — real-scene metadata is best-effort
         return None
 
@@ -181,15 +198,50 @@ def _synthetic_bbox(bbox: dict, size: int = 48) -> list[dict]:
 
 
 # ── Ingest orchestration ──────────────────────────────────────────────────────
-def _real_ingest(bbox: dict, max_candidates: int = 500) -> SceneData:
-    """Fetch → split SCL → surface/mask → candidacy. Raises on any failure."""
-    arr = band_loader.fetch_bands(bbox)
+def _ingest_once(bbox: dict, days_back: int, max_candidates: int):
+    """One cloud-gated fetch → (surface, mask, pixels, arr6). Least-cloud composite
+    under settings.ingest_max_cloud within `days_back`."""
+    arr = band_loader.fetch_bands(
+        bbox, days_back=days_back, max_cloud=settings.ingest_max_cloud,
+    )
     bands, scl = cloud_masker.split_scl(arr)
     surface = cloud_masker.surface_from_scl(scl) if scl is not None else None
     mask = cloud_masker.mask_stats(scl) if scl is not None else None
+    if surface is not None:
+        # Recompute the grade now that we also know the keep-mask valid fraction.
+        surface["reliability"] = cloud_masker.reliability_for(surface, mask)
     pixels, arr6 = threshold_applier.extract_candidates(
         bands, bbox, settings.fdi_threshold, max_candidates, scl=scl,
     )
+    return surface, mask, pixels, arr6
+
+
+def _real_ingest(bbox: dict, max_candidates: int = 500) -> SceneData:
+    """Fetch → split SCL → surface/mask → candidacy, cloud-gated. Raises on failure.
+
+    FDI is only meaningful over clear water, so we pull a LEAST-cloud composite
+    under the cloud ceiling. If the first (recent) window is still cloud-dominated
+    or has too little water, we widen the search history once and keep whichever
+    composite is clearer — the clearest genuinely-available real scene, honestly
+    graded, instead of a monsoon cloud top."""
+    surface, mask, pixels, arr6 = _ingest_once(bbox, settings.ingest_days_back, max_candidates)
+
+    # Widen ONLY for low COVERAGE (cloud-gapped nodata that more dates can fill) —
+    # NOT for a land-dominated grade. A permanently-land AOI is 'unusable' forever,
+    # so widening on grade alone would double-fetch every land scan pointlessly/slowly.
+    def _low_coverage(s: dict | None) -> bool:
+        return s is None or s.get("coverage_pct", 100.0) < 60.0
+
+    if _low_coverage(surface) and settings.ingest_days_back_max > settings.ingest_days_back:
+        try:
+            s2, m2, p2, a2 = _ingest_once(bbox, settings.ingest_days_back_max, max_candidates)
+            # Keep the wider pull only if it genuinely improves coverage.
+            if s2 is not None and (surface is None
+                                   or s2.get("coverage_pct", 0) > surface.get("coverage_pct", 0)):
+                surface, mask, pixels, arr6 = s2, m2, p2, a2
+        except Exception as exc:  # noqa: BLE001 — widening is best-effort
+            log.info("widened ingest failed, keeping first pull: %s", exc)
+
     return SceneData(pixels=pixels, source="sentinelhub", arr6=arr6, surface=surface, mask=mask, error=None)
 
 

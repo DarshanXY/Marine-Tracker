@@ -9,6 +9,7 @@ import satellite from './satellite.routes';
 import pipeline from './pipeline.routes';
 import features from './features.routes';
 import operations from './operations.routes';
+import areas from './areas.routes';
 import exportRoutes from './export.routes';
 import system from './system.routes';
 
@@ -49,6 +50,12 @@ api.get('/', (_req, res) => {
       'POST /api/operations (field+)',
       'PATCH /api/operations/:id/status (field+)',
       'POST /api/operations/:id/report (field+)',
+      'GET  /api/areas?region=&limit=',
+      'GET  /api/areas/:id',
+      'POST /api/areas (field+)',
+      'PATCH /api/areas/:id (field+)',
+      'DELETE /api/areas/:id (field+)',
+      'POST /api/areas/:id/forecast (field+)',
       'GET  /api/export/detections.csv',
       'GET  /api/export/hotspots.pdf?region=',
       'GET  /api/export/operations/:id.pdf',
@@ -66,6 +73,7 @@ api.use('/satellite', satellite);
 api.use('/pipeline', pipeline);
 api.use('/engine', features);
 api.use('/operations', operations);
+api.use('/areas', areas);
 api.use('/export', exportRoutes);
 api.use('/system', system);
 

@@ -30,6 +30,10 @@ class Detection(Camel):
     fdi_score: float
     area_sq_km: float
     status: str = "PENDING"
+    # True only for Plastic whose P(plastic) clears the calibrated ~90%-precision
+    # threshold. The reliable tier that hotspots/dispatch act on; everything else
+    # is a review-queue candidate.
+    high_confidence: bool = False
 
 
 class Hotspot(Camel):
@@ -91,9 +95,11 @@ class Surface(Camel):
     land_pct: float
     cloud_pct: float
     other_pct: float
-    label: str          # 'water' | 'land' | 'cloud' | 'mixed'
+    label: str          # 'water' | 'land' | 'cloud' | 'mixed' | 'no-observation'
     water_valid: bool
     source: str = "scl"  # 'scl' (precise, real scene) | 'geographic-estimate' (terrain elevation)
+    reliability: str = "unknown"  # 'reliable' | 'degraded' | 'unusable' | 'unknown'
+    coverage_pct: float = 100.0  # % of AOI with a clear observation (rest = cloud-gapped nodata)
 
 
 class PipelineStats(Camel):

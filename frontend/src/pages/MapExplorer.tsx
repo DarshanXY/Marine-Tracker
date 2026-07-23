@@ -8,39 +8,39 @@ import 'leaflet.heat'; // augments L with L.heatLayer (see types/leaflet.heat.d.
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Square, Radio, Loader2, Satellite, X, Info, MapPin, Cpu,
-  Activity, Boxes, Wind, BellRing, Check, ScanLine, AlertTriangle,
+  Activity, Boxes, Wind, BellRing, Check, ScanLine, AlertTriangle, ShieldCheck,
   RefreshCw, FileDown, Layers, CloudOff, Flame, Droplets,
-  Navigation2, TrendingUp, Download, SlidersHorizontal, Target,
+  Navigation2, TrendingUp, Download, SlidersHorizontal, Target, BookMarked,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader, Card, Badge, MapContainer } from '@/components';
-import { useAoiAnalysis, useScenesByBbox, useRegions, useForecast, useChangeDetection } from '@/hooks/useApi';
-import { useMapStore, bboxKey } from '@/stores/mapStore';
+import { useAoiAnalysis, useScenesByBbox, useRegions, useForecast, useChangeDetection, useSaveArea } from '@/hooks/useApi';
+import { useMapStore, scanKey } from '@/stores/mapStore';
+import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/lib/api';
 import type {
   AoiBBox, PipelineHotspot, PipelineResult, PipelineStage, PipelineStats, SatelliteScene, TrajectoryForecast,
 } from '@/types';
 import { formatArea, formatCoords, cn } from '@/lib/utils';
+import { CLASS_COLORS, CLASS_ORDER } from '@/lib/classColors';
+import { ROLE_LEVEL } from '@/types';
 import SimilarSitesDrawer from '@/components/map/SimilarSitesDrawer';
 
-const CLASS_COLORS: Record<string, string> = {
-  Plastic: '#0D9488',
-  Algae: '#10B981',
-  Sea_Foam: '#22D3EE',
-  Water: '#94A3B8',
-};
-const ALL_CLASSES = ['Plastic', 'Algae', 'Sea_Foam', 'Water'];
+const ALL_CLASSES = CLASS_ORDER;
 const SEV_COLORS: Record<string, string> = { HIGH: '#EF4444', MEDIUM: '#F59E0B', LOW: '#14B8A6' };
 
 const MIN_DEG = 0.01; // ignore accidental micro-drags
 const LIVE_INTERVAL_MS = 30_000;
 
 // The six real pipeline stages, in run order, for the live processing timeline.
-const STAGE_ORDER = ['DOWNLOAD', 'FDI', 'CNN', 'DBSCAN', 'DRIFT', 'ALERT'] as const;
+const STAGE_ORDER = ['DOWNLOAD', 'FDI', 'CNN', 'DBSCAN', 'CLAY', 'DRIFT', 'ALERT'] as const;
 const STAGE_META: Record<string, { icon: typeof Satellite; label: string }> = {
   DOWNLOAD: { icon: Satellite, label: 'Scan scene' },
   FDI: { icon: Activity, label: 'FDI index' },
-  CNN: { icon: Cpu, label: 'CNN predict' },
+  CNN: { icon: Cpu, label: 'Classify (MLP)' },   // per-pixel MLP ensemble, not a CNN
   DBSCAN: { icon: Boxes, label: 'Cluster' },
+  CLAY: { icon: ShieldCheck, label: 'Clay verify' },  // 2nd-stage foundation-model verifier
   DRIFT: { icon: Wind, label: 'Drift' },
   ALERT: { icon: BellRing, label: 'Alerts' },
 };
@@ -116,11 +116,13 @@ function MapResize() {
 function maskInfo(result?: PipelineResult): string | null {
   const s = result?.stats?.surface;
   if (!s) return null;
-  return `${s.waterPct}% of the scene was open water — ${s.landPct}% land, ${s.cloudPct}% cloud`;
+  const cov = s.coveragePct != null && s.coveragePct < 95 ? ` (only ${Math.round(s.coveragePct)}% of the box had a clear pass)` : '';
+  return `${s.waterPct}% of the observed scene was open water — ${s.landPct}% land, ${s.cloudPct}% cloud${cov}`;
 }
 
 const SURFACE_LABEL: Record<string, string> = {
   water: 'Open water', land: 'Land', cloud: 'Cloud-covered', mixed: 'Mixed water & land',
+  'no-observation': 'No clear observation',
 };
 
 /** Real-time "what am I scanning" readout from Sentinel-2 SCL. FDI/marine
@@ -170,8 +172,19 @@ function SurfaceReadout({ stats }: { stats: PipelineStats }) {
           <span className="text-lime-600">land {surface.landPct}%</span>
           <span className="text-slate-300"> · </span>
           <span className="text-slate-500">{isEstimate ? 'cloud n/a' : `cloud ${surface.cloudPct}%`}</span>
+          {surface.coveragePct != null && surface.coveragePct < 95 && (
+            <>
+              <span className="text-slate-300"> · </span>
+              <span className={cn(surface.coveragePct < 40 ? 'text-amber-600' : 'text-slate-500')}>{Math.round(surface.coveragePct)}% observed</span>
+            </>
+          )}
         </span>
       </div>
+      <p className="text-[11px] leading-relaxed text-slate-400">
+        Shares are of the <b>observed</b> area{surface.coveragePct != null && surface.coveragePct < 95
+          ? ` — ${Math.round(100 - surface.coveragePct)}% of the box was cloud-gapped and couldn't be seen this pass`
+          : ''}.
+      </p>
       <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
         {segs.map((s) => (
           <div key={s.key} style={{ width: `${s.pct}%`, background: s.color }} title={`${s.key} ${s.pct}%`} />
@@ -253,7 +266,11 @@ function ForecastPaths({ forecast }: { forecast?: TrajectoryForecast }) {
         >
           <Popup>
             <div className="text-xs">
-              <p className="font-semibold">Forecast end (+{forecast.horizonHours}h)</p>
+              {forecast.pathEndReason === 'landfall' ? (
+                <p className="font-semibold">Beaches at coast (+{Math.round(forecast.pathEndHours ?? forecast.horizonHours)}h)</p>
+              ) : (
+                <p className="font-semibold">Forecast end (+{Math.round(forecast.pathEndHours ?? forecast.horizonHours)}h)</p>
+              )}
               <p>Landfall probability: {Math.round(forecast.landfall.probability * 100)}%</p>
               {forecast.etaHours != null && <p>Coast ETA: {Math.round(forecast.etaHours)}h</p>}
               <p className="mt-1 border-t border-slate-200 pt-1 text-[10px] italic text-slate-400">
@@ -282,9 +299,17 @@ export default function MapExplorer() {
   const [selectedHotspot, setSelectedHotspot] = useState<PipelineHotspot | null>(null);
   const regions = useRegions();
 
-  // Seed the query with the saved snapshot only when it's for THIS exact box, so
-  // returning shows results instantly (no re-scan); a new box scans fresh.
-  const restored = mapStore.snapshot && bbox && bboxKey(bbox) === bboxKey(mapStore.bbox)
+  // Seed the query with the saved snapshot only when that snapshot was actually
+  // produced by THIS run (box + options), so returning shows results instantly
+  // (no re-scan) while a new selection scans fresh.
+  //
+  // Comparing against `mapStore.bbox` instead always matched: the persist effect
+  // below rewrites it to the new box the moment you select one, long before the
+  // new result lands — so a fresh AOI was seeded with the PREVIOUS area's
+  // detections, and `staleTime` then suppressed the refetch. That is why
+  // predictions appeared before the scan ran.
+  const currentKey = scanKey(bbox, runOpts);
+  const restored = mapStore.snapshot && bbox && mapStore.snapshotKey === currentKey
     ? { data: mapStore.snapshot, savedAt: mapStore.savedAt }
     : undefined;
   const aoi = useAoiAnalysis(bbox, live, runOpts, restored);
@@ -293,14 +318,54 @@ export default function MapExplorer() {
 
   // Persist the current selection whenever it changes.
   useEffect(() => { mapStore.setSelection(bbox, runOpts, live); }, [bbox, runOpts, live]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Persist a fresh scan result (skip the restored snapshot object itself).
+  // Persist a fresh scan result against the key it was computed for (skip the
+  // restored snapshot object itself).
   useEffect(() => {
-    if (aoi.data && aoi.data !== mapStore.snapshot) mapStore.setSnapshot(aoi.data);
-  }, [aoi.data]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (aoi.data && aoi.data !== mapStore.snapshot) mapStore.setSnapshot(aoi.data, currentKey);
+  }, [aoi.data, currentKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const forecast = useForecast();
   const change = useChangeDetection();
 
   const onComplete = (b: AoiBBox) => { setBbox(b); setDrawing(false); };
+
+  // ── Keep this AOI ───────────────────────────────────────────────────────────
+  // A scan here is otherwise throwaway. Saving persists the box, the run options
+  // and the whole result to /api/areas, where it can be re-scanned over time and
+  // used as the release point for the 72h drift forecast.
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const canSave = (user?.level ?? 0) >= ROLE_LEVEL.FIELD;
+  const saveArea = useSaveArea();
+
+  /** Nearest monitored region to the AOI centre, so saved areas stay filterable
+   *  by region. Null when nothing is within ~2° — better unlabelled than wrong. */
+  const nearestRegion = (b: AoiBBox): string | null => {
+    const lat = (b.north + b.south) / 2;
+    const lon = (b.east + b.west) / 2;
+    let best: { code: string; d: number } | null = null;
+    for (const r of regions.data ?? []) {
+      const d = Math.hypot(r.centerLat - lat, r.centerLon - lon);
+      if (!best || d < best.d) best = { code: r.code, d };
+    }
+    return best && best.d <= 2 ? best.code : null;
+  };
+
+  const onSaveArea = () => {
+    if (!bbox) return;
+    const centre = formatCoords((bbox.north + bbox.south) / 2, (bbox.east + bbox.west) / 2);
+    const name = window.prompt('Name this area', `AOI ${centre}`)?.trim();
+    if (!name) return;
+    saveArea.mutate(
+      { name, bbox, runOpts, regionCode: nearestRegion(bbox), result: result ?? null },
+      {
+        onSuccess: () => {
+          toast.success(`Saved "${name}" — open Areas to forecast its drift`);
+          navigate('/app/areas');
+        },
+        onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save this area'),
+      },
+    );
+  };
 
   // Advanced-tool handlers (new engine features).
   const topHotspot = result?.hotspots?.[0];
@@ -332,12 +397,22 @@ export default function MapExplorer() {
     [regions.data],
   );
 
-  const visibleDetections = (result?.detections ?? []).filter((d) => classFilter.has(d.classification));
+  // FDI only detects floating debris on water. When the scanned surface is
+  // land/cloud-dominated (not water-valid), every "detection" is a known false
+  // positive firing on vegetation/cloud — so suppress the map markers + heatmap
+  // and let the surface warning stand, instead of painting a fake debris field
+  // over land. (Coastal 'degraded' scans stay visible — they have real water.)
+  const scanSurface = result?.stats?.surface ?? null;
+  const scanUsable = !scanSurface || scanSurface.waterValid;
+  const visibleDetections = scanUsable
+    ? (result?.detections ?? []).filter((d) => classFilter.has(d.classification))
+    : [];
 
   // Heat points respect the class filter, so toggling classes also refocuses the
   // heatmap. Weight: plastic counts most, scaled by CNN confidence (floor 0.15
   // so even low-confidence hits register faintly).
   const heatPoints = useMemo<L.HeatLatLngTuple[]>(() => {
+    if (!scanUsable) return [];
     const dets = result?.detections ?? [];
     return dets
       .filter((d) => classFilter.has(d.classification))
@@ -345,7 +420,7 @@ export default function MapExplorer() {
         const base = d.classification === 'Plastic' ? 1 : 0.5;
         return [d.lat, d.lon, Math.max(0.15, base * (0.4 + 0.6 * d.confidence))] as L.HeatLatLngTuple;
       });
-  }, [result, classFilter]);
+  }, [result, classFilter, scanUsable]);
 
   // Scene preview overlay — only with REAL footprint bounds from STAC.
   const scene = result?.scene;
@@ -358,7 +433,7 @@ export default function MapExplorer() {
     <div className="space-y-6">
       <PageHeader
         title="Map Explorer — live AOI analysis"
-        subtitle="Draw an area of interest on the real satellite map. The full FDI → CNN → DBSCAN → drift pipeline runs live for that area — every result is computed on the fly for your selection."
+        subtitle="Draw an area of interest on the real satellite map. The full FDI → MLP classify → cluster → Clay-verify → drift pipeline runs live for that area — every result is computed on the fly for your selection."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -392,6 +467,19 @@ export default function MapExplorer() {
                 title="Re-scan this area now"
               >
                 <RefreshCw size={15} className={aoi.isFetching ? 'animate-spin' : ''} /> Rescan
+              </button>
+            )}
+            {bbox && canSave && (
+              <button
+                type="button"
+                onClick={onSaveArea}
+                disabled={saveArea.isPending || aoi.isFetching}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-ocean-300 bg-ocean-50/80 px-3 py-2 text-sm font-semibold text-ocean-700 hover:border-ocean-400 disabled:opacity-50"
+                title={result ? 'Keep this area and its scan for re-scanning and drift forecasting' : 'Keep this area (it has no scan stored yet)'}
+              >
+                {saveArea.isPending
+                  ? <Loader2 size={15} className="animate-spin" />
+                  : <BookMarked size={15} />} Save area
               </button>
             )}
             {bbox && (
@@ -636,7 +724,7 @@ export default function MapExplorer() {
             <p className="mb-1.5 font-semibold text-slate-600">Legend</p>
             <div className="space-y-1">
               <LegendItem color="#0D9488" label="Plastic (size = confidence)" />
-              <LegendItem color="#10B981" label="Algae / other" />
+              <LegendItem color={CLASS_COLORS.Algae} label="Algae / other" />
               <LegendItem color="#EF4444" label="High-severity hotspot" ring />
               <LegendItem color="#F59E0B" label="Medium hotspot" ring />
               <LegendItem color="#14B8A6" label="72-h drift + uncertainty cone" ring />
@@ -689,6 +777,9 @@ export default function MapExplorer() {
               fetching={aoi.isFetching}
               updatedAt={aoi.dataUpdatedAt}
               bbox={bbox}
+              // Seeded from the saved session and not re-run since mount — say so,
+              // rather than letting an old scan read as a live one.
+              restored={Boolean(restored) && !aoi.isFetchedAfterMount}
             />
           </motion.div>
         )}
@@ -873,8 +964,9 @@ function secondsAgo(ts: number): string {
   return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`;
 }
 
-function AoiResultPanel({ result, live, fetching, updatedAt, bbox }: {
-  result: PipelineResult; live: boolean; fetching: boolean; updatedAt: number; bbox: AoiBBox | null;
+function AoiResultPanel({ result, live, fetching, updatedAt, bbox, restored }: {
+  result: PipelineResult; live: boolean; fetching: boolean; updatedAt: number;
+  bbox: AoiBBox | null; restored?: boolean;
 }) {
   if (result.engineOffline) {
     return (
@@ -936,6 +1028,11 @@ function AoiResultPanel({ result, live, fetching, updatedAt, bbox }: {
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-display text-sm font-semibold text-slate-800">This area, right now</h3>
           <Badge variant={live ? 'success' : 'neutral'} dot>{live ? 'live · 30s' : 'on demand'}</Badge>
+          {restored && !fetching && (
+            <Badge variant="warn" dot title="Loaded from your last session — press Rescan for fresh pixels">
+              restored — not re-scanned
+            </Badge>
+          )}
           {live && !fetching && <LiveCountdown updatedAt={updatedAt} />}
           {fetching && <Loader2 size={13} className="animate-spin text-ocean-500" />}
           <span className="ml-auto flex items-center gap-2 text-xs text-slate-400">

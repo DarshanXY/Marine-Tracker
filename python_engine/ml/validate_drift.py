@@ -69,14 +69,18 @@ def validate(obs: list[tuple[float, float, float]]) -> dict:
     """Run the forecast from the track's start and score it against the track."""
     start = obs[0]
     horizon = max(6, int(math.ceil(obs[-1][0])))
-    fcast = fc.forecast(start[1], start[2], horizon, include_backtrack=False)
+    # coast_lon=None: skill-score against the FULL free-drift path. A landfall
+    # clamp would truncate the modelled path against an untruncated drifter
+    # track, saturating every post-intercept sample onto the coast and
+    # collapsing the score — so it is explicitly disabled here.
+    fcast = fc.forecast(start[1], start[2], horizon, coast_lon=None, include_backtrack=False)
     return {"dataSource": fcast.get("dataSource"), **skill_score(fcast["points"], obs)}
 
 
 def _synthetic_track() -> list[tuple[float, float, float]]:
     """Offline self-test track = the model's own 48-h path sampled every 6 h, so the
     harness maths can be verified without a real drifter (expect a high score)."""
-    pts = fc.forecast(19.0, 72.6, 48, include_backtrack=False)["points"]
+    pts = fc.forecast(19.0, 72.6, 48, coast_lon=None, include_backtrack=False)["points"]
     return [(float(p["t"]), float(p["lat"]), float(p["lon"])) for p in pts[::6]]
 
 

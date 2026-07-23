@@ -26,7 +26,7 @@ from schemas import (
     BBox, ConePoint, Detection, Hotspot, PipelineResult, PipelineStats,
     SceneRef, StageLog, Surface, Trajectory, TrajectoryPoint,
 )
-from trajectory import data_interpolator, eta_calculator, lagrangian_model
+from trajectory import data_interpolator, eta_calculator, lagrangian_model, path_clamp
 from trajectory.coastline_loader import coast_lon_for
 from trajectory.ensemble_model import DEFAULT_WINDAGE
 
@@ -83,8 +83,12 @@ def _apply_options(det_dicts: list[dict], min_confidence: float, dedupe: bool) -
 
 
 def _make_hotspots(detections: list[Detection], label_prefix: str) -> list[Hotspot]:
-    pts = [(d.lat, d.lon) for d in detections if d.classification == "Plastic"]
-    confs = [d.confidence for d in detections if d.classification == "Plastic"]
+    # Hotspots drive dispatch, so cluster HIGH-CONFIDENCE plastic ONLY — a crew is
+    # never sent to a low-confidence maybe. Falls back to nothing (not to all
+    # plastic) when no detection clears the bar: no reliable plastic → no hotspot.
+    hi = [d for d in detections if d.classification == "Plastic" and getattr(d, "high_confidence", False)]
+    pts = [(d.lat, d.lon) for d in hi]
+    confs = [d.confidence for d in hi]
     hotspots: list[Hotspot] = []
     if pts:
         clusters = dbscan_clusterer.cluster(pts, settings.dbscan_eps_deg, settings.dbscan_min_samples)
@@ -111,9 +115,16 @@ def _embed_sites(run_tag: str, arr6, hotspots: list[Hotspot], candidates, region
         run_tag, arr6, embedding_spool.sites_from_hotspots(hotspots), candidates, region, ts)
 
 
-def _drift_stage(hotspots: list[Hotspot], coast_lon_of) -> tuple[list[Trajectory], str, StageLog]:
+def _drift_stage(hotspots: list[Hotspot], coast_lon_of,
+                 clamp: bool = True) -> tuple[list[Trajectory], str, StageLog]:
     """Compute ETA per hotspot + full tracks for the top 2. coast_lon_of(hotspot)
-    returns the coastline longitude to use for that hotspot."""
+    returns the coastline longitude to use for that hotspot.
+
+    When `clamp` is True the drawn track halts at that coastline (a beached
+    parcel does not drift inland). AOI runs pass clamp=False: their "coast" is
+    the drawn box's eastern edge, which is not a real coastline — halting a
+    trajectory on the AOI rectangle would make its length a function of where
+    the user dragged the box."""
     t = time.perf_counter()
     trajectories: list[Trajectory] = []
     drift_source = "demo" if settings.demo_mode else "synthetic"
@@ -124,7 +135,11 @@ def _drift_stage(hotspots: list[Hotspot], coast_lon_of) -> tuple[list[Trajectory
         points, cone = lagrangian_model.simulate(
             h.centroid_lat, h.centroid_lon, settings.drift_horizon_hours, forcing=forcing,
         )
-        h.eta_hours = eta_calculator.coast_eta_hours(points, coast_lon_of(h))
+        coast = coast_lon_of(h)
+        # ETA is read off the RAW mean path before any clamp, so it is unchanged.
+        h.eta_hours = eta_calculator.coast_eta_hours(points, coast)
+        if clamp:
+            points, cone, _end_h, _end_r = path_clamp.clamp_path_to_coast(points, cone, coast)
         if rank < 2:
             trajectories.append(Trajectory(
                 detection_index=rank,
@@ -141,6 +156,24 @@ def _drift_stage(hotspots: list[Hotspot], coast_lon_of) -> tuple[list[Trajectory
                + (" — REAL currents+winds (Open-Meteo)" if drift_source == "open-meteo" else ""),
     )
     return trajectories, drift_source, log
+
+
+def _clay_stage(t: float, clay_n: int, hotspots: list[Hotspot]) -> StageLog:
+    """Always-emitted CLAY stage so a scan ALWAYS shows whether the 2nd-stage Clay
+    verifier ran — on (N verified, M CONFIRMED), idle (no hotspots), or OFFLINE."""
+    if clay_n:
+        confirmed = sum(1 for h in hotspots if getattr(h, "tier", None) == "CONFIRMED")
+        return StageLog(stage="CLAY", status="COMPLETED", duration_ms=_ms(t),
+                        detail=f"Clay verified {clay_n} hotspot(s) → {confirmed} CONFIRMED / "
+                               f"{clay_n - confirmed} POSSIBLE (foundation-model 2nd opinion, ~0.92 precision)")
+    if not hotspots:
+        return StageLog(stage="CLAY", status="COMPLETED", duration_ms=_ms(t),
+                        detail="Clay ON — no plastic hotspots to verify this scan")
+    if clay_live.available():
+        return StageLog(stage="CLAY", status="COMPLETED", duration_ms=_ms(t),
+                        detail="Clay ON — verifier returned no verdicts (chip/index issue)")
+    return StageLog(stage="CLAY", status="SKIPPED", duration_ms=_ms(t),
+                    detail="Clay OFFLINE — MLP-only; start clay_service.py on the GPU for 2nd-stage verification")
 
 
 def _alert_stage(hotspots: list[Hotspot]) -> StageLog:
@@ -205,13 +238,12 @@ def run_aoi(bbox: dict, scene_size: int = 64, min_confidence: float = 0.0,
     #     result stands if the sidecar is offline).
     t = time.perf_counter()
     clay_n = clay_live.enrich_hotspots(sd.arr6, hotspots, candidates)
-    if clay_n:
-        stages.append(StageLog(stage="CLAY", status="COMPLETED", duration_ms=_ms(t),
-                               detail=f"Clay foundation model re-scored {clay_n} hotspot(s) → CONFIRMED/POSSIBLE tier"))
+    stages.append(_clay_stage(t, clay_n, hotspots))
 
-    # 5. Drift (coast ETA uses the AOI's eastern edge)
+    # 5. Drift (coast ETA uses the AOI's eastern edge). clamp=False: the box edge
+    #    is not a real coastline, so the path must not halt on the drawn rectangle.
     coast_lon = float(bbox["east"])
-    trajectories, _src, drift_log = _drift_stage(hotspots, lambda _h: coast_lon)
+    trajectories, _src, drift_log = _drift_stage(hotspots, lambda _h: coast_lon, clamp=False)
     stages.append(drift_log)
 
     # 6. Alerts
@@ -274,12 +306,13 @@ def run_aoi_events(bbox: dict, scene_size: int = 64):
     # 4b. Clay tier-2 (live GPU sidecar) — only emitted when it actually re-scored.
     t = time.perf_counter()
     clay_n = clay_live.enrich_hotspots(sd.arr6, hotspots, candidates)
-    if clay_n:
-        yield stage_ev("CLAY", t, f"Clay re-scored {clay_n} hotspot(s) → CONFIRMED/POSSIBLE tier")
+    _cs = _clay_stage(t, clay_n, hotspots)
+    yield {"type": "stage", "stage": "CLAY", "status": _cs.status,
+           "durationMs": _cs.duration_ms, "detail": _cs.detail}
 
-    # 5. Drift
+    # 5. Drift (clamp=False — AOI box edge is not a real coastline, see run_aoi)
     coast_lon = float(bbox["east"])
-    _traj, _src, drift_log = _drift_stage(hotspots, lambda _h: coast_lon)
+    _traj, _src, drift_log = _drift_stage(hotspots, lambda _h: coast_lon, clamp=False)
     yield {"type": "stage", "stage": "DRIFT", "status": drift_log.status,
            "durationMs": drift_log.duration_ms, "detail": drift_log.detail}
 
@@ -386,9 +419,7 @@ def run_pipeline(region: str | None = None, scene_size: int = 48, min_confidence
                      candidates_by_code[code], code, generated_at)
         clay_total += clay_live.enrich_hotspots(scene_map[code].arr6, region_hotspots,
                                                 candidates_by_code[code])
-    if clay_total:
-        stages.append(StageLog(stage="CLAY", status="COMPLETED", duration_ms=_ms(t_clay),
-                               detail=f"Clay foundation model re-scored {clay_total} hotspot(s) → CONFIRMED/POSSIBLE tier"))
+    stages.append(_clay_stage(t_clay, clay_total, hotspots))
 
     # 5. Drift (coast from the hotspot's region, derived from its label — robust
     #    to the post-sort order, unlike the previous index-based lookup)
