@@ -178,17 +178,7 @@ See `docs/deployment.md` for full guide (added in Phase 10).
 
 ---
 
-## Compliance (Pilot → Production)
 
-This is a pilot. Production use by government agencies requires:
-- MeitY empanelment + STQC certification
-- MeghRaj (GI Cloud) or equivalent data residency
-- CERT-In VAPT audit
-- 180-day log retention (India IT Act)
-
-A costed migration checklist is included in the in-app compliance page (Phase 9).
-
----
 
 ## License
 
