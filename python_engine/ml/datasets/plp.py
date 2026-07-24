@@ -50,8 +50,26 @@ def _reproj_transformer(shp_path: Path, dst_crs):
     return Transformer.from_crs(src, dst_crs, always_xy=True)
 
 
-def _read_px(s, wx, wy, idx):
-    """Centre-pixel reflectance for the 5 bands at world (wx,wy), or None."""
+def _scene_scale(s, idx) -> float:
+    """DN→reflectance factor decided ONCE per scene from a coarse whole-scene sample.
+
+    A single pixel's median is unreliable: dark-water pixels read < 1.5 even in a
+    DN-scaled scene, so the old per-pixel rule skipped the /10000 and left raw DN
+    in the cache (B11≈158, FDI≈−185 → physically-impossible pixels polluting the
+    hardest in-situ test set). The scene-wide median cleanly separates reflectance
+    (~[0,1]) from DN (0–10000)."""
+    import numpy as np
+    h, w = min(s.height, 128), min(s.width, 128)
+    sample = s.read(idx, out_shape=(len(idx), h, w)).astype("float32")
+    sample = sample[np.isfinite(sample) & (sample > 0)]
+    if sample.size == 0:
+        return 1.0
+    return 1.0 / 10000.0 if float(np.median(sample)) > 1.5 else 1.0
+
+
+def _read_px(s, wx, wy, idx, scale: float = 1.0):
+    """Centre-pixel reflectance for the 5 bands at world (wx,wy), or None.
+    `scale` is the scene-level DN→reflectance factor from `_scene_scale`."""
     import numpy as np
     col, row = ~s.transform * (wx, wy)
     row, col = int(round(row)), int(round(col))
@@ -59,11 +77,9 @@ def _read_px(s, wx, wy, idx):
         return None
     from rasterio.windows import Window
     arr = s.read(idx, window=Window(col, row, 1, 1), boundless=True, fill_value=0).astype("float32")
-    v = arr.reshape(len(idx))
+    v = arr.reshape(len(idx)) * scale
     if v.sum() <= 1e-6:
         return None
-    if np.nanmedian(v) > 1.5:            # DN (0–10000) rather than reflectance
-        v = v / 10000.0
     return np.nan_to_num(v, nan=0.0)
 
 
@@ -101,12 +117,13 @@ def _extract_year(year: str):
             if not all(b in desc for b in BANDS):
                 continue
             idx = [desc[b] for b in BANDS]
+            scale = _scene_scale(s, idx)          # DN-vs-reflectance, decided per scene
             got = 0
             for (lon, lat), ty in pts:
                 if ty not in PLASTIC_TYPES:
                     continue                      # drop wood/control — no clean class
                 wx, wy = tr.transform(lon, lat)
-                v = _read_px(s, wx, wy, idx)
+                v = _read_px(s, wx, wy, idx, scale)
                 if v is not None:
                     out.append((date, _x7(v), 0))  # Plastic
                     got += 1
@@ -124,7 +141,7 @@ def _extract_year(year: str):
                     r = int(rng.integers(0, s.height)); c = int(rng.integers(0, s.width))
                     if all(abs(r - tr_) > 40 or abs(c - tc_) > 40 for tr_, tc_ in tpix):
                         v = _read_px(s, s.transform.c + (c + 0.5) * s.transform.a,
-                                     s.transform.f + (r + 0.5) * s.transform.e, idx)
+                                     s.transform.f + (r + 0.5) * s.transform.e, idx, scale)
                         if v is not None and v[0] < 0.12 and (v[2] - v[0]) < 0.02:  # dark, low-NDVI → water
                             out.append((date, _x7(v), 3)); added += 1
         print(f"  [{year} {date}] plastic {got}")
