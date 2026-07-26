@@ -361,6 +361,18 @@ function areaPriority(a: SavedArea): number {
   return s.plastic * 10 + s.hotspots * 6 + Math.round(s.avgConfidence * 10) + Math.min(5, s.areaSqKm / 1000);
 }
 
+/** A 72h drift models PLASTIC parcels, so a stored forecast is only a LIVE result
+ *  while the area still has plastic to carry. Algae-only / no-detection / inland
+ *  scans can hold a STALE forecast from before the release-point guard existed
+ *  (backend areas.routes.ts now refuses to create them) — this gates every display
+ *  surface so we never present a drift with nothing to drift. Mirrors the run gate
+ *  (`canForecast`) and the backend guard. */
+function areaHasPlasticToForecast(area: SavedArea): boolean {
+  const surface = area.result?.stats?.surface;
+  const scanUsable = !surface || surface.waterValid;
+  return scanUsable && area.stats.plastic > 0;
+}
+
 const htmlEscape = (str: string) =>
   str.replace(/[&<>"]/g, (c) => (({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string));
 
@@ -369,7 +381,8 @@ const htmlEscape = (str: string) =>
 function printAreaBrief(area: SavedArea) {
   const win = window.open('', '_blank', 'width=820,height=1040');
   if (!win) { toast.error('Pop-up blocked — allow pop-ups to print the brief'); return; }
-  const f = (area.forecasts ?? [])[0] ?? null;
+  // Never print a stale drift for an area with no plastic to carry (see gate).
+  const f = areaHasPlasticToForecast(area) ? ((area.forecasts ?? [])[0] ?? null) : null;
   const s = area.stats;
   const hotspots = (area.result?.hotspots ?? []).slice(0, 6);
   const verdict = f
@@ -535,7 +548,7 @@ function AreaTile({ area, onOpen }: { area: SavedArea; onOpen: () => void }) {
         <span className="font-semibold text-ocean-700">{area.stats.plastic} plastic</span>
         <span className="text-slate-300">·</span>
         <span>{area.stats.hotspots} hotspot{area.stats.hotspots === 1 ? '' : 's'}</span>
-        {(area.forecastCount ?? 0) > 0 && (
+        {(area.forecastCount ?? 0) > 0 && areaHasPlasticToForecast(area) && (
           <span className="ml-auto inline-flex items-center gap-1 font-semibold text-ocean-600">
             <Navigation2 size={11} /> {area.forecastCount}
           </span>
@@ -595,8 +608,11 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
   // real plastic to release from — never from an empty AOI centroid (which drew
   // a senseless drift for algae-only / no-detection / inland scans). Needs a
   // usable (water-valid) scan AND at least one plastic detection.
-  const canForecast = scanUsable && area.stats.plastic > 0;
-  const forecasts = area.forecasts ?? [];
+  const canForecast = areaHasPlasticToForecast(area);
+  // Only surface stored forecasts when there is plastic to justify them — a stale
+  // drift on an algae-only / inland area must NEVER render (map, verdict, badge,
+  // history, export all read this gated list). See areaHasPlasticToForecast.
+  const forecasts = canForecast ? (area.forecasts ?? []) : [];
   const latest = forecasts[0] ?? null;
 
   const exportGeojson = () => {
