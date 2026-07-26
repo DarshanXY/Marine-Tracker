@@ -18,8 +18,15 @@ import { ApiError } from '../middleware/errorHandler';
 import { ROLE_LEVEL, type AuthPayload, type PublicUser, type Role, type TokenPair } from '../types/auth';
 import { demoUsers, findDemoUser, DEMO_PASSWORD, type UserRecord } from '../data/users';
 
-// jti allow-list for issued refresh tokens (invalidated on rotate/logout).
-const validRefreshJtis = new Set<string>();
+// jti DENY-list of refresh tokens that have been rotated (one-time use) or revoked
+// on logout. Deliberately a denylist, NOT an allowlist: an allowlist lives only in
+// memory, so a backend restart (every `tsx watch` reload in dev) wiped it and made
+// EVERY outstanding refresh token invalid — the whole app silently lost write
+// access (AOI scans 401'd) until re-login. A denylist fails OPEN on restart: a
+// refresh token stays valid by its signature + 7-day expiry unless it was
+// explicitly rotated/revoked in the current process. Bounded in practice by the
+// refresh-token lifetime; cleared on restart.
+const revokedRefreshJtis = new Set<string>();
 
 function levelOf(role: Role): number {
   return ROLE_LEVEL[role] ?? 1;
@@ -129,7 +136,8 @@ export function issueTokens(user: UserRecord): TokenPair {
   } as SignOptions);
 
   const jti = randomUUID();
-  validRefreshJtis.add(jti);
+  // No allowlist add — a freshly issued token is valid by signature+expiry until
+  // it is rotated or revoked (denylisted). This is what survives a restart.
   const refreshToken = jwt.sign({ sub: user.id, jti }, env.auth.jwtRefreshSecret, {
     expiresIn: env.auth.refreshExpires,
   } as SignOptions);
@@ -146,8 +154,8 @@ export async function rotateRefresh(
   } catch {
     return null;
   }
-  if (!validRefreshJtis.has(decoded.jti)) return null; // reused/revoked
-  validRefreshJtis.delete(decoded.jti); // one-time use → rotate
+  if (revokedRefreshJtis.has(decoded.jti)) return null; // already rotated or revoked
+  revokedRefreshJtis.add(decoded.jti); // one-time use → deny future reuse of this jti
 
   const user = await findById(decoded.sub);
   if (!user) return null;
@@ -157,7 +165,7 @@ export async function rotateRefresh(
 export function revokeRefresh(token: string): void {
   try {
     const decoded = jwt.verify(token, env.auth.jwtRefreshSecret) as { jti?: string };
-    if (decoded.jti) validRefreshJtis.delete(decoded.jti);
+    if (decoded.jti) revokedRefreshJtis.add(decoded.jti);
   } catch {
     // already invalid — nothing to do
   }
