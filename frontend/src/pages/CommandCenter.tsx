@@ -409,9 +409,9 @@ function SituationGauge({
   const reduce = useReducedMotion();
   const shown = useCountUp(Math.round(score), 900, !reduce);
 
-  const level = score >= 67 ? { label: 'CRITICAL', color: '#EF4444', tone: 'text-red-600' }
-    : score >= 34 ? { label: 'ELEVATED', color: '#F59E0B', tone: 'text-amber-600' }
-    : { label: 'CALM', color: '#10B981', tone: 'text-success-700' };
+  const level = score >= 67 ? { label: 'CRITICAL', color: '#EF4444' }
+    : score >= 34 ? { label: 'ELEVATED', color: '#F59E0B' }
+    : { label: 'CALM', color: '#10B981' };
 
   const f = score / 100;                    // 0..1
   const CX = 120, CY = 120, R = 92;
@@ -453,13 +453,13 @@ function SituationGauge({
         {score >= 67 && !reduce && (
           <motion.span
             aria-hidden
-            className="absolute left-1/2 top-[64%] -z-0 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            className="absolute left-1/2 top-[53%] -z-0 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{ background: 'radial-gradient(circle, rgba(239,68,68,.28), transparent 70%)' }}
             animate={{ scale: [1, 1.35, 1], opacity: [0.7, 0, 0.7] }}
             transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
           />
         )}
-        <svg viewBox="0 0 240 150" className="relative w-full">
+        <svg viewBox="0 0 240 180" className="relative w-full">
           <defs>
             <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#10B981" />
@@ -498,14 +498,18 @@ function SituationGauge({
           />
           <circle cx={CX} cy={CY} r="8" fill="#0F172A" />
           <circle cx={CX} cy={CY} r="3.5" fill="#fff" />
-          {/* zone labels */}
-          <text x="26" y="146" className="fill-slate-400" style={{ font: '600 9px var(--font-mono, monospace)' }}>CALM</text>
-          <text x="196" y="146" textAnchor="end" className="fill-slate-400" style={{ font: '600 9px monospace' }}>CRITICAL</text>
+          {/* zone labels — pinned under the arc ends, flanking the readout */}
+          <text x="28" y="138" className="fill-slate-400 font-mono text-[9px] font-semibold">CALM</text>
+          <text x="212" y="138" textAnchor="end" className="fill-slate-400 font-mono text-[9px] font-semibold">CRITICAL</text>
+          {/* readout — lives in the SVG below the pivot, so the needle, the hub
+              and the score can never collide at any width or any score. */}
+          <text x={CX} y="172" textAnchor="middle">
+            <tspan className="font-display text-[38px] font-bold tabular-nums" fill={loading ? '#94A3B8' : level.color}>
+              {loading ? '—' : shown}
+            </tspan>
+            <tspan dx="4" className="fill-slate-400 font-mono text-[13px] font-medium">/100</tspan>
+          </text>
         </svg>
-        <div className="pointer-events-none absolute inset-x-0 bottom-6 text-center">
-          <span className={cn('font-display text-4xl font-bold tabular-nums', level.tone)}>{loading ? '—' : shown}</span>
-          <span className="ml-0.5 font-mono text-sm text-slate-400">/100</span>
-        </div>
       </div>
 
       <p className="mt-1 max-w-[260px] text-center text-[11px] leading-snug text-slate-400">
