@@ -12,7 +12,7 @@ import {
 } from '@/hooks/useApi';
 import { useLiveFeed, type LiveEvent } from '@/hooks/useLiveFeed';
 import { api } from '@/lib/api';
-import { formatCoords, cn } from '@/lib/utils';
+import { formatCoords, formatStageDuration, cn } from '@/lib/utils';
 
 function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -227,7 +227,7 @@ export default function OpsBoard() {
                 )} />
                 <span className="w-20 font-mono font-semibold text-ocean-700">{l.stage}</span>
                 <span className="truncate text-slate-500">{l.detail || '—'}</span>
-                <span className="ml-auto shrink-0 font-mono text-slate-400">{l.durationMs}ms · {timeAgo(l.at)}</span>
+                <span className="ml-auto shrink-0 font-mono text-slate-400">{formatStageDuration(l.durationMs)} · {timeAgo(l.at)}</span>
               </div>
             ))}
             {logs.data?.length === 0 && <p className="px-4 py-8 text-center text-sm text-slate-400">No pipeline runs logged yet.</p>}

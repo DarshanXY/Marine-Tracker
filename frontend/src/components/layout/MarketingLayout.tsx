@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Menu, X } from 'lucide-react';
 import { Logo } from './Logo';
 import { Footer } from './Footer';
+import { PageTransition } from './PageTransition';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 
@@ -89,7 +90,7 @@ export function MarketingLayout() {
       </motion.header>
 
       <main className="flex-1">
-        <Outlet />
+        <PageTransition />
       </main>
 
       <Footer />

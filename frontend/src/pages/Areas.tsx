@@ -15,7 +15,7 @@
  */
 import { Component, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CircleMarker, Polygon, Polyline, Popup, Rectangle, useMap } from 'react-leaflet';
+import { CircleMarker, Polygon, Polyline, Popup, Rectangle, Tooltip as MapTooltip, useMap, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
 import {
@@ -24,23 +24,21 @@ import {
 } from 'recharts';
 import toast from 'react-hot-toast';
 import {
-  BookMarked, Navigation2, RefreshCw, Trash2, FileDown, MapPin, Loader2, Cpu,
-  Clock, AlertTriangle, Satellite, History, Pencil, Check, X, Wind, Download,
-  TrendingUp, TrendingDown, Minus, Sparkles, Activity, Target, Anchor,
-  Ship, Share2, Printer, Search, Recycle, CloudSun,
+  BookMarked, Navigation2, RefreshCw, Trash2, MapPin, Loader2, Cpu,
+  Clock, AlertTriangle, Satellite, History, Pencil, Check, X, Wind,
+  Sparkles, Activity, Target, Anchor,
+  Ship, Share2, Printer, Search, CloudSun, FlaskConical, Crosshair,
 } from 'lucide-react';
 import { PageHeader, Card, Badge, Button, EmptyState, MapContainer, Modal, Tabs } from '@/components';
 import {
-  useAreas, useArea, useDeleteArea, useForecastArea, useRescanArea, useUpdateArea,
-  useChangeDetection, useOperations, useScenesByBbox,
+  useAreas, useArea, useDeleteArea, useForecastArea, useRescanArea, useUpdateArea, useExampleDrift,
 } from '@/hooks/useApi';
 import { OperationForm, type OperationPrefill } from '@/components/operations/OperationForm';
 import { useAuthStore } from '@/stores/authStore';
-import { api } from '@/lib/api';
 import { ROLE_LEVEL } from '@/types';
 import type {
-  AreaForecast, AoiBBox, SavedArea, PipelineHotspot, PipelineDetection, SurfaceComposition,
-  Operation, SatelliteScene, SceneRef,
+  AreaForecast, AoiBBox, ExampleDrift, SavedArea, PipelineHotspot, PipelineDetection, SurfaceComposition,
+  SceneRef,
 } from '@/types';
 import { formatArea, formatCoords, cn } from '@/lib/utils';
 import { CLASS_COLORS, CLASS_ORDER } from '@/lib/classColors';
@@ -61,6 +59,23 @@ function FitArea({ bbox }: { bbox: AoiBBox | null }) {
   return null;
 }
 
+/** Once a forecast exists, frame the drift path (release → end, plus the back-track
+ *  source) — on a wide AOI the fitted-to-box view shrinks a 30 km drift to a dot, so
+ *  where the plastic ends up wasn't visible. Re-fits only when a NEW run arrives. */
+function FitDrift({ forecast }: { forecast: AreaForecast | null }) {
+  const map = useMap();
+  const id = forecast ? `${forecast.id}@${forecast.computedAt}` : undefined;
+  useEffect(() => {
+    const pts = [...(forecast?.pathData?.points ?? []), ...(forecast?.pathData?.backtrack?.points ?? [])];
+    if (pts.length < 2) return;
+    // Extra left padding keeps the path clear of the class legend overlaid bottom-left.
+    map.fitBounds(pts.map((p) => [p.lat, p.lon] as [number, number]), {
+      paddingTopLeft: [260, 50], paddingBottomRight: [50, 50], maxZoom: 11,
+    });
+  }, [id, map]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
 /** Leaflet sizes its tiles at init; inside a flex card the box is often measured
  *  after that. Force a resize on mount so the map fills its container. */
 function MapResize() {
@@ -72,6 +87,18 @@ function MapResize() {
     window.addEventListener('resize', fix);
     return () => { cancelAnimationFrame(raf); clearTimeout(t); window.removeEventListener('resize', fix); };
   }, [map]);
+  return null;
+}
+
+/** Click-to-place for the what-if example: while `active`, the next map click reports
+ *  its coordinates (and the cursor becomes a crosshair). */
+function MapPicker({ active, onPick }: { active: boolean; onPick: (lat: number, lon: number) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    map.getContainer().style.cursor = active ? 'crosshair' : '';
+    return () => { map.getContainer().style.cursor = ''; };
+  }, [active, map]);
+  useMapEvents({ click: (e) => { if (active) onPick(e.latlng.lat, e.latlng.lng); } });
   return null;
 }
 
@@ -349,8 +376,55 @@ function haversineKm(aLat: number, aLon: number, bLat: number, bLon: number): nu
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
 }
 
-function bboxContains(b: AoiBBox, lat: number, lon: number): boolean {
-  return lat >= b.south && lat <= b.north && lon >= b.west && lon <= b.east;
+const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+
+/** Initial bearing a→b in degrees clockwise from north. */
+function bearingDeg(aLat: number, aLon: number, bLat: number, bLon: number): number {
+  const p1 = (aLat * Math.PI) / 180;
+  const p2 = (bLat * Math.PI) / 180;
+  const dl = ((bLon - aLon) * Math.PI) / 180;
+  const y = Math.sin(dl) * Math.cos(p2);
+  const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+const compass = (deg: number) => COMPASS[Math.round(deg / 22.5) % 16];
+const fmtHours = (h: number) => (Number.isInteger(h) ? String(h) : h.toFixed(1));
+
+interface DriftWaypoint {
+  h: number; lat: number; lon: number;
+  distKm: number; bearing: number;
+  /** Half-width of the ensemble envelope at this hour — how far the 4 windage members disagree. */
+  radiusKm: number | null;
+}
+
+/** Where the parcel is predicted to be at +24h, +48h, … and at the path end,
+ *  with distance/bearing from the release point and the ensemble spread there. */
+function driftWaypoints(f: AreaForecast): DriftWaypoint[] {
+  const pts = f.pathData?.points ?? [];
+  if (pts.length < 2) return [];
+  const cone = f.pathData?.cone ?? [];
+  const o = pts[0];
+  const endH = f.pathData?.pathEndHours ?? pts[pts.length - 1].t;
+  const step = endH > 120 ? 48 : 24;
+  const hours: number[] = [];
+  for (let h = step; h < endH - 0.5; h += step) hours.push(h);
+  hours.push(endH);
+  return hours.map((h) => {
+    const p = pts.reduce((best, q) => (Math.abs(q.t - h) < Math.abs(best.t - h) ? q : best), pts[0]);
+    const c = cone.find((x) => x.t === p.t);
+    const radiusKm = c && typeof c.latMin === 'number'
+      ? Math.max(
+          haversineKm(p.lat, p.lon, c.latMin, c.lonMin), haversineKm(p.lat, p.lon, c.latMax, c.lonMax),
+          haversineKm(p.lat, p.lon, c.latMin, c.lonMax), haversineKm(p.lat, p.lon, c.latMax, c.lonMin),
+        )
+      : null;
+    return {
+      h, lat: p.lat, lon: p.lon,
+      distKm: haversineKm(o.lat, o.lon, p.lat, p.lon),
+      bearing: bearingDeg(o.lat, o.lon, p.lat, p.lon),
+      radiusKm,
+    };
+  });
 }
 
 /** Triage score for the gallery: plastic weighted up, hotspots and confidence
@@ -573,8 +647,24 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(area.name);
   const [notes, setNotes] = useState(area.notes ?? '');
-  const [tab, setTab] = useState<'forecast' | 'scan' | 'activity' | 'tools'>('forecast');
+  const [tab, setTab] = useState<'forecast' | 'scan'>('forecast');
   const [horizon, setHorizon] = useState(72);
+
+  // What-if plastic example (simulated, never stored).
+  const exampleRun = useExampleDrift();
+  const [example, setExample] = useState<ExampleDrift | null>(null);
+  const [exType, setExType] = useState('bottle');
+  const [exHorizon, setExHorizon] = useState(48);
+  const [exPoint, setExPoint] = useState<{ lat: number; lon: number } | null>(null);
+  const [pickMode, setPickMode] = useState(false);
+  useEffect(() => { setExample(null); setExPoint(null); setPickMode(false); }, [area.id]);
+  const runExample = () => exampleRun.mutate(
+    { id: area.id, type: exType, horizonHours: exHorizon, ...(exPoint ?? {}) },
+    {
+      onSuccess: (d) => { setExample(d); setPickMode(false); },
+      onError: (e) => toast.error(e instanceof Error ? e.message : 'Example failed'),
+    },
+  );
 
   /** Build an OperationForm prefill from a hotspot in this area. */
   const dispatchHotspot = (h: PipelineHotspot) => onDispatch({
@@ -603,7 +693,8 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
   // (not water-valid) scan — those are known false positives firing on
   // vegetation/cloud, not marine plastic. The reliability banner explains why.
   // Coastal 'degraded' scans keep their markers — they have real water.
-  const scanUsable = !result?.stats?.surface || result.stats.surface.waterValid;
+  // Demo plastic is placed on open water server-side, so it always renders.
+  const scanUsable = Boolean(result?.demoPlastic) || !result?.stats?.surface || result.stats.surface.waterValid;
   // The 72h drift models PLASTIC parcels, so it may only run when this area has
   // real plastic to release from — never from an empty AOI centroid (which drew
   // a senseless drift for algae-only / no-detection / inland scans). Needs a
@@ -614,57 +705,6 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
   // history, export all read this gated list). See areaHasPlasticToForecast.
   const forecasts = canForecast ? (area.forecasts ?? []) : [];
   const latest = forecasts[0] ?? null;
-
-  const exportGeojson = () => {
-    const features = [
-      ...detections.map((d) => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [d.lon, d.lat] },
-        properties: { kind: 'detection', class: d.classification, confidence: d.confidence, fdi: d.fdiScore },
-      })),
-      ...hotspots.map((h) => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [h.centroidLon, h.centroidLat] },
-        properties: { kind: 'hotspot', label: h.label, severity: h.severity, detections: h.detectionCount },
-      })),
-      ...forecasts.flatMap((f) => {
-        const pts = f.pathData?.points ?? [];
-        return pts.length > 1
-          ? [{
-              type: 'Feature' as const,
-              geometry: { type: 'LineString' as const, coordinates: pts.map((p) => [p.lon, p.lat]) },
-              properties: {
-                kind: 'drift-forecast', computedAt: f.computedAt, horizonHours: f.horizonHours,
-                landfallProbability: f.landfallProbability, etaHours: f.etaHours, forcing: f.dataSource,
-              },
-            }]
-          : [];
-      }),
-      {
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Polygon' as const,
-          coordinates: [[
-            [area.bbox.west, area.bbox.south], [area.bbox.east, area.bbox.south],
-            [area.bbox.east, area.bbox.north], [area.bbox.west, area.bbox.north],
-            [area.bbox.west, area.bbox.south],
-          ]],
-        },
-        properties: { kind: 'aoi', name: area.name },
-      },
-    ];
-    const blob = new Blob([JSON.stringify({ type: 'FeatureCollection', features }, null, 2)], {
-      type: 'application/geo+json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${area.name.replace(/[^\w-]+/g, '_')}.geojson`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="space-y-4">
@@ -750,6 +790,14 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
 
       {/* Honest scan-quality gate — FDI is only meaningful over clear water, so a
           cloud/land-dominated scan must say so before its detections are read. */}
+      {!editing && result?.demoPlastic && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+          <b>Demo plastic.</b> The live detector found no plastic here, so a synthetic
+          plastic cluster was placed on open water to demonstrate the drift forecast.
+          These detections are not real observations.
+        </div>
+      )}
+
       {!editing && (
         <ScanReliabilityBanner
           surface={result?.stats?.surface ?? null}
@@ -771,6 +819,8 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
               <MapContainer center={[(area.bbox.north + area.bbox.south) / 2, (area.bbox.east + area.bbox.west) / 2]} zoom={9} basemap="satellite">
                 <MapResize />
                 <FitArea bbox={area.bbox} />
+                <FitDrift forecast={example ?? latest} />
+                <MapPicker active={pickMode} onPick={(lat, lon) => { setExPoint({ lat, lon }); setExample(null); setPickMode(false); }} />
 
                 <Rectangle
                   bounds={[[area.bbox.south, area.bbox.west], [area.bbox.north, area.bbox.east]]}
@@ -846,13 +896,32 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
                 {forecasts.map((f, i) => (
                   <ForecastPath key={f.id} forecast={f} primary={i === 0} />
                 ))}
+
+                {/* What-if plastic example: violet, so it cannot pass for a real forecast. */}
+                {exPoint && !example && (
+                  <CircleMarker center={[exPoint.lat, exPoint.lon]} radius={6}
+                    pathOptions={{ color: '#6D28D9', fillColor: '#C4B5FD', fillOpacity: 1, weight: 2 }}>
+                    <MapTooltip direction="top" offset={[0, -4]} permanent className="drift-label">example point</MapTooltip>
+                  </CircleMarker>
+                )}
+                {example && <ForecastPath forecast={example} primary example />}
               </MapContainer>
 
-              <MapLegend detections={detections} hasForecast={forecasts.length > 0} hasHotspot={hotspots.length > 0} suppressed={!scanUsable} />
+              <MapLegend detections={detections} hasForecast={forecasts.length > 0} hasHotspot={hotspots.length > 0} hasExample={Boolean(example)} suppressed={!scanUsable} />
             </div>
           </Card>
         </div>
       </div>
+
+      {canManage && !editing && (
+        <ExampleDriftCard
+          type={exType} onType={setExType} horizon={exHorizon} onHorizon={setExHorizon}
+          point={exPoint} pickMode={pickMode} onPickMode={setPickMode}
+          onAuto={() => { setExPoint(null); setPickMode(false); }}
+          busy={exampleRun.isPending} onRun={runExample}
+          example={example} onClear={() => setExample(null)}
+        />
+      )}
 
       {/* ── Tabs: everything else, so the hero stays the star ── */}
       <Tabs
@@ -862,8 +931,6 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
         items={[
           { key: 'forecast', label: 'Forecast runs', icon: <Navigation2 size={14} />, badge: forecasts.length || undefined },
           { key: 'scan', label: 'Scan & detections', icon: <Satellite size={14} />, badge: area.stats.plastic || undefined },
-          { key: 'activity', label: 'Activity', icon: <Ship size={14} /> },
-          { key: 'tools', label: 'Tools & export', icon: <Sparkles size={14} /> },
         ]}
       >
         <AnimatePresence mode="wait">
@@ -879,8 +946,6 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
               <ScanPanel area={area} detections={detections} hotspots={hotspots}
                 canManage={canManage} onOpenSimilar={onOpenSimilar} onDispatch={dispatchHotspot} />
             )}
-            {tab === 'activity' && <ActivityPanel area={area} canManage={canManage} onDispatch={dispatchHotspot} />}
-            {tab === 'tools' && <ToolsPanel area={area} onExportGeojson={exportGeojson} />}
           </motion.div>
         </AnimatePresence>
       </Tabs>
@@ -888,14 +953,126 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
   );
 }
 
+/** Illustrative floating-plastic examples. Labels only - the windage numbers live on
+ *  the backend and come back with the result, so they can't drift out of sync. */
+const PLASTIC_EXAMPLES = [
+  { id: 'bottle', label: 'Plastic bottle', note: 'floats low with a moderate wind push' },
+  { id: 'bag', label: 'Plastic bag / film', note: 'thin and mostly awash, largely follows the current' },
+  { id: 'net', label: 'Fishing net / rope', note: 'mostly submerged, follows the current' },
+  { id: 'foam', label: 'Foam / polystyrene', note: 'rides high, strongly wind-driven' },
+] as const;
+
+/** What-if: drop a VIRTUAL piece of plastic into this water and see where currents and
+ *  wind would carry it. A simulation to illustrate the drift model - not stored, not a
+ *  detection, works even when the scan found no plastic. */
+function ExampleDriftCard({ type, onType, horizon, onHorizon, point, pickMode, onPickMode, onAuto, busy, onRun, example, onClear }: {
+  type: string; onType: (t: string) => void;
+  horizon: number; onHorizon: (h: number) => void;
+  point: { lat: number; lon: number } | null;
+  pickMode: boolean; onPickMode: (on: boolean) => void; onAuto: () => void;
+  busy: boolean; onRun: () => void;
+  example: ExampleDrift | null; onClear: () => void;
+}) {
+  const chosen = PLASTIC_EXAMPLES.find((t) => t.id === type) ?? PLASTIC_EXAMPLES[0];
+  const wps = example ? driftWaypoints(example) : [];
+  const end = wps[wps.length - 1] ?? null;
+  const landed = example?.pathData?.pathEndReason === 'landfall';
+  const wMin = example ? Math.min(...example.example.windage) * 100 : 0;
+  const wMax = example ? Math.max(...example.example.windage) * 100 : 0;
+  return (
+    <Card accent className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <FlaskConical size={14} className="text-violet-600" />
+        <h3 className="font-display text-sm font-semibold text-slate-800">Plastic example</h3>
+        <span className="text-xs text-slate-400">what-if drift of a virtual item</span>
+        <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">SIMULATED · not a detection</span>
+      </div>
+      <p className="text-xs leading-relaxed text-slate-500">
+        Drop a virtual piece of plastic into this water and see where the currents and wind would carry it: an illustration
+        of how the drift model works. It isn&apos;t stored and isn&apos;t a scan result, so it works even where no plastic was detected.
+      </p>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+          Plastic type
+          <select value={type} onChange={(e) => onType(e.target.value)} disabled={busy}
+            className="rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-normal normal-case tracking-normal text-slate-700 disabled:opacity-50">
+            {PLASTIC_EXAMPLES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+          Horizon
+          <select value={horizon} onChange={(e) => onHorizon(Number(e.target.value))} disabled={busy}
+            className="rounded-lg border border-border bg-white px-2 py-1.5 font-mono text-xs font-normal normal-case tracking-normal text-slate-700 disabled:opacity-50">
+            {[24, 48, 72].map((h) => <option key={h} value={h}>{h}h</option>)}
+          </select>
+        </label>
+        <div className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+          Release point
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={onAuto} disabled={busy}
+              className={cn('rounded-lg border px-2 py-1.5 text-xs font-normal normal-case tracking-normal transition-colors disabled:opacity-50',
+                !point && !pickMode ? 'border-violet-300 bg-violet-50 text-violet-700' : 'border-border bg-white text-slate-600 hover:bg-slate-50')}>
+              Auto · open water
+            </button>
+            <button type="button" onClick={() => onPickMode(!pickMode)} disabled={busy}
+              className={cn('inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-normal normal-case tracking-normal transition-colors disabled:opacity-50',
+                pickMode || point ? 'border-violet-300 bg-violet-50 text-violet-700' : 'border-border bg-white text-slate-600 hover:bg-slate-50')}>
+              <Crosshair size={12} /> {pickMode ? 'Click the map…' : point ? formatCoords(point.lat, point.lon) : 'Pick on map'}
+            </button>
+          </div>
+        </div>
+        <Button variant="primary" size="sm" disabled={busy} onClick={onRun}
+          icon={busy ? <Loader2 size={15} className="animate-spin" /> : <Navigation2 size={15} />}>
+          {busy ? 'Simulating…' : 'Drift this example'}
+        </Button>
+      </div>
+      <p className="text-[11px] text-slate-400">{chosen.label}: {chosen.note}. Windage values are assumed, typical-range figures; real items vary.</p>
+
+      {example && end && (
+        <div className="space-y-2 rounded-xl border border-violet-200 bg-violet-50/40 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="min-w-0 flex-1 text-xs font-medium leading-relaxed text-slate-700">
+              A {example.example.label.toLowerCase()} released at {formatCoords(example.originLat, example.originLon)}
+              {example.example.autoPicked ? ' (auto-picked open water)' : ''}{' '}
+              {landed
+                ? <>would reach the coast after ~{fmtHours(end.h)} h, near {formatCoords(end.lat, end.lon)}.</>
+                : <>would still be at sea after {fmtHours(end.h)} h, {end.distKm.toFixed(1)} km {compass(end.bearing)} of where it started.</>}
+            </p>
+            <ForcingBadge source={example.dataSource} />
+          </div>
+          <p className="text-[11px] text-slate-500">
+            Assumed windage {wMin.toFixed(1)}–{wMax.toFixed(1)}% of wind speed · {example.example.windage.length} members drawn as the violet cone.
+          </p>
+          <WaypointList forecast={example} />
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10.5px] italic text-slate-400">
+              Simulated item · modelled estimate, not validated against real drifter tracks. Not a prediction of real plastic.
+            </p>
+            <button type="button" onClick={onClear} className="shrink-0 text-[11px] font-semibold text-violet-700 hover:underline">Clear example</button>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /** One stored forecast drawn on the map: uncertainty cone, forward drift, and
  *  the back-track toward the likely source. */
-function ForecastPath({ forecast, primary }: { forecast: AreaForecast; primary: boolean }) {
+function ForecastPath({ forecast, primary, example = false }: { forecast: AreaForecast; primary: boolean; example?: boolean }) {
   const pts = forecast.pathData?.points ?? [];
   const cone = forecast.pathData?.cone ?? [];
   const back = forecast.pathData?.backtrack?.points ?? [];
   if (pts.length < 2) return null;
 
+  const waypoints = primary ? driftWaypoints(forecast) : [];
+  const end = waypoints[waypoints.length - 1] ?? null;
+  const landed = forecast.pathData?.pathEndReason === 'landfall';
+  const sourcePt = back.length > 1 ? back[back.length - 1] : null;
+  // A what-if example is drawn in violet so it can never be mistaken for a real forecast.
+  const pal = example
+    ? { line: '#7C3AED', cone: '#6D28D9', coneFill: '#8B5CF6', wp: '#6D28D9', wpFill: '#C4B5FD', end: '#6D28D9', endFill: '#8B5CF6' }
+    : { line: '#059669', cone: '#0D9488', coneFill: '#14B8A6', wp: '#047857', wpFill: '#34D399', end: '#059669', endFill: '#10B981' };
   const fwd = pts.map((p) => [p.lat, p.lon] as LatLngExpression);
   // Guard against pre-camelCase rows: a legacy cone carries snake_case keys, so
   // c.latMin is undefined and would feed NaN coordinates to Leaflet.
@@ -912,12 +1089,12 @@ function ForecastPath({ forecast, primary }: { forecast: AreaForecast; primary: 
       {primary && conePoly && (
         <Polygon
           positions={conePoly}
-          pathOptions={{ color: '#0D9488', weight: 1, dashArray: '4 4', fillColor: '#14B8A6', fillOpacity: 0.10 }}
+          pathOptions={{ color: pal.cone, weight: 1, dashArray: '4 4', fillColor: pal.coneFill, fillOpacity: 0.10 }}
         />
       )}
       <Polyline
         positions={fwd}
-        pathOptions={{ color: '#059669', weight: primary ? 3 : 1.5, opacity: primary ? 1 : 0.35, dashArray: '2 6' }}
+        pathOptions={{ color: pal.line, weight: primary ? 3 : 1.5, opacity: primary ? 1 : 0.35, dashArray: '2 6' }}
       />
       {primary && back.length > 1 && (
         <Polyline
@@ -927,27 +1104,87 @@ function ForecastPath({ forecast, primary }: { forecast: AreaForecast; primary: 
       )}
       {primary && (
         <CircleMarker
+          center={fwd[0]}
+          radius={5}
+          pathOptions={{ color: '#0F172A', fillColor: '#FFFFFF', fillOpacity: 1, weight: 2 }}
+        >
+          <MapTooltip direction="top" offset={[0, -4]} permanent className="drift-label">{example ? 'example release' : 'release'}</MapTooltip>
+          <Popup>
+            <div className="text-xs">
+              <p className="font-semibold">{example ? 'Example release (simulated plastic)' : 'Release point'}</p>
+              <p className="font-mono">{formatCoords(forecast.originLat, forecast.originLon)}</p>
+            </div>
+          </Popup>
+        </CircleMarker>
+      )}
+      {primary && waypoints.slice(0, -1).map((w) => (
+        <CircleMarker
+          key={w.h}
+          center={[w.lat, w.lon]}
+          radius={4}
+          pathOptions={{ color: pal.wp, fillColor: pal.wpFill, fillOpacity: 1, weight: 1.5 }}
+        >
+          <MapTooltip direction="top" offset={[0, -4]} permanent className="drift-label">+{fmtHours(w.h)}h</MapTooltip>
+          <Popup><WaypointPopup title={`Predicted position +${fmtHours(w.h)}h`} w={w} /></Popup>
+        </CircleMarker>
+      ))}
+      {primary && end && (
+        <CircleMarker
           center={fwd[fwd.length - 1]}
-          radius={6}
-          pathOptions={{ color: '#059669', fillColor: '#10B981', fillOpacity: 0.85, weight: 2 }}
+          radius={7}
+          pathOptions={{
+            color: landed ? '#B91C1C' : pal.end, fillColor: landed ? '#EF4444' : pal.endFill,
+            fillOpacity: 0.9, weight: 2,
+          }}
+        >
+          <MapTooltip direction="top" offset={[0, -6]} permanent className="drift-label">
+            {landed ? 'beaches' : 'end'} +{fmtHours(end.h)}h
+          </MapTooltip>
+          <Popup>
+            <WaypointPopup
+              title={landed ? `Beaches at the coast (+${fmtHours(end.h)}h)` : `Forecast end (+${fmtHours(end.h)}h)`}
+              w={end}
+            >
+              <p>Landfall probability {Math.round(forecast.landfallProbability * 100)}%</p>
+              {forecast.etaHours != null && <p>Coast ETA {fmtHours(forecast.etaHours)}h</p>}
+            </WaypointPopup>
+          </Popup>
+        </CircleMarker>
+      )}
+      {primary && sourcePt && (
+        <CircleMarker
+          center={[sourcePt.lat, sourcePt.lon]}
+          radius={4}
+          pathOptions={{ color: '#B45309', fillColor: '#F59E0B', fillOpacity: 1, weight: 1.5 }}
         >
           <Popup>
             <div className="text-xs">
-              {forecast.pathData?.pathEndReason === 'landfall' ? (
-                <p className="font-semibold">Beaches at coast (+{Math.round(forecast.pathData?.pathEndHours ?? forecast.horizonHours)}h)</p>
-              ) : (
-                <p className="font-semibold">Forecast end (+{Math.round(forecast.pathData?.pathEndHours ?? forecast.horizonHours)}h)</p>
-              )}
-              <p>Landfall probability {Math.round(forecast.landfallProbability * 100)}%</p>
-              {forecast.etaHours != null && <p>Coast ETA {Math.round(forecast.etaHours)}h</p>}
-              <p className="mt-1 border-t border-slate-200 pt-1 text-[10px] italic text-slate-400">
-                Modelled estimate — not yet validated against real drifter tracks. Guidance, not a guarantee.
-              </p>
+              <p className="font-semibold">Likely source (−{fmtHours(sourcePt.t)}h)</p>
+              <p className="font-mono">{formatCoords(sourcePt.lat, sourcePt.lon)}</p>
+              <p>{haversineKm(forecast.originLat, forecast.originLon, sourcePt.lat, sourcePt.lon).toFixed(1)} km from the release point</p>
+              <p className="mt-1 border-t border-slate-200 pt-1 text-[10px] italic text-slate-400">Inferred estimate, not a confirmed origin.</p>
             </div>
           </Popup>
         </CircleMarker>
       )}
     </>
+  );
+}
+
+/** Popup body for a predicted position: coordinates, distance/bearing from the
+ *  release point, and how far the ensemble members disagree there. */
+function WaypointPopup({ title, w, children }: { title: string; w: DriftWaypoint; children?: ReactNode }) {
+  return (
+    <div className="text-xs">
+      <p className="font-semibold">{title}</p>
+      <p className="font-mono">{formatCoords(w.lat, w.lon)}</p>
+      <p>{w.distKm.toFixed(1)} km {compass(w.bearing)} of release ({Math.round(w.bearing)}°)</p>
+      {w.radiusKm != null && <p>members spread ± {w.radiusKm.toFixed(1)} km (not the error)</p>}
+      {children}
+      <p className="mt-1 border-t border-slate-200 pt-1 text-[10px] italic text-slate-400">
+        Modelled estimate — not yet validated against real drifter tracks. Guidance, not a guarantee.
+      </p>
+    </div>
   );
 }
 
@@ -989,6 +1226,44 @@ function RiskMeter({ pct }: { pct: number }) {
   );
 }
 
+/** "Where it reaches": the predicted position at +24h/+48h… and at the path end —
+ *  coordinates, distance/bearing from release, member spread, net drift and speed.
+ *  Shared by the real forecast card and the what-if plastic example. */
+function WaypointList({ forecast }: { forecast: AreaForecast }) {
+  const wps = driftWaypoints(forecast);
+  if (wps.length === 0) return null;
+  const landed = forecast.pathData?.pathEndReason === 'landfall';
+  const last = wps[wps.length - 1];
+  const avgKmh = last.h > 0 ? last.distKm / last.h : null;
+  return (
+    <div className="space-y-1.5 border-t border-border/50 pt-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        {landed ? 'Where it reaches' : 'Predicted position'}
+      </p>
+      {wps.map((w, i) => {
+        const isEnd = i === wps.length - 1;
+        return (
+          <div key={w.h} className={cn('rounded-lg px-2 py-1.5 text-[11px]', isEnd ? (landed ? 'bg-red-50/70' : 'bg-teal-50/70') : 'bg-slate-50/70')}>
+            <div className="flex items-baseline gap-2">
+              <span className={cn('font-mono font-bold', isEnd ? (landed ? 'text-red-700' : 'text-teal-700') : 'text-slate-500')}>
+                {isEnd && landed ? 'Beaches ' : ''}+{fmtHours(w.h)}h
+              </span>
+              <span className="font-mono text-slate-700">{formatCoords(w.lat, w.lon)}</span>
+            </div>
+            <p className="mt-0.5 text-slate-500">
+              {w.distKm.toFixed(1)} km {compass(w.bearing)} of release
+              {w.radiusKm != null ? ` · members spread ± ${w.radiusKm.toFixed(1)} km (not the error)` : ''}
+            </p>
+          </div>
+        );
+      })}
+      <p className="text-[10.5px] text-slate-400">
+        Net drift {last.distKm.toFixed(1)} km {compass(last.bearing)}{avgKmh != null ? ` · avg ${avgKmh.toFixed(2)} km/h` : ''}
+      </p>
+    </div>
+  );
+}
+
 function Fact({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-xl bg-ocean-50/60 px-3 py-2">
@@ -1015,6 +1290,11 @@ function VerdictRail({ latest, canManage, busy, onForecast, canForecast }: {
               The 72-hour drift models <b>plastic parcels</b> carried by ocean currents. This area has no plastic
               detection to release from, so there is nothing to forecast — scan an area with confirmed plastic first.
             </p>
+            {canManage && (
+              <p className="mx-auto mt-2 max-w-[34ch] text-[11px] leading-relaxed text-violet-700">
+                To see how drift works anyway, try the <b>plastic example</b> below.
+              </p>
+            )}
           </div>
         </Card>
       );
@@ -1090,6 +1370,8 @@ function VerdictRail({ latest, canManage, busy, onForecast, canForecast }: {
         <Fact icon={<Target size={12} />} label={landed ? 'Beaches' : 'Ends'} value={landed ? `coast · +${endH}h` : `offshore · +${endH}h`} />
       </div>
 
+      <WaypointList forecast={latest} />
+
       <p className="text-[11px] leading-relaxed text-slate-500">
         Released from {formatCoords(latest.originLat, latest.originLon)} · computed {relTime(latest.computedAt)}.
       </p>
@@ -1118,7 +1400,6 @@ function ForecastRunsPanel({ forecasts, latest }: { forecasts: AreaForecast[]; l
   return (
     <div className="space-y-4">
       {forecasts.length > 1 && <CompareRunsChart forecasts={[...forecasts].reverse()} />}
-      {forecasts.length > 1 && <EnsembleAgreement forecasts={forecasts} />}
 
       <Card accent className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -1174,41 +1455,6 @@ function ForecastRunsPanel({ forecasts, latest }: { forecasts: AreaForecast[]; l
         </Card>
       )}
     </div>
-  );
-}
-
-/** Spatial spread of every stored run's path-end — turns the kept history into
- *  an honest uncertainty estimate: do successive forecasts agree on where the
- *  plastic ends up? */
-function EnsembleAgreement({ forecasts }: { forecasts: AreaForecast[] }) {
-  const ends = forecasts
-    .map((f) => { const p = f.pathData?.points; return p && p.length ? p[p.length - 1] : null; })
-    .filter((p): p is { t: number; lat: number; lon: number } => p != null);
-  if (ends.length < 2) return null;
-  const cLat = ends.reduce((s, p) => s + p.lat, 0) / ends.length;
-  const cLon = ends.reduce((s, p) => s + p.lon, 0) / ends.length;
-  const spread = Math.max(...ends.map((p) => haversineKm(cLat, cLon, p.lat, p.lon)));
-  const agree = spread < 10;
-  return (
-    <Card accent className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Target size={14} className="text-ocean-600" />
-        <h3 className="font-display text-sm font-semibold text-slate-800">Ensemble agreement</h3>
-        <span className="text-xs text-slate-400">do the stored runs land in the same place?</span>
-      </div>
-      <div className={cn('flex items-center gap-3 rounded-xl border px-3 py-2',
-        agree ? 'border-teal-200 bg-teal-50/60' : 'border-amber-200 bg-amber-50/60')}>
-        {agree
-          ? <Check size={20} className="shrink-0 text-teal-600" />
-          : <AlertTriangle size={20} className="shrink-0 text-amber-600" />}
-        <div className="text-xs text-slate-600">
-          <p className="font-semibold text-slate-800">{ends.length} runs {agree ? 'agree' : 'disagree'} within ~{spread.toFixed(0)} km</p>
-          <p>{agree
-            ? 'Successive forecasts land in the same place — higher confidence in the call.'
-            : 'Successive forecasts land in different places — treat the landfall estimate as uncertain.'}</p>
-        </div>
-      </div>
-    </Card>
   );
 }
 
@@ -1280,8 +1526,6 @@ function ScanPanel({ area, detections, hotspots, canManage, onOpenSimilar, onDis
         )}
       </Card>
 
-      <DataQualityPanel area={area} />
-
       {detections.length > 0 && <SpectralScatter detections={detections} />}
 
       {hotspots.length > 0 && (
@@ -1315,166 +1559,6 @@ function ScanPanel({ area, detections, hotspots, canManage, onOpenSimilar, onDis
           </div>
         </Card>
       )}
-    </div>
-  );
-}
-
-/** Data quality: grades the stored scan (real vs synthetic, cloud, surface) and
- *  lists recent real Sentinel-2 passes over the exact bbox so an analyst can
- *  decide whether to re-scan from a cleaner scene. */
-function DataQualityPanel({ area }: { area: SavedArea }) {
-  const scenesQ = useScenesByBbox(area.bbox, false);
-  const scenes = (scenesQ.data?.data ?? []) as SatelliteScene[];
-  const scene = area.result?.scene ?? null;
-  const surface = area.result?.stats?.surface ?? null;
-  const real = area.stats.provider === 'sentinelhub';
-  // Grade from the SCL surface of the CLASSIFIED pixels, not a single pass's
-  // tile-level cloud — the scan is a least-cloud composite, so its effective
-  // cloud (SCL) is lower than any one scene's metadata. Fall back to the scene
-  // metadata only when no SCL surface exists.
-  const cloud = surface?.cloudPct ?? scene?.cloudCoverPct;
-
-  const grade = !real
-    ? { label: 'Synthetic', cls: 'bg-amber-100 text-amber-700', note: 'This scan used synthetic pixels — add real imagery for a graded result.' }
-    : (surface?.reliability === 'unusable' || (cloud != null && cloud > 60))
-      ? { label: 'Poor', cls: 'bg-red-100 text-red-700', note: 'Cloud- or land-dominated scene — detections may be false positives; re-scan from a clearer pass.' }
-      : (surface?.reliability === 'degraded' || (cloud != null && cloud > 25))
-        ? { label: 'Fair', cls: 'bg-amber-100 text-amber-700', note: 'Usable least-cloud composite, but part cloud/land — some detections may be algae or cloud rather than plastic.' }
-        : { label: 'Good', cls: 'bg-teal-100 text-teal-700', note: 'Clear, real Sentinel-2 water — detections are trustworthy for this pass.' };
-
-  return (
-    <Card accent className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <CloudSun size={14} className="text-ocean-600" />
-        <h3 className="font-display text-sm font-semibold text-slate-800">Data quality</h3>
-        <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', grade.cls)}>{grade.label}</span>
-        <span className="ml-auto font-mono text-[11px] text-slate-400">
-          {scene?.acquisitionDate ? scene.acquisitionDate.slice(0, 10) : '—'}
-          {cloud != null ? ` · ${Math.round(cloud)}% cloud` : ''}
-          {surface ? ` · ${surface.waterPct}% water · ${surface.landPct}% land` : ''}
-          {surface?.coveragePct != null && surface.coveragePct < 95 ? ` · ${Math.round(surface.coveragePct)}% observed` : ''}
-        </span>
-      </div>
-      <p className="text-xs leading-relaxed text-slate-500">{grade.note}</p>
-      <div className="border-t border-border/50 pt-2">
-        <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-          <Satellite size={11} /> Recent passes over this box
-        </p>
-        <p className="mb-1.5 text-[10px] leading-relaxed text-slate-400">
-          Single-pass tile cloud below. The scan composites the least-cloud pixels across passes, so its effective cloud is lower.
-        </p>
-        {scenesQ.isLoading && <p className="py-2 text-center text-xs text-slate-400">Searching imagery…</p>}
-        {!scenesQ.isLoading && scenes.length === 0 && (
-          <p className="py-2 text-center text-xs text-slate-400">No Sentinel-2 passes found for this box in the last 30 days.</p>
-        )}
-        <div className="divide-y divide-border/50">
-          {scenes.slice(0, 5).map((s) => (
-            <div key={s.sceneId} className="flex items-center gap-3 py-1.5 text-xs">
-              <span className="font-mono text-[11px] font-medium text-slate-600">{s.tile || '—'}</span>
-              <span className="text-slate-400">{s.acquisitionDate.slice(0, 10)}</span>
-              <span className={cn('ml-auto', s.cloudCoverPct > 60 ? 'text-red-500' : s.cloudCoverPct > 25 ? 'text-amber-600' : 'text-teal-600')}>
-                {Math.round(s.cloudCoverPct)}% cloud
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-// ── Tab: activity (linked operations + cleanup ledger) ────────────────────────
-const OP_STATUS_STYLE: Record<string, string> = {
-  PLANNED: 'bg-slate-100 text-slate-600',
-  DISPATCHED: 'bg-sky-100 text-sky-700',
-  IN_PROGRESS: 'bg-amber-100 text-amber-700',
-  COMPLETED: 'bg-teal-100 text-teal-700',
-  CANCELLED: 'bg-slate-100 text-slate-400',
-};
-function OpStatusPill({ status }: { status: string }) {
-  return (
-    <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', OP_STATUS_STYLE[status] ?? 'bg-slate-100 text-slate-600')}>
-      {status.replace('_', ' ').toLowerCase()}
-    </span>
-  );
-}
-
-function ActivityPanel({ area, canManage, onDispatch }: {
-  area: SavedArea; canManage: boolean; onDispatch: (h: PipelineHotspot) => void;
-}) {
-  const opsQ = useOperations(area.regionCode ? { region: area.regionCode } : {});
-  const all = (opsQ.data ?? []) as Operation[];
-  // Ops tied to THIS water: target coords inside the bbox, else a region-only
-  // match (soft link — a hard areaId FK is the future upgrade).
-  const linked = all.filter((o) =>
-    o.targetLat != null && o.targetLon != null
-      ? bboxContains(area.bbox, o.targetLat, o.targetLon)
-      : o.regionCode === area.regionCode);
-  const ledger = linked.reduce(
-    (acc, o) => {
-      if (o.report) {
-        acc.kg += o.report.plasticCollectedKg ?? 0;
-        acc.km2 += o.report.areaClearedSqKm ?? 0;
-        acc.done += 1;
-      }
-      return acc;
-    },
-    { kg: 0, km2: 0, done: 0 },
-  );
-  const topHotspot = area.result?.hotspots?.[0] ?? null;
-
-  return (
-    <div className="space-y-4">
-      <Card accent className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Recycle size={14} className="text-ocean-600" />
-          <h3 className="font-display text-sm font-semibold text-slate-800">Cleanup impact</h3>
-          <span className="text-xs text-slate-400">measured recovery from linked missions</span>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <Metric label="Plastic recovered" value={ledger.kg ? `${ledger.kg.toFixed(0)} kg` : '—'} accent />
-          <Metric label="Area cleared" value={ledger.km2 ? `${ledger.km2.toFixed(2)} km²` : '—'} />
-          <Metric label="Missions done" value={ledger.done} />
-        </div>
-        <p className="text-[11px] text-slate-400">A hard measurement to set beside the modelled landfall forecast.</p>
-      </Card>
-
-      <Card accent className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Ship size={14} className="text-ocean-600" />
-          <h3 className="font-display text-sm font-semibold text-slate-800">Field operations</h3>
-          <span className="text-xs text-slate-400">missions targeting this water</span>
-          {canManage && topHotspot && (
-            <button
-              type="button"
-              onClick={() => onDispatch(topHotspot)}
-              className="ml-auto inline-flex items-center gap-1 rounded-md bg-ocean-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-ocean-700"
-            >
-              <Ship size={12} /> Dispatch crew
-            </button>
-          )}
-        </div>
-        {opsQ.isLoading && <p className="py-2 text-center text-xs text-slate-400">Loading operations…</p>}
-        {!opsQ.isLoading && linked.length === 0 && (
-          <p className="py-2 text-xs text-slate-500">
-            No field operations tied to this area yet.
-            {canManage ? ' Dispatch a crew from a hotspot to start one.' : ''}
-          </p>
-        )}
-        <div className="space-y-1.5">
-          {linked.map((o) => (
-            <div key={o.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border/70 bg-white/60 px-3 py-2 text-xs">
-              <span className="font-mono font-semibold text-slate-700">{o.code}</span>
-              <span className="min-w-0 flex-1 truncate text-slate-600">{o.title}</span>
-              {o.report?.plasticCollectedKg != null && <span className="font-semibold text-teal-700">{o.report.plasticCollectedKg} kg</span>}
-              <OpStatusPill status={o.status} />
-            </div>
-          ))}
-        </div>
-        <p className="border-t border-border/50 pt-2 text-[10.5px] leading-relaxed text-slate-400">
-          Linked by location (mission target inside this box) and region. A dispatched crew shows here through to its filed report.
-        </p>
-      </Card>
     </div>
   );
 }
@@ -1526,128 +1610,6 @@ function SpectralScatter({ detections }: { detections: PipelineDetection[] }) {
   );
 }
 
-// ── Tab: tools & export ───────────────────────────────────────────────────────
-function ToolsPanel({ area, onExportGeojson }: { area: SavedArea; onExportGeojson: () => void }) {
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <ChangeTool bbox={area.bbox} />
-      <GeotiffTool bbox={area.bbox} />
-      <Card accent className="space-y-2 md:col-span-2">
-        <div className="flex items-center gap-2">
-          <FileDown size={14} className="text-ocean-600" />
-          <h3 className="font-display text-sm font-semibold text-slate-800">Export GeoJSON</h3>
-        </div>
-        <p className="text-xs leading-relaxed text-slate-500">
-          Detections, hotspots, every stored drift path and the AOI outline as one FeatureCollection (QGIS / ArcGIS-ready).
-        </p>
-        <div>
-          <Button variant="outline" size="sm" icon={<FileDown size={15} />} onClick={onExportGeojson}>Download GeoJSON</Button>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-/** Debris change: recent-vs-older candidate density. Real-imagery only, slow
- *  (~140s), and honestly degrades when no real scene is available. */
-function ChangeTool({ bbox }: { bbox: AoiBBox }) {
-  const change = useChangeDetection();
-  const d = change.data;
-  const trend = d?.trend;
-  const TrendIcon = trend === 'increasing' ? TrendingUp : trend === 'decreasing' ? TrendingDown : Minus;
-  return (
-    <Card accent className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <TrendingUp size={14} className="text-ocean-600" />
-        <h3 className="font-display text-sm font-semibold text-slate-800">Debris change</h3>
-        <span className="text-xs text-slate-400">recent vs 6 months ago</span>
-      </div>
-      <p className="text-xs leading-relaxed text-slate-500">
-        Compares candidate-debris density in this box now against an older window. Needs real satellite imagery; a cold run can take up to ~2 minutes.
-      </p>
-      <div>
-        <Button
-          variant="outline"
-          size="sm"
-          icon={change.isPending ? <Loader2 size={15} className="animate-spin" /> : <TrendingUp size={15} />}
-          disabled={change.isPending}
-          onClick={() => change.mutate(bbox)}
-        >
-          {change.isPending ? 'Comparing… (up to 2 min)' : 'Run change detection'}
-        </Button>
-      </div>
-      {change.isError && <p className="text-xs text-red-600">Change detection needs the engine and real Sentinel Hub imagery.</p>}
-      {d && !d.available && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          No real imagery available for this area — change detection can&apos;t run on synthetic pixels.
-        </p>
-      )}
-      {d && d.available && (
-        <div className={cn(
-          'flex items-center gap-3 rounded-xl border px-3 py-2',
-          trend === 'increasing' ? 'border-red-200 bg-red-50/60'
-            : trend === 'decreasing' ? 'border-teal-200 bg-teal-50/60'
-              : 'border-slate-200 bg-slate-50',
-        )}>
-          <TrendIcon size={20} className={trend === 'increasing' ? 'text-red-600' : trend === 'decreasing' ? 'text-teal-600' : 'text-slate-500'} />
-          <div className="text-xs text-slate-600">
-            <p className="font-semibold capitalize text-slate-800">{trend}</p>
-            <p>recent {d.recent.candidatePixels} vs older {d.old.candidatePixels} candidates · density Δ {d.densityDelta.toExponential(1)}</p>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-/** Georeferenced index raster (FDI / NDVI / FAI) download. Real-imagery only. */
-function GeotiffTool({ bbox }: { bbox: AoiBBox }) {
-  const [layer, setLayer] = useState('fdi');
-  const [busy, setBusy] = useState(false);
-  const run = async () => {
-    setBusy(true);
-    try {
-      await api.exportGeotiff(bbox, layer);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Export failed — needs real imagery and the engine');
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Card accent className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Download size={14} className="text-ocean-600" />
-        <h3 className="font-display text-sm font-semibold text-slate-800">Export index raster</h3>
-        <span className="text-xs text-slate-400">GeoTIFF</span>
-      </div>
-      <p className="text-xs leading-relaxed text-slate-500">
-        Download a georeferenced spectral-index raster for this area (open in QGIS / ArcGIS). Real-imagery areas only; a cold export can take ~90s.
-      </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={layer}
-          onChange={(e) => setLayer(e.target.value)}
-          className="rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-slate-700"
-        >
-          <option value="fdi">FDI · floating debris</option>
-          <option value="ndvi">NDVI · vegetation</option>
-          <option value="fai">FAI · algae</option>
-        </select>
-        <Button
-          variant="outline"
-          size="sm"
-          icon={busy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
-          disabled={busy}
-          onClick={run}
-        >
-          {busy ? 'Exporting…' : 'Download GeoTIFF'}
-        </Button>
-      </div>
-    </Card>
-  );
-}
-
 function Metric({ label, value, accent = false }: { label: string; value: number | string; accent?: boolean }) {
   return (
     <div className="rounded-xl bg-ocean-50/60 px-3 py-2">
@@ -1672,8 +1634,8 @@ function LegendRow({ color, label, ring = false }: { color: string; label: strin
 /** Honest map legend: counts detections PER CLASS (so 108 algae never reads as
  *  108 plastic) and keeps the drift/back-track lines in a separate group. Only
  *  classes actually present are listed. */
-function MapLegend({ detections, hasForecast, hasHotspot, suppressed = false }: {
-  detections: PipelineDetection[]; hasForecast: boolean; hasHotspot: boolean; suppressed?: boolean;
+function MapLegend({ detections, hasForecast, hasHotspot, hasExample = false, suppressed = false }: {
+  detections: PipelineDetection[]; hasForecast: boolean; hasHotspot: boolean; hasExample?: boolean; suppressed?: boolean;
 }) {
   const counts = detections.reduce<Record<string, number>>((acc, d) => {
     acc[d.classification] = (acc[d.classification] ?? 0) + 1;
@@ -1702,13 +1664,14 @@ function MapLegend({ detections, hasForecast, hasHotspot, suppressed = false }: 
         </div>
       ))}
       {hasHotspot && <LegendRow color="#EF4444" label="High-severity hotspot" ring />}
-      {(hasForecast || hasHotspot) && <div className="my-1 border-t border-border/60" />}
+      {(hasForecast || hasHotspot || hasExample) && <div className="my-1 border-t border-border/60" />}
       {hasForecast && (
         <>
-          <LegendRow color="#059669" label="72h forecast drift" />
+          <LegendRow color="#059669" label="Forecast drift" />
           <LegendRow color="#F59E0B" label="Back-track to source" />
         </>
       )}
+      {hasExample && <LegendRow color="#7C3AED" label="Plastic example (simulated)" />}
     </div>
   );
 }

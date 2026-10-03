@@ -19,7 +19,7 @@ const FAQS: Faq[] = [
   {
     tag: 'Science',
     q: 'How accurate is satellite plastic detection?',
-    a: 'Honestly: it finds candidates, not certainties. Sentinel-2 cannot resolve individual bottles from orbit — it detects the aggregate optical signature of floating material via the Floating Debris Index, then a CNN scores each patch. Sun-glint, sea-foam, turbid river plumes, and algal blooms can all mimic plastic. That is why every lead is flagged for human validation rather than reported as a confirmed fact.',
+    a: 'Honestly: it finds candidates, not certainties. Sentinel-2 cannot resolve individual bottles from orbit — it detects the aggregate optical signature of floating material via the Floating Debris Index, then a 3-seed MLP ensemble scores each patch and a Clay foundation model gives a second opinion. Sun-glint, sea-foam, turbid river plumes, and algal blooms can all mimic plastic, so on held-out data plastic detection sits near ~0.8 F1. That is why we surface a calibrated HIGH-confidence tier (~90% precision) for human validation, rather than reporting anything as a confirmed fact.',
   },
   {
     tag: 'Limits',
@@ -53,7 +53,17 @@ const FAQS: Faq[] = [
   {
     tag: 'Science',
     q: 'What is the 72-hour drift forecast?',
-    a: 'Confirmed plastic is advected forward for 72 hours using a Lagrangian model driven by ocean-current and wind data, with a windage factor of roughly 1.5–3%. Because currents and wind are uncertain, the output is an ensemble uncertainty cone — a range of likely positions — rather than a single confident track.',
+    a: 'Confirmed plastic is advected forward for 72 hours using a Lagrangian model driven by real ocean-current and wind data, with a windage factor of roughly 1.5–3%. Because currents and wind are uncertain, the output is an ensemble uncertainty cone — a range of likely positions — rather than a single confident track.',
+  },
+  {
+    tag: 'Science',
+    q: 'What is the Clay verifier, and why a second model?',
+    a: 'After the MLP flags a plastic hotspot, a frozen Clay v1.5 foundation model re-embeds that patch and marks it CONFIRMED or POSSIBLE. It is a precision gate — a diverse second opinion that pushes plastic precision toward ~0.92 and filters false positives like turbid water — not a standalone detector. If Clay is offline the pilot still runs MLP-only, and says so.',
+  },
+  {
+    tag: 'Science',
+    q: 'Does the model get better over time?',
+    a: 'That is the intent. Analysts label real detections in an active-learning queue, and those labels feed back into retraining. The public numbers here are the current honest held-out scores, not a promise — but the pipeline is built so that more validated labels sharpen it, especially on the hard, look-alike cases.',
   },
   {
     tag: 'Access',

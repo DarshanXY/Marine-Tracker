@@ -9,12 +9,12 @@
  */
 import axios, { type AxiosInstance } from 'axios';
 import type {
-  AdminUser, Alert, AoiBBox, AoiRunOptions, AreaForecast, AuthUser, Backtrack, ChangeResult, ClassStat,
+  AdminUser, Alert, AoiBBox, AoiRunOptions, AreaForecast, AuthUser, Backtrack, ChangeResult, ClassStat, ExampleDrift,
   CreateOperationInput, Detection, DetectionQuery, DetectionStatus, EngineCapabilities, FileReportInput, Hotspot, LoginPayload, ModelValidation,
   ModelEval, Operation, OperationStats, OperationStatus, OverviewStats, PipelineLogEntry,
   PipelineResult, PipelineStatusInfo, Region, RegionStat, SatelliteScene, SatelliteStatus,
   SavedArea, ScenesResult, ServiceStatus, SimilarityDemo, SimilarityHotspot, SimilarityInfo, SimilaritySearch, SimilaritySites,
-  SiteChange, TrainingLabel, TrainingLabelSet, TrajectoryForecast,
+  SiteChange, TrajectoryForecast,
   TrendPoint, TwoFactorSetup,
 } from '@/types';
 import * as mock from './mockData';
@@ -79,6 +79,10 @@ http.interceptors.response.use(
         return http(original);
       }
     }
+    // Surface the backend's own message ("That point is on land…") instead of axios's
+    // generic "Request failed with status code 422".
+    const apiMsg = (error.response?.data as { error?: { message?: unknown } } | undefined)?.error?.message;
+    if (typeof apiMsg === 'string' && apiMsg) error.message = apiMsg;
     return Promise.reject(error);
   },
 );
@@ -224,28 +228,6 @@ export const api = {
     downloadBlob('/api/detections/labels/export', `training-labels-${new Date().toISOString().slice(0, 10)}.csv`,
       { params: { format: 'csv' } }),
 
-  /** The active-learning labelled set (JSON) — rows + confirmed / false-alarm counts. */
-  trainingLabels: async (): Promise<TrainingLabelSet> => {
-    try {
-      const res = await http.get<{ data: TrainingLabel[]; meta: { total: number; confirmed: number; falseAlarm: number } }>(
-        '/api/detections/labels/export',
-      );
-      live = true;
-      return { rows: res.data.data, ...res.data.meta };
-    } catch {
-      live = false;
-      const rows = mock.detections
-        .filter((d) => d.status === 'CONFIRMED' || d.status === 'FALSE_ALARM')
-        .map((d): TrainingLabel => ({
-          id: d.id, lat: d.lat, lon: d.lon, classification: d.classification, confidence: d.confidence,
-          fdiScore: d.fdiScore, areaSqKm: d.areaSqKm, label: d.status as 'CONFIRMED' | 'FALSE_ALARM',
-          regionCode: d.regionCode ?? null, validatedAt: null,
-        }));
-      const confirmed = rows.filter((r) => r.label === 'CONFIRMED').length;
-      return { rows, total: rows.length, confirmed, falseAlarm: rows.length - confirmed };
-    }
-  },
-
   hotspots: (params: { region?: string; severity?: string; active?: boolean } = {}): Promise<Hotspot[]> =>
     get('/api/hotspots', () => {
       let rows = [...mock.hotspots];
@@ -370,23 +352,6 @@ export const api = {
       return res.data.data;
     } catch {
       return [];
-    }
-  },
-
-  pipelineRun: async (
-    region?: string,
-    sceneSize = 48,
-  ): Promise<{ result: PipelineResult; engine: 'online' | 'offline' }> => {
-    try {
-      const res = await http.post<{ data: PipelineResult; meta?: { engine?: 'online' | 'offline' } }>(
-        '/api/pipeline/run',
-        { region, sceneSize },
-      );
-      live = true;
-      return { result: res.data.data, engine: res.data.meta?.engine ?? 'online' };
-    } catch {
-      live = false;
-      return { result: mock.pipelineResult(region), engine: 'offline' };
     }
   },
 
@@ -597,7 +562,12 @@ export const api = {
    *  happens server-side, so what gets persisted is the engine's own output —
    *  a longer timeout than the plain forecast because it also writes. */
   forecastArea: (id: string, body: { lat?: number; lon?: number; horizonHours?: number } = {}): Promise<AreaForecast> =>
-    post(`/api/areas/${id}/forecast`, body),
+    post(`/api/areas/${id}/forecast`, body, 150_000),
+
+  /** What-if: drift of a virtual plastic item released over open water in this area.
+   *  A simulation — never stored, needs no plastic in the scan. */
+  exampleDrift: (id: string, body: { type?: string; lat?: number; lon?: number; horizonHours?: number }): Promise<ExampleDrift> =>
+    post(`/api/areas/${id}/forecast/example`, body, 150_000),
 
   // ── Server-side report exports (proper PDF / full-dataset CSV) ───────────────
   exportHotspotsPdf: (region?: string): Promise<void> =>

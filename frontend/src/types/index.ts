@@ -224,6 +224,8 @@ export interface PipelineDetection {
   /** Plastic only: P(plastic) cleared the calibrated ~90%-precision bar. The
    *  reliable tier hotspots/dispatch act on. */
   highConfidence?: boolean;
+  /** Synthetic demo detection injected server-side (DEMO_PLASTIC) — not real. */
+  demo?: boolean;
 }
 
 export interface PipelineHotspot {
@@ -335,6 +337,11 @@ export interface AreaForecast {
     coastModel?: string | null;
   };
   computedAt: string;
+}
+
+/** A what-if drift of a virtual plastic item (never stored; `id` is always 'example'). */
+export interface ExampleDrift extends AreaForecast {
+  example: { type: string; label: string; windage: number[]; autoPicked: boolean };
 }
 
 /** A Map Explorer AOI the analyst chose to keep. `result` and `forecasts` are
@@ -569,6 +576,8 @@ export interface PipelineResult {
   scene?: SceneRef | null;
   /** Set by the backend when an AOI run couldn't reach the engine. */
   engineOffline?: boolean;
+  /** Saved area carries a synthetic demo plastic cluster (DEMO_PLASTIC). */
+  demoPlastic?: boolean;
 }
 
 export interface ModelClassMetric {

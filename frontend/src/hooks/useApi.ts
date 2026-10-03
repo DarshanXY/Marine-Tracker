@@ -69,20 +69,6 @@ export const usePipelineLogs = (limit = 30) =>
 export const useAdminUsers = () =>
   useQuery({ queryKey: ['admin-users'], queryFn: api.adminUsers, retry: false });
 
-export function usePipelineRun() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ region, sceneSize }: { region?: string; sceneSize?: number }) =>
-      api.pipelineRun(region, sceneSize),
-    onSuccess: () => {
-      // Runs persist to PostgreSQL — refresh everything that reads from it.
-      for (const key of ['detections', 'hotspots', 'alerts', 'overview', 'trend', 'by-region', 'by-class']) {
-        void qc.invalidateQueries({ queryKey: [key] });
-      }
-    },
-  });
-}
-
 /** Live detection for a user-drawn AOI. Auto-runs when `bbox` changes; when
  *  `live` is on it re-runs every 30s (near-real-time).
  *
@@ -183,7 +169,12 @@ export function useRescanArea() {
   const invalidate = useAreaInvalidation();
   return useMutation({
     mutationFn: async (area: { id: string; bbox: AoiBBox; runOpts: AoiRunOptions }) => {
-      const { result } = await api.analyzeAoi(area.bbox, 64, area.runOpts);
+      const { result, engine } = await api.analyzeAoi(area.bbox, 64, area.runOpts);
+      // The backend answers with an "engine offline" placeholder when the detection
+      // engine is down; saving it would overwrite the stored scan with nothing.
+      if (engine === 'offline' || (result as { engineOffline?: boolean }).engineOffline) {
+        throw new Error('The detection engine did not return a scan (it is offline or the scan timed out), so nothing was replaced. Your stored scan was kept; check the engine and try again.');
+      }
       return api.updateArea(area.id, { result });
     },
     onSuccess: (area) => invalidate(area.id),
@@ -274,16 +265,12 @@ export function useLabelDetection() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: DetectionStatus }) => api.labelDetection(id, status),
     onSuccess: () => {
-      for (const key of ['detections', 'detection', 'overview', 'by-class', 'trend', 'training-labels']) {
+      for (const key of ['detections', 'detection', 'overview', 'by-class', 'trend']) {
         void qc.invalidateQueries({ queryKey: [key] });
       }
     },
   });
 }
-
-/** The active-learning labelled set + counts (refreshed when a label changes). */
-export const useTrainingLabels = () =>
-  useQuery({ queryKey: ['training-labels'], queryFn: api.trainingLabels });
 
 export function useAckAlert() {
   const qc = useQueryClient();
@@ -332,5 +319,13 @@ export function useFileMissionReport() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: FileReportInput }) => api.fileMissionReport(id, input),
     onSuccess: () => invalidateOps(qc),
+  });
+}
+
+/** What-if plastic drift for a saved area — a simulation, so nothing is cached or invalidated. */
+export function useExampleDrift() {
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; type?: string; lat?: number; lon?: number; horizonHours?: number }) =>
+      api.exampleDrift(id, body),
   });
 }

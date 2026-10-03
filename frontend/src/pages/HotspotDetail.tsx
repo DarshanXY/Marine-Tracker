@@ -8,7 +8,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Flame, ArrowLeft, Wind, Ship, Sparkles, MapPin, Clock, Crosshair } from 'lucide-react';
 import { PageHeader, Card, Badge, SeverityPill } from '@/components';
 import { useHotspot, useForecast, useBacktrack } from '@/hooks/useApi';
-import { formatCoords } from '@/lib/utils';
+import { formatCoords, forcingLabel } from '@/lib/utils';
 
 export default function HotspotDetail() {
   const { id } = useParams<{ id: string }>();
@@ -61,7 +61,7 @@ export default function HotspotDetail() {
             <div className="mt-3 space-y-2">
               <Metric label="Coast ETA" value={fc.etaHours != null ? `${Math.round(fc.etaHours)} h` : (h.etaHours != null ? `${Math.round(h.etaHours)} h` : 'open ocean')} />
               <Metric label="Landfall probability" value={`${Math.round((fc.landfall?.probability ?? 0) * 100)}%`} />
-              <Metric label="Data source" value={fc.dataSource === 'open-meteo' ? 'REAL winds+currents' : fc.dataSource} />
+              <Metric label="Data source" value={forcingLabel(fc.dataSource)} />
             </div>
           )}
         </Card>
@@ -94,7 +94,7 @@ export default function HotspotDetail() {
             <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
               <Metric label="Traced origin" value={formatCoords(origin.lat, origin.lon)} />
               <Metric label="Window" value={`${backtrack.data.horizonHours} h back`} />
-              <Metric label="Forcing" value={backtrack.data.dataSource === 'open-meteo' ? 'REAL winds+currents' : backtrack.data.dataSource} />
+              <Metric label="Forcing" value={forcingLabel(backtrack.data.dataSource)} />
             </div>
           );
         })()}

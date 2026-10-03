@@ -132,3 +132,9 @@ infra/pgsql/
 infra/pgdata/
 
 infra/redis/
+
+# One-time MySQL setup script (contains a generated password)
+*.local.sql
+
+# Live training demo (docs/code-tour) writes its own trained model here on each run
+docs/code-tour/demo_run.onnx

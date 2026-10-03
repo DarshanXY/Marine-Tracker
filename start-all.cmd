@@ -11,7 +11,9 @@ call infra\start-redis.cmd
 
 netstat -ano | findstr ":8000" | findstr "LISTENING" >nul
 if %errorlevel%==0 ( echo Python engine already on :8000 ) else (
-  start "MPT engine :8000" cmd /k "call \"%~dp0python_engine\start-engine.cmd\""
+  rem Absolute path (start-engine.cmd cd's to its own dir): resolving it from the
+  rem current directory breaks when NoDefaultCurrentDirectoryInExePath is set.
+  start "MPT engine :8000" cmd /k "%~dp0python_engine\start-engine.cmd"
 )
 
 rem Clay GPU sidecar — the 2nd-stage foundation-model verifier (CONFIRMED tier,

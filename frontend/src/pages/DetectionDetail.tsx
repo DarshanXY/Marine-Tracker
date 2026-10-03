@@ -10,7 +10,7 @@ import { ArrowLeft, Activity, Cpu, Wind, ShieldCheck, Check, Ban, MapPin, AlertT
 import { PageHeader, Card, Badge } from '@/components';
 import { useDetection, useForecast, useLabelDetection } from '@/hooks/useApi';
 import { useAuthStore } from '@/stores/authStore';
-import { formatArea, formatCoords } from '@/lib/utils';
+import { formatArea, formatCoords, forcingLabel } from '@/lib/utils';
 import { ROLE_LEVEL } from '@/types';
 import type { DetectionStatus } from '@/types';
 
@@ -91,7 +91,7 @@ export default function DetectionDetail() {
             <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
               <Metric label="Coast ETA" value={fc.etaHours != null ? `${Math.round(fc.etaHours)} h` : 'open ocean'} />
               <Metric label="Landfall prob." value={`${Math.round((fc.landfall?.probability ?? 0) * 100)}%`} />
-              <Metric label="Data source" value={fc.dataSource === 'open-meteo' ? 'REAL winds+currents' : fc.dataSource} />
+              <Metric label="Data source" value={forcingLabel(fc.dataSource)} />
             </div>
           )}
         </Card>

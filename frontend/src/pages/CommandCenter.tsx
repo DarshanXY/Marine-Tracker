@@ -15,7 +15,7 @@ import {
 import { useLiveFeed, type LiveEvent } from '@/hooks/useLiveFeed';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/lib/api';
-import { formatCoords, cn } from '@/lib/utils';
+import { formatCoords, formatStageDuration, cn } from '@/lib/utils';
 import type { Alert, EngineCapabilities, Hotspot, PipelineStatusInfo, Severity } from '@/types';
 
 // Backing services surfaced as READ-ONLY status chips. Starting/stopping them is
@@ -45,7 +45,7 @@ function greeting(): string {
 
 // Role-specific quick actions (routes point at the consolidated IA v2 pages).
 const ROLE_ACTIONS: Record<string, { to: string; label: string; icon: LucideIcon }[]> = {
-  ADMIN:      [{ to: '/app/pipeline', label: 'Pipeline health', icon: Activity }, { to: '/app/analytics', label: 'Analytics & Reports', icon: Layers }, { to: '/app/ai-lab', label: 'AI Lab', icon: Sparkles }],
+  ADMIN:      [{ to: '/app/map', label: 'Live AOI scan', icon: MapIcon }, { to: '/app/analytics', label: 'Analytics & Reports', icon: Layers }, { to: '/app/ai-lab', label: 'AI Lab', icon: Sparkles }],
   COASTGUARD: [{ to: '/app/records', label: 'Priority hotspots', icon: Flame }, { to: '/app/map', label: 'Live AOI scan', icon: MapIcon }, { to: '/app/operations', label: 'Field Ops', icon: Send }],
   FIELD:      [{ to: '/app/map', label: 'Map', icon: MapIcon }, { to: '/app/records', label: 'Verification queue', icon: ScanLine }, { to: '/app/operations', label: 'Field Ops', icon: Send }],
 };
@@ -385,7 +385,7 @@ export default function CommandCenter() {
                   l.status === 'COMPLETED' ? 'bg-success-500' : l.status === 'FAILED' ? 'bg-red-500' : 'bg-amber-400')} />
                 <span className="w-20 font-mono font-semibold text-ocean-700">{l.stage}</span>
                 <span className="truncate text-slate-500">{l.detail || '—'}</span>
-                <span className="ml-auto shrink-0 font-mono text-slate-400">{l.durationMs}ms · {timeAgo(l.at)}</span>
+                <span className="ml-auto shrink-0 font-mono text-slate-400">{formatStageDuration(l.durationMs)} · {timeAgo(l.at)}</span>
               </div>
             ))}
             {logs.data?.length === 0 && <p className="px-4 py-8 text-center text-sm text-slate-400">No pipeline runs logged yet.</p>}

@@ -266,3 +266,17 @@
     border-radius: inherit;
   }
 }
+
+/* Drift-path waypoint labels (Areas map): small light chips, no speech-bubble tail. */
+.leaflet-tooltip.drift-label {
+  padding: 1px 5px;
+  border: 1px solid #99f6e4;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: none;
+  color: #0f766e;
+  font: 600 10px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.leaflet-tooltip.drift-label::before {
+  display: none;
+}

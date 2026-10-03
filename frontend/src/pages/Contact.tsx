@@ -90,6 +90,7 @@ export default function Contact() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.06 }}
+              whileHover={{ y: -4 }}
             >
               <Card hoverable className="flex h-full flex-col p-6">
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-ocean-600 to-ocean-400 text-white shadow-glow-primary">

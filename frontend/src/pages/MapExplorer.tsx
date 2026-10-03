@@ -11,6 +11,7 @@ import {
   Activity, Boxes, Wind, BellRing, Check, ScanLine, AlertTriangle, ShieldCheck,
   RefreshCw, FileDown, Layers, CloudOff, Flame, Droplets,
   Navigation2, TrendingUp, Download, SlidersHorizontal, Target, BookMarked,
+  Search, Crosshair,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -20,9 +21,9 @@ import { useMapStore, scanKey } from '@/stores/mapStore';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/lib/api';
 import type {
-  AoiBBox, PipelineHotspot, PipelineResult, PipelineStage, PipelineStats, SatelliteScene, TrajectoryForecast,
+  AoiBBox, PipelineHotspot, PipelineResult, PipelineStage, PipelineStats, Region, SatelliteScene, TrajectoryForecast,
 } from '@/types';
-import { formatArea, formatCoords, cn } from '@/lib/utils';
+import { formatArea, formatCoords, formatStageDuration, cn } from '@/lib/utils';
 import { CLASS_COLORS, CLASS_ORDER } from '@/lib/classColors';
 import { ROLE_LEVEL } from '@/types';
 import SimilarSitesDrawer from '@/components/map/SimilarSitesDrawer';
@@ -94,6 +95,185 @@ function FitBounds({ bbox }: { bbox: AoiBBox | null }) {
     }
   }, [bbox, map]);
   return null;
+}
+
+/** Move the map to a searched place WITHOUT committing an AOI. Setting `bbox`
+ *  starts a real pipeline run (a cold satellite fetch can take ~2 min), so
+ *  looking somewhere up must stay free — the user opts into the scan after. */
+function FlyTo({ target }: { target: PlaceHit | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo([target.lat, target.lon], target.zoom, { duration: 0.8 });
+  }, [target, map]);
+  return null;
+}
+
+type PlaceHit = {
+  id: string;
+  label: string;
+  sub: string;
+  lat: number;
+  lon: number;
+  zoom: number;
+  source: 'region' | 'coords' | 'osm';
+};
+
+/** Accept coordinates typed straight in: "13.5, 80.2" · "13.5 80.2" · "13.5N 80.2E". */
+function parseCoords(q: string): { lat: number; lon: number } | null {
+  const m = q.trim().match(
+    /^(-?\d+(?:\.\d+)?)\s*°?\s*([NnSs])?\s*(?:,|\s)\s*(-?\d+(?:\.\d+)?)\s*°?\s*([EeWw])?$/,
+  );
+  if (!m) return null;
+  let lat = Number(m[1]);
+  let lon = Number(m[3]);
+  if (m[2]?.toLowerCase() === 's') lat = -lat;
+  if (m[4]?.toLowerCase() === 'w') lon = -lon;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  return { lat, lon };
+}
+
+/** Place search for the map: monitored regions and raw coordinates resolve
+ *  locally (so this keeps working in offline/mock mode), with OpenStreetMap
+ *  geocoding layered on top for everything else. */
+function AoiSearch({ regions, onPick }: { regions: Region[]; onPick: (hit: PlaceHit) => void }) {
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const [remote, setRemote] = useState<PlaceHit[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [active, setActive] = useState(0);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  // Local hits need no network.
+  const local = useMemo<PlaceHit[]>(() => {
+    const term = q.trim().toLowerCase();
+    const hits: PlaceHit[] = [];
+    const pt = parseCoords(q);
+    if (pt) {
+      hits.push({
+        id: 'coords', label: formatCoords(pt.lat, pt.lon), sub: 'Jump to coordinates',
+        lat: pt.lat, lon: pt.lon, zoom: 10, source: 'coords',
+      });
+    }
+    if (term.length >= 1) {
+      for (const r of regions) {
+        const hay = `${r.code} ${r.name} ${r.displayName}`.toLowerCase();
+        if (hay.includes(term)) {
+          hits.push({
+            id: `region:${r.id}`, label: r.displayName, sub: `Monitored region · ${r.code}`,
+            lat: r.centerLat, lon: r.centerLon, zoom: r.zoomLevel || 9, source: 'region',
+          });
+        }
+      }
+    }
+    return hits.slice(0, 6);
+  }, [q, regions]);
+
+  // Debounced OSM geocoding. Failure is silent by design — offline demos still
+  // get the local results above rather than an error.
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 3 || parseCoords(term)) { setRemote([]); setLoading(false); return; }
+    const ctl = new AbortController();
+    setLoading(true);
+    const timer = setTimeout(() => {
+      fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(term)}`,
+        { signal: ctl.signal, headers: { Accept: 'application/json' } })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((rows: Array<{ place_id: number; display_name: string; lat: string; lon: string }>) => {
+          setRemote(rows.map((r) => ({
+            id: `osm:${r.place_id}`,
+            label: r.display_name.split(',')[0].trim(),
+            sub: r.display_name.split(',').slice(1).join(',').trim() || 'OpenStreetMap',
+            lat: Number(r.lat), lon: Number(r.lon), zoom: 11, source: 'osm' as const,
+          })));
+        })
+        .catch(() => setRemote([]))
+        .finally(() => setLoading(false));
+    }, 350);
+    return () => { ctl.abort(); clearTimeout(timer); };
+  }, [q]);
+
+  const hits = useMemo(() => [...local, ...remote].slice(0, 8), [local, remote]);
+  useEffect(() => { setActive(0); }, [hits.length]);
+
+  // Close on outside click.
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+
+  const choose = (h: PlaceHit) => { onPick(h); setQ(h.label); setOpen(false); };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((i) => Math.min(i + 1, hits.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (hits[active]) choose(hits[active]); }
+    else if (e.key === 'Escape') { setOpen(false); }
+  };
+
+  return (
+    <div ref={boxRef} className="relative w-full sm:max-w-md">
+      <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <input
+        value={q}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={onKeyDown}
+        placeholder="Search a place or coordinates — e.g. Chennai or 13.1, 80.3"
+        aria-label="Search the map for a place or coordinates"
+        className="w-full rounded-xl border border-border bg-white/80 py-2 pl-9 pr-9 text-sm text-slate-700 placeholder:text-slate-400 focus:border-ocean-400 focus:outline-none focus:ring-2 focus:ring-ocean-100"
+      />
+      {loading && <Loader2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" />}
+      {!loading && q && (
+        <button
+          type="button"
+          onClick={() => { setQ(''); setRemote([]); setOpen(false); }}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:text-slate-600"
+          aria-label="Clear search"
+        >
+          <X size={14} />
+        </button>
+      )}
+
+      <AnimatePresence>
+        {open && hits.length > 0 && (
+          <motion.ul
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="absolute z-[1200] mt-1.5 w-full overflow-hidden rounded-xl border border-border bg-white shadow-lg"
+          >
+            {hits.map((h, i) => (
+              <li key={h.id}>
+                <button
+                  type="button"
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => choose(h)}
+                  className={cn(
+                    'flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors',
+                    i === active ? 'bg-ocean-50 text-ocean-800' : 'text-slate-600 hover:bg-slate-50',
+                  )}
+                >
+                  {h.source === 'coords'
+                    ? <Crosshair size={14} className="shrink-0 text-ocean-500" />
+                    : <MapPin size={14} className={cn('shrink-0', h.source === 'region' ? 'text-ocean-500' : 'text-slate-400')} />}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{h.label}</span>
+                    <span className="block truncate text-xs text-slate-400">{h.sub}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 /** Leaflet computes tile layout at init; inside a flex + rounded card the box is
@@ -297,6 +477,7 @@ export default function MapExplorer() {
   const [runOpts, setRunOpts] = useState(() => mapStore.runOpts);
   const [exporting, setExporting] = useState(false);
   const [selectedHotspot, setSelectedHotspot] = useState<PipelineHotspot | null>(null);
+  const [searched, setSearched] = useState<PlaceHit | null>(null);
   const regions = useRegions();
 
   // Seed the query with the saved snapshot only when that snapshot was actually
@@ -511,6 +692,36 @@ export default function MapExplorer() {
         <span className="ml-auto text-xs text-slate-400">or hold <b>Draw area</b> and drag a box anywhere</span>
       </div>
 
+      {/* Place search — moves the map only. Committing an AOI (and firing a real
+          scan) stays an explicit second click via "Scan here". */}
+      <div className="flex flex-wrap items-center gap-2">
+        <AoiSearch
+          regions={regions.data ?? []}
+          onPick={(hit) => { setSearched(hit); setDrawing(false); }}
+        />
+        {searched && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setBbox({
+                  north: searched.lat + 0.3, south: searched.lat - 0.3,
+                  east: searched.lon + 0.35, west: searched.lon - 0.35,
+                });
+                setDrawing(false);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-ocean-300 bg-ocean-50/80 px-3 py-2 text-sm font-semibold text-ocean-700 transition-colors hover:border-ocean-400"
+              title={`Set a ~0.6° x 0.7° area of interest on ${searched.label} and scan it`}
+            >
+              <ScanLine size={15} /> Scan here
+            </button>
+            <span className="text-xs text-slate-400">
+              Showing <b className="text-slate-500">{searched.label}</b> — {formatCoords(searched.lat, searched.lon)}
+            </span>
+          </>
+        )}
+      </div>
+
       {/* Scan failed — say so loudly instead of silently showing nothing. */}
       {aoi.isError && (
         <Card className="flex flex-wrap items-center gap-3 border-red-200 bg-red-50/60 text-sm text-red-700">
@@ -534,6 +745,7 @@ export default function MapExplorer() {
           <MapContainer center={[14.5, 80]} zoom={5} basemap="satellite">
             <MapResize />
             <FitBounds bbox={bbox} />
+            <FlyTo target={searched} />
             <AoiSelector active={drawing} onComplete={onComplete} />
 
             {/* Real Sentinel-2 scene preview at its TRUE STAC footprint */}
@@ -938,8 +1150,11 @@ function StageTimeline({ stages, fetching }: { stages?: PipelineStage[]; fetchin
               </div>
               <p className="mt-2 font-display text-xs font-bold text-slate-700">{meta.label}</p>
               <p className="font-mono text-[10px] text-ocean-500">
-                {s ? `${code} · ${s.durationMs}ms` : running ? 'processing…' : code}
+                {s ? `${code} · ${formatStageDuration(s.durationMs)}` : running ? 'processing…' : code}
               </p>
+              {s?.detail && (
+                <p className="mt-1 line-clamp-2 text-[10px] leading-tight text-slate-400">{s.detail}</p>
+              )}
             </motion.div>
           );
         })}

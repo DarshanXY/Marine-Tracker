@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Satellite, Cpu, Wind, ShieldAlert, ArrowRight, Database, CheckCircle2 } from 'lucide-react';
+import { Satellite, Cpu, Wind, ShieldAlert, ShieldCheck, ArrowRight, Database, CheckCircle2 } from 'lucide-react';
 import { useSatelliteStatus } from '@/hooks/useApi';
 import { Badge } from '@/components';
+import { reveal } from '@/lib/motion';
 
 const METHOD = [
   {
@@ -12,13 +13,18 @@ const METHOD = [
   },
   {
     icon: Cpu,
-    title: 'CNN classification',
-    body: 'A per-pixel neural-net classifier trained on the real MARIDA and MADOS benchmarks scores each pixel across Plastic / Algae / Sea-Foam / Water from its [B04,B06,B08,B8A,B11,FDI,NDVI] signature. Only human-validated candidates are marked "confirmed" — the model assists, it does not decide alone.',
+    title: 'MLP ensemble classification',
+    body: 'A 3-seed per-pixel neural-net (MLP) ensemble, trained on the real MARIDA and MADOS benchmarks, scores each candidate across Plastic / Algae / Sea-Foam / Water from its 11-feature spectral signature. It reaches ~0.82 macro-F1 held-out; only the calibrated HIGH-confidence tier (~90% precision) drives hotspots and dispatch. The model assists an analyst — it does not decide alone.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Clay foundation-model verification',
+    body: 'Each plastic hotspot gets a second opinion from a frozen Clay v1.5 foundation model running live on a GPU, which marks it CONFIRMED or POSSIBLE. Clay is a precision gate — lifting plastic precision toward ~0.92 — not a lone detector. Analysts keep the final call.',
   },
   {
     icon: Wind,
     title: 'Lagrangian drift forecast',
-    body: 'Confirmed plastic is advected forward 72 hours using an ensemble of ocean-current + windage scenarios (windage 1.5–3%). The output is an uncertainty cone, not a single line — honest about what a forecast can and cannot promise.',
+    body: 'Confirmed plastic is advected forward 72 hours using an ensemble of real ocean-current + windage scenarios (windage 1.5–3%). The output is an uncertainty cone, not a single line — honest about what a forecast can and cannot promise.',
   },
 ];
 
@@ -36,8 +42,9 @@ export default function About() {
         </h1>
         <p className="mt-4 text-lg leading-relaxed text-slate-500">
           Marine Plastic Tracker is a Final Year Project demonstrating that open Sentinel-2
-          imagery, classical remote-sensing indices, and a modest CNN can produce genuinely useful
-          marine-plastic intelligence for Indian coastal agencies — at zero running cost.
+          imagery, classical remote-sensing indices, a compact MLP ensemble, and a foundation-model
+          verifier can produce genuinely useful marine-plastic intelligence for Indian coastal
+          agencies — at zero running cost.
         </p>
       </motion.div>
 
@@ -62,8 +69,8 @@ export default function About() {
         {METHOD.map((m, i) => (
           <motion.div
             key={m.title}
-            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            transition={{ delay: i * 0.05 }}
+            {...reveal(i * 0.06)}
+            whileHover={{ y: -4 }}
             className="glass relative flex gap-5 p-6"
           >
             <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-ocean-600 to-ocean-400 text-white shadow-glow-primary">

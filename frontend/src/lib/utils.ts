@@ -32,8 +32,25 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+/** Format a pipeline-stage duration for the live timeline. Stages time themselves
+ *  with perf_counter and floor to whole ms, so a real-but-instant stage (nothing
+ *  to process) reports 0 — which reads as "did nothing". Show "<1ms" instead, and
+ *  roll up to seconds past 1000ms so the slow ingest stage stays legible. */
+export function formatStageDuration(ms: number): string {
+  if (ms <= 0) return '<1ms';
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
 /** Returns true when the user has requested reduced motion. */
 export function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined') return false;
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** Human label for a drift forecast's forcing source. */
+export function forcingLabel(source: string): string {
+  if (source === 'cmems') return 'REAL CMEMS currents + winds';
+  if (source === 'open-meteo') return 'REAL winds+currents';
+  return source;
 }

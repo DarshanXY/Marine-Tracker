@@ -21,7 +21,7 @@ export default function AdminPanel() {
           <ShieldAlert size={30} className="text-amber-500" />
           <p className="font-display text-lg font-semibold text-slate-700">Administrators only</p>
           <p className="max-w-md text-sm text-slate-400">
-            This page requires the ADMIN role (level 7). You are signed in as{' '}
+            This page requires the ADMIN role (level 3). You are signed in as{' '}
             <span className="font-semibold text-slate-600">{me?.role ?? 'guest'}</span>.
             The backend enforces this independently — the API returns 403 for non-admin tokens.
           </p>
@@ -58,7 +58,7 @@ export default function AdminPanel() {
       <PageHeader
         title="Admin Panel"
         subtitle="Users, monitored regions, and live system configuration."
-        badge={<Badge variant="success" dot>ADMIN · L7</Badge>}
+        badge={<Badge variant="success" dot>ADMIN · L3</Badge>}
       />
 
       {/* System config cards */}

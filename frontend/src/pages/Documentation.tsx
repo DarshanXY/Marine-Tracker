@@ -13,12 +13,13 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
+  ShieldCheck,
 } from 'lucide-react';
 import { Card, Badge } from '@/components';
 
 const SECTIONS = [
   { id: 'overview', label: 'Overview' },
-  { id: 'pipeline', label: 'The 6-stage pipeline' },
+  { id: 'pipeline', label: 'The 7-stage pipeline' },
   { id: 'sources', label: 'Data sources' },
   { id: 'api', label: 'REST API reference' },
   { id: 'quickstart', label: 'Getting started' },
@@ -37,18 +38,23 @@ const PIPELINE = [
   },
   {
     icon: Cpu,
-    title: 'CNN classify',
-    body: 'A per-pixel MLP (11→64→32→16→4) trained on the real MARIDA + MADOS benchmarks scores each pixel across Plastic / Algae / Sea-Foam / Water (98.9% held-out accuracy, 0.79 macro-F1). The model assists an analyst — only human-validated hits are promoted to "confirmed".',
+    title: 'MLP classify',
+    body: 'A 3-seed per-pixel MLP ensemble, trained on the real MARIDA + MADOS benchmarks, scores each candidate across Plastic / Algae / Sea-Foam / Water from an 11-feature spectral signature (~0.82 macro-F1 held-out; accuracy is Water-inflated so we lead with macro-F1). A calibrated HIGH-confidence tier (~90% precision) is what promotes a detection.',
   },
   {
     icon: Boxes,
     title: 'DBSCAN hotspots',
-    body: 'Confirmed detections are clustered in geographic space with DBSCAN, collapsing scattered pixels into ranked hotspot polygons with a density and confidence score.',
+    body: 'High-confidence detections are clustered in geographic space with DBSCAN, collapsing scattered pixels into ranked hotspot polygons with a density and confidence score.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Clay verify',
+    body: 'A frozen Clay v1.5 foundation model (GPU sidecar) re-embeds each plastic hotspot and returns a CONFIRMED / POSSIBLE verdict — a second opinion that lifts plastic precision toward ~0.92. It gates candidates; it never detects on its own.',
   },
   {
     icon: Wind,
     title: 'Lagrangian drift',
-    body: 'Each hotspot is advected forward 72 hours over an ensemble of ocean-current + windage (1.5–3%) scenarios, producing an uncertainty cone rather than a single deterministic track.',
+    body: 'Each hotspot is advected forward 72 hours over an ensemble of real ocean-current + windage (1.5–3%) scenarios, producing an uncertainty cone rather than a single deterministic track.',
   },
   {
     icon: BellRing,
@@ -82,13 +88,16 @@ const ENDPOINTS: { method: Method; path: string; desc: string }[] = [
   { method: 'GET', path: '/api/hotspots', desc: 'Ranked DBSCAN hotspot clusters with density, confidence, and drift cones.' },
   { method: 'GET', path: '/api/regions', desc: 'Monitored Indian-Ocean regions and their latest processing status.' },
   { method: 'GET', path: '/api/alerts', desc: 'Open and historical alerts with severity, target zone, and issue time.' },
-  { method: 'POST', path: '/api/pipeline/run', desc: 'Queue a full ingest → detect → forecast run for a region (auth required).' },
+  { method: 'POST', path: '/api/pipeline/run', desc: 'Run the full ingest → detect → verify → forecast pipeline for a region or drawn AOI (auth required).' },
+  { method: 'GET', path: '/api/pipeline/stream', desc: 'Server-sent live scan of a drawn AOI — one event per pipeline stage.' },
+  { method: 'GET', path: '/api/areas', desc: 'Saved study areas with their latest scan and 72-hour drift forecast history.' },
   { method: 'POST', path: '/api/auth/login', desc: 'Exchange credentials for a session JWT scoped to the caller’s role.' },
 ];
 
 const SERVICES = [
   { icon: Server, name: 'Backend API', tech: 'Node + Express + Prisma', port: '3001', cmd: 'cd backend && npm run dev' },
-  { icon: Cpu, name: 'Detection engine', tech: 'Python + FastAPI', port: '8000', cmd: 'cd engine && uvicorn app.main:app --port 8000' },
+  { icon: Cpu, name: 'Detection engine', tech: 'Python + FastAPI', port: '8000', cmd: 'cd python_engine && uvicorn api.app:app --port 8000' },
+  { icon: ShieldCheck, name: 'Clay GPU verifier', tech: 'Python + Clay v1.5 (optional)', port: '8010', cmd: 'cd python_engine && python clay_service.py --port 8010' },
   { icon: BookOpen, name: 'Frontend', tech: 'React + Vite', port: '5173', cmd: 'cd frontend && npm run dev' },
 ];
 
@@ -146,7 +155,7 @@ export default function Documentation() {
 
           {/* Pipeline */}
           <section id="pipeline" className="scroll-mt-24">
-            <SectionTitle icon={Cpu} eyebrow="02">The 6-stage pipeline</SectionTitle>
+            <SectionTitle icon={Cpu} eyebrow="02">The 7-stage pipeline</SectionTitle>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               {PIPELINE.map((stage, i) => (
                 <motion.div key={stage.title} {...reveal} transition={{ delay: i * 0.04 }}>
