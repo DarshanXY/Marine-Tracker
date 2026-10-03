@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { ApiError, asyncHandler } from '../middleware/errorHandler';
 import { authenticate, requireMinLevel } from '../middleware/auth';
@@ -6,6 +7,17 @@ import * as auth from '../services/auth.service';
 import { ROLE_LEVEL } from '../types/auth';
 
 const router = Router();
+
+// Brute-force guard, scoped to credential attempts only — kept independent of
+// the app-wide polling budget in index.ts so a busy dashboard tab can never
+// eat into the quota that's actually protecting these endpoints.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { status: 429, message: 'Too many sign-in attempts — try again in a few minutes.' } },
+});
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Username or email is required'),
@@ -30,6 +42,7 @@ function parse<T>(schema: z.ZodSchema<T>, body: unknown): T {
 // POST /api/auth/register
 router.post(
   '/register',
+  authLimiter,
   asyncHandler(async (req, res) => {
     const body = parse(registerSchema, req.body);
     const user = await auth.register(body);
@@ -41,6 +54,7 @@ router.post(
 // POST /api/auth/login  (handles TOTP-enabled accounts)
 router.post(
   '/login',
+  authLimiter,
   asyncHandler(async (req, res) => {
     const { identifier, password, totp } = parse(loginSchema, req.body);
     const user = await auth.validateCredentials(identifier, password);

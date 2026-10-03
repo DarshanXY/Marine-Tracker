@@ -7,6 +7,7 @@
  * anything already present in `process.env`.
  */
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 function parseEnvFile(file: string): void {
@@ -49,6 +50,59 @@ const asNum = (v: string | undefined, def: number): number => {
   return Number.isFinite(n) ? n : def;
 };
 
+// ── PostgreSQL connection pool ───────────────────────────────────────────────
+// Prisma opens ONE pool per PrismaClient and sizes it (cpu_threads * 2 + 1) by
+// default — on a 16-thread box that is 33 sockets from a single `tsx watch`
+// process, and the portable cluster in infra/pgdata only allows 100 total
+// (psql, pgAdmin and Prisma Studio want their share too). The API is I/O-bound
+// with short queries, so a smaller explicit pool serves the same throughput with
+// far more headroom; the socket count is what we cap, not the request rate.
+const dbPoolSize    = Math.max(1, asNum(process.env.DB_POOL_SIZE, Math.min(10, os.cpus().length * 2 + 1)));
+// How long a request waits for a free socket before failing (Prisma default 10s).
+const dbPoolTimeout = Math.max(1, asNum(process.env.DB_POOL_TIMEOUT, 15));
+// How long a single new socket may take to establish (Prisma default 5s).
+const dbConnTimeout = Math.max(1, asNum(process.env.DB_CONNECT_TIMEOUT, 10));
+// Tags our sockets in pg_stat_activity so the connection log can tell OUR pool
+// apart from psql/pgAdmin sessions.
+const dbAppName     = process.env.DB_APP_NAME ?? 'marine-plastic-tracker-api';
+
+/**
+ * Return DATABASE_URL with the pool knobs applied. Values already present in the
+ * URL always win, so an operator can override any of them per-environment
+ * without touching code. A malformed URL is passed through untouched — Prisma
+ * gives a far better error message for it than we would.
+ */
+function pooledDatabaseUrl(raw: string | undefined): string {
+  if (!raw) return '';
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return raw;
+  }
+  const fallback = (key: string, value: string): void => {
+    if (!url.searchParams.has(key)) url.searchParams.set(key, value);
+  };
+  fallback('connection_limit', String(dbPoolSize));
+  fallback('pool_timeout',     String(dbPoolTimeout));
+  fallback('connect_timeout',  String(dbConnTimeout));
+  fallback('application_name', dbAppName);
+  fallback('schema',           'public');
+  return url.toString();
+}
+
+/** Host:port/db of a connection string, with the password stripped — log-safe. */
+export function redactDatabaseUrl(raw: string): string {
+  if (!raw) return '(unset)';
+  try {
+    const url = new URL(raw);
+    const user = url.username ? `${url.username}@` : '';
+    return `postgresql://${user}${url.host}${url.pathname}`;
+  } catch {
+    return '(unparseable DATABASE_URL)';
+  }
+}
+
 export const env = {
   nodeEnv:    process.env.NODE_ENV ?? 'development',
   isDev:      (process.env.NODE_ENV ?? 'development') === 'development',
@@ -87,6 +141,48 @@ export const env = {
    * "real" deployment can never quietly degrade to demo data unnoticed.
    */
   dataStrict: asBool(process.env.DATA_STRICT, false),
+
+  /**
+   * DEMO_PLASTIC (default true, TEMPORARY): when an area saved from Map Explorer
+   * has no plastic, inject a labelled synthetic plastic cluster over open water so
+   * the Areas drift forecast has something to release. Every injected detection
+   * and the result itself carry `demo: true` / `demoPlastic` so the UI can say so.
+   * Set to false once the live detector finds plastic again.
+   */
+  demoPlastic: asBool(process.env.DEMO_PLASTIC, true),
+
+  // ── PostgreSQL ─────────────────────────────────────────────────────────────
+  db: {
+    /** Raw value as configured (still contains the password — never log it). */
+    rawUrl: process.env.DATABASE_URL ?? '',
+    /** What PrismaClient actually connects with: raw URL + pool knobs. */
+    url: pooledDatabaseUrl(process.env.DATABASE_URL),
+    configured: Boolean(process.env.DATABASE_URL),
+    pool: {
+      connectionLimit: dbPoolSize,
+      poolTimeoutS:    dbPoolTimeout,
+      connectTimeoutS: dbConnTimeout,
+      applicationName: dbAppName,
+    },
+    /** Bounded retry for the boot-time connect (a cluster may still be starting). */
+    retry: {
+      attempts:  Math.max(1, asNum(process.env.DB_CONNECT_ATTEMPTS, 5)),
+      baseMs:    Math.max(50, asNum(process.env.DB_RETRY_BASE_MS, 400)),
+      maxMs:     Math.max(100, asNum(process.env.DB_RETRY_MAX_MS, 5_000)),
+      /**
+       * Hard ceiling on the whole retry loop. A refused TCP connect costs Prisma
+       * ~4s to report, so `attempts` alone would let a DOWN database stall the
+       * boot for ~26s before the API falls back to demo data and starts
+       * listening. The deadline is what actually bounds that; attempts just caps
+       * how many tries fit inside it.
+       */
+      deadlineMs: Math.max(1_000, asNum(process.env.DB_CONNECT_DEADLINE_MS, 12_000)),
+    },
+    /** Re-probe interval that lets the API return to live mode by itself. */
+    healthIntervalMs: Math.max(5_000, asNum(process.env.DB_HEALTH_INTERVAL_MS, 30_000)),
+    /** Connection log destination; empty string disables file logging. */
+    logFile: process.env.DB_LOG_FILE ?? '',
+  },
 
   // ── Auth (JWT + bcrypt + TOTP) ─────────────────────────────────────────────
   auth: {

@@ -13,6 +13,7 @@
     "type-check": "tsc --noEmit",
     "test": "jest --runInBand --passWithNoTests",
     "test:watch": "jest --watch",
+    "db:check": "tsx src/scripts/db-check.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",

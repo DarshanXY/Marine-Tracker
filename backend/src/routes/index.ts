@@ -56,6 +56,7 @@ api.get('/', (_req, res) => {
       'PATCH /api/areas/:id (field+)',
       'DELETE /api/areas/:id (field+)',
       'POST /api/areas/:id/forecast (field+)',
+      'POST /api/areas/:id/forecast/example (field+, what-if plastic drift, not stored)',
       'GET  /api/export/detections.csv',
       'GET  /api/export/hotspots.pdf?region=',
       'GET  /api/export/operations/:id.pdf',

@@ -15,6 +15,7 @@ import { env } from './lib/env';
 import { prisma } from './lib/prisma';
 import { logger } from './lib/logger';
 import { dataMode, probeDatabase, startDbHealthPolling, sourceLabel } from './lib/dataMode';
+import { lastConnectionInfo, pingDatabase } from './lib/db';
 import api from './routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
@@ -38,12 +39,22 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
+// One shared IP budget for all API traffic, including the dashboard's own
+// background polling (services every 8s, alerts every 30s app-wide,
+// pipeline-status every 15s, operations every 20s, ...) — that alone can
+// exceed 300 req/15min from a single open tab, which used to starve unrelated
+// requests like login of their share. Sized with headroom for several tabs;
+// login/register get their own much stricter limiter (see auth.routes.ts) so
+// this general budget isn't the thing standing between an attacker and
+// unlimited password guesses. /health is exempt since it's polled for status
+// chips and isn't a target worth throttling.
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 300,
+    max: 2000,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.path === '/health',
     message: { error: { status: 429, message: 'Too many requests — slow down.' } },
   }),
 );
@@ -56,17 +67,9 @@ app.use((_req, res, next) => {
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', async (_req, res) => {
-  let dbStatus: 'connected' | 'error' = 'error';
-  let dbLatencyMs: number | null = null;
-
-  try {
-    const t0 = Date.now();
-    await prisma.$queryRaw`SELECT 1`;
-    dbLatencyMs = Date.now() - t0;
-    dbStatus = 'connected';
-  } catch {
-    // dbStatus stays 'error'
-  }
+  const dbLatencyMs = await pingDatabase();
+  const dbStatus: 'connected' | 'error' = dbLatencyMs === null ? 'error' : 'connected';
+  const info = lastConnectionInfo();
 
   const healthy = dbStatus === 'connected' || env.DEMO_MODE;
   res.status(healthy ? 200 : 503).json({
@@ -75,7 +78,15 @@ app.get('/health', async (_req, res) => {
     phase: 'Phase 3 — domain API',
     mode: sourceLabel(),
     demoMode: env.DEMO_MODE,
-    db: { status: dbStatus, latencyMs: dbLatencyMs },
+    db: {
+      status: dbStatus,
+      latencyMs: dbLatencyMs,
+      target: info?.target ?? null,
+      server: info?.server?.serverVersion ?? null,
+      pool: info?.pool ?? null,
+      tables: info?.tables.length ?? null,
+      connectedAt: info?.connected ? info.at : null,
+    },
     time: new Date().toISOString(),
   });
 });
