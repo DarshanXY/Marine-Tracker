@@ -1,0 +1,456 @@
+<meta charset="utf-8">
+<title>Marine Plastic Tracker — Project Explainer</title>
+<style>
+  :root {
+    --ink: #0f2830;
+    --ink-soft: #43606b;
+    --ink-faint: #6b8590;
+    --teal: #0d9488;
+    --teal-dark: #0f766e;
+    --ocean: #2f7fb5;
+    --line: #d6e6e6;
+    --card: #ffffff;
+    --wash: #f0f9f8;
+    --wash2: #e7f5f3;
+    --amber: #b45309;
+    --rose: #be123c;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    line-height: 1.55;
+    font-size: 14px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 28px; }
+
+  /* ---- cover ---- */
+  .cover {
+    min-height: 100vh;
+    background: linear-gradient(160deg, #d3efe9 0%, #eaf7f4 45%, #ffffff 100%);
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 60px 56px;
+    page-break-after: always;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
+  .brand .mark {
+    width: 46px; height: 46px; border-radius: 13px;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    display: grid; place-items: center; color: #fff; font-size: 22px;
+  }
+  .brand .name { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
+  .brand .name span { color: var(--teal); }
+  .brand .sub { font-size: 11px; letter-spacing: 3px; color: var(--ink-faint); text-transform: uppercase; }
+  .cover h1 { font-size: 46px; line-height: 1.05; margin: 0 0 16px; letter-spacing: -1px; }
+  .cover .lede { font-size: 18px; color: var(--ink-soft); max-width: 640px; margin: 0 0 30px; }
+  .cover .meta { font-size: 13px; color: var(--ink-faint); border-top: 1px solid var(--line); padding-top: 18px; max-width: 640px; }
+  .cover .meta b { color: var(--ink); }
+
+  /* ---- section headings ---- */
+  h2.sec {
+    font-size: 26px; letter-spacing: -.5px; margin: 0 0 4px;
+    padding-top: 8px;
+  }
+  .sec-kicker { font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--teal); font-weight: 700; }
+  .sec-block { page-break-before: always; padding-top: 20px; }
+  .sec-block:first-of-type { page-break-before: avoid; }
+  p { margin: 10px 0; }
+  p.intro { color: var(--ink-soft); font-size: 15px; }
+
+  h3 { font-size: 17px; margin: 22px 0 6px; }
+  ul { margin: 8px 0; padding-left: 20px; }
+  li { margin: 5px 0; }
+  b, strong { color: var(--ink); }
+
+  /* ---- flow strip ---- */
+  .flow { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 6px; }
+  .flow .step {
+    flex: 1 1 110px; background: var(--wash); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px; min-width: 110px;
+  }
+  .flow .step .n { font-size: 11px; font-weight: 800; color: var(--teal); }
+  .flow .step .t { font-size: 13px; font-weight: 700; margin: 2px 0; }
+  .flow .step .d { font-size: 11.5px; color: var(--ink-faint); line-height: 1.4; }
+
+  /* ---- generic cards ---- */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .card h4 { margin: 0 0 4px; font-size: 14.5px; }
+  .card p { margin: 0; font-size: 13px; color: var(--ink-soft); }
+
+  /* ---- roles table ---- */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--wash2); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; color: var(--ink-soft); }
+  td .role { font-weight: 700; }
+  .yes { color: var(--teal-dark); font-weight: 700; }
+  .no { color: #b9c6c9; }
+
+  /* ---- page entries (screenshot + explainer) ---- */
+  .page-entry { page-break-before: always; padding-top: 18px; }
+  .page-tag {
+    display: inline-block; background: var(--teal); color: #fff; font-size: 11px;
+    font-weight: 700; letter-spacing: .5px; padding: 4px 11px; border-radius: 999px; margin-bottom: 8px;
+  }
+  .page-entry h2 { font-size: 24px; margin: 0 0 2px; letter-spacing: -.4px; }
+  .breadcrumb { font-size: 12px; color: var(--ink-faint); margin: 0 0 12px; }
+  .breadcrumb b { color: var(--teal-dark); }
+  figure { margin: 0 0 14px; }
+  figure img {
+    width: 100%; display: block; border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(13,148,136,.10);
+  }
+  figcaption { font-size: 11.5px; color: var(--ink-faint); margin-top: 6px; font-style: italic; }
+  .oneline {
+    background: var(--wash); border-left: 4px solid var(--teal); border-radius: 0 10px 10px 0;
+    padding: 10px 14px; margin: 12px 0; font-size: 14px;
+  }
+  .oneline b { color: var(--teal-dark); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .two h4 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-soft); margin: 4px 0 4px; }
+  .say {
+    background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 12px 14px; margin: 12px 0 0;
+    font-size: 13.5px;
+  }
+  .say b { color: var(--amber); }
+  .say .q { display: block; color: var(--amber); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; font-weight: 700; margin-bottom: 3px; }
+
+  /* ---- callouts ---- */
+  .note { background: var(--wash2); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin: 14px 0; font-size: 13.5px; }
+  .note b { color: var(--teal-dark); }
+
+  .qa { border: 1px solid var(--line); border-radius: 12px; padding: 4px 16px; margin: 12px 0; }
+  .qa .q { font-weight: 700; margin: 12px 0 2px; }
+  .qa .a { margin: 0 0 12px; color: var(--ink-soft); font-size: 13.5px; }
+
+  .foot { color: var(--ink-faint); font-size: 12px; border-top: 1px solid var(--line); margin-top: 22px; padding-top: 12px; }
+  .pill { display:inline-block; background:var(--wash2); border:1px solid var(--line); border-radius:999px; padding:2px 9px; font-size:11px; color:var(--ink-soft); margin:2px 3px 2px 0; }
+
+  /* ---- print / PDF ---- */
+  @page { size: A4; margin: 13mm; }
+  @media print {
+    body { font-size: 12.5px; }
+    .wrap { max-width: none; padding: 0; }
+    .cover { min-height: 0; height: 262mm; padding: 44px 40px; }
+    .flow .step, .card, .qa, .note, .say, figure, .page-entry .two { page-break-inside: avoid; }
+    figure img { box-shadow: none; }
+  }
+</style>
+
+<!-- ============================== COVER ============================== -->
+<section class="cover">
+  <div class="brand">
+    <div class="mark">≈</div>
+    <div>
+      <div class="name">Marine<span>Tracker</span></div>
+      <div class="sub">Indian Ocean</div>
+    </div>
+  </div>
+  <h1>Marine Plastic Tracker</h1>
+  <p class="lede">A plain-English guide to every part of the project — what each page is, what it does, and what to say about it. Built for the team to present to the panel.</p>
+  <div class="meta">
+    <p><b>What it is:</b> a system that uses free satellite photos of the sea to automatically spot floating plastic, group it into hotspots, double-check it with a second AI, predict where it will drift over the next 72 hours, and help a crew go clean it up.</p>
+    <p><b>How to use this document:</b> each page of the app gets its own section with a screenshot and a simple explanation. The last pages are a glossary and a “likely panel questions” cheat-sheet. <b>Team size: 4 members.</b></p>
+  </div>
+</section>
+
+<div class="wrap">
+
+<!-- ============================== BIG PICTURE ============================== -->
+<section class="sec-block">
+  <div class="sec-kicker">The big picture</div>
+  <h2 class="sec">What problem does it solve, in one breath?</h2>
+  <p class="intro">Ocean plastic is hard to find — it’s spread over huge areas of sea and boats can’t search everywhere. Our project uses <b>free satellite images</b> and <b>AI</b> to point to the exact patches of water that likely contain floating plastic, then predicts where that plastic will float next so a cleanup crew knows where to go <em>before</em> it reaches the coast.</p>
+
+  <h3>The whole journey, in 7 simple steps</h3>
+  <p>Every scan the system runs goes through the same 7 stages. This is the “engine” of the project — you’ll see these exact stages appear on the Map Explorer and Pipeline pages.</p>
+  <div class="flow">
+    <div class="step"><div class="n">STEP 1</div><div class="t">Scan scene</div><div class="d">Download the free satellite photo of the chosen sea area.</div></div>
+    <div class="step"><div class="n">STEP 2</div><div class="t">FDI index</div><div class="d">A colour formula flags pixels that might be floating material.</div></div>
+    <div class="step"><div class="n">STEP 3</div><div class="t">Classify (AI)</div><div class="d">The AI labels each flagged pixel: Plastic, Algae, Sea Foam or Water.</div></div>
+    <div class="step"><div class="n">STEP 4</div><div class="t">Cluster</div><div class="d">Nearby plastic pixels are grouped into “hotspots”.</div></div>
+    <div class="step"><div class="n">STEP 5</div><div class="t">Clay verify</div><div class="d">A bigger second AI double-checks each hotspot.</div></div>
+    <div class="step"><div class="n">STEP 6</div><div class="t">Drift</div><div class="d">Predict where it floats over 72 h using currents + wind.</div></div>
+    <div class="step"><div class="n">STEP 7</div><div class="t">Alerts</div><div class="d">Raise a warning if a hotspot is severe or coast-bound.</div></div>
+  </div>
+
+  <div class="note">
+    <b>Why two AIs?</b> The first AI (called the <b>MLP</b>) is fast and checks every pixel. The second AI (called <b>Clay</b>) is larger and gives a “second opinion” on the hotspots. When <b>both agree</b>, we mark it <b>Confirmed</b>. When only one flags it, we mark it <b>Possible</b>. This is how we keep false alarms low.
+  </div>
+</section>
+
+<!-- ============================== HOW IT'S BUILT ============================== -->
+<section class="sec-block">
+  <div class="sec-kicker">How it’s built</div>
+  <h2 class="sec">The three parts of the system</h2>
+  <p class="intro">You don’t need to be technical to explain this. The project is made of three pieces that talk to each other.</p>
+  <div class="cards">
+    <div class="card"><h4>1. The website (Frontend)</h4><p>Everything you click and see — the pages, maps, charts and buttons. Built with React. This is what the panel is looking at on screen.</p></div>
+    <div class="card"><h4>2. The server + database (Backend)</h4><p>The memory of the system. It stores users, past detections and scan results, handles login, and enforces who is allowed to see what.</p></div>
+    <div class="card"><h4>3. The AI engine (Python)</h4><p>The brain. It downloads satellite images and runs the 7-stage pipeline — the FDI formula, the AI classifier, the clustering, the Clay check and the drift forecast.</p></div>
+    <div class="card"><h4>+ Outside data sources</h4><p><b>Sentinel-2</b> (free European satellite photos), <b>Open-Meteo</b> (real ocean currents & wind for the drift forecast), and the <b>Clay</b> foundation model running on a GPU.</p></div>
+  </div>
+  <div class="note">
+    <b>Is the data real?</b> Yes. The images are real, free <b>Sentinel-2</b> satellite photos. The AI was trained on two real, published, scientist-labelled datasets — <b>MARIDA</b> and <b>MADOS</b>. Nothing on screen is faked; every number is computed by the real pipeline.
+  </div>
+</section>
+
+<!-- ============================== ROLES ============================== -->
+<section class="sec-block">
+  <div class="sec-kicker">Who can see what</div>
+  <h2 class="sec">The three user roles (access control)</h2>
+  <p class="intro">Not everyone sees the same thing. The system has three roles, each with more access than the last. This is why a “Field Officer” sees fewer menu items than an “Administrator”.</p>
+  <table>
+    <tr><th>Page / area</th><th>Field Officer<br><span style="font-weight:400">(basic “user”)</span></th><th>Coast Guard<br><span style="font-weight:400">(command)</span></th><th>Administrator<br><span style="font-weight:400">(system owner)</span></th></tr>
+    <tr><td>Command Center, Map Explorer, Areas, Records, Pipeline, Field Ops, Settings</td><td class="yes">✔ Yes</td><td class="yes">✔ Yes</td><td class="yes">✔ Yes</td></tr>
+    <tr><td>AI Lab (view model report card) &amp; Analytics &amp; Reports</td><td class="no">✘ Hidden</td><td class="yes">✔ Yes</td><td class="yes">✔ Yes</td></tr>
+    <tr><td>Active Learning (label data → <b>retrain the model</b>)</td><td class="no">✘ Hidden</td><td class="no">✘ Hidden</td><td class="yes">✔ Yes</td></tr>
+    <tr><td>Admin Panel (manage users, roles &amp; system config)</td><td class="no">✘ Hidden</td><td class="no">✘ Hidden</td><td class="yes">✔ Yes</td></tr>
+  </table>
+  <p style="font-size:13px;color:var(--ink-soft)"><b>In plain words:</b> a <b>Field Officer</b> detects plastic and runs field missions. A <b>Coast Guard</b> user does all of that <em>plus</em> sees the model’s report card and the reports. An <b>Administrator</b> can do everything, <em>plus</em> the two things that change the system itself: <b>retraining the AI</b> and <b>managing users</b>. Hidden pages are blocked three ways — the menu link is removed, the search can’t jump to them, and typing the web address is bounced back.</p>
+</section>
+
+<!-- ============================== PAGE BY PAGE ============================== -->
+<section class="sec-block">
+  <div class="sec-kicker">Page-by-page walkthrough</div>
+  <h2 class="sec">Every page, explained simply</h2>
+  <p class="intro">From here on, each section is one page of the app: a screenshot, a one-line summary, what it’s for, what’s on it, and a sentence you can say to the panel.</p>
+</section>
+
+<!-- LOGIN -->
+<section class="page-entry">
+  <span class="page-tag">SIGN IN</span>
+  <h2>Login screen</h2>
+  <p class="breadcrumb">First screen · before you enter the app</p>
+  <figure><img src="explainer-shots/01-login.png" alt="Login screen"></figure>
+  <div class="oneline"><b>In one line:</b> the front door — you sign in, and the system decides which role you have.</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>Signing in securely. It also supports 2-factor authentication (2FA) for extra security. For the demo there are one-click buttons to sign in as each role.</p></div>
+    <div><h4>What’s on it</h4><ul><li>Username &amp; password fields</li><li>Optional 6-digit 2FA code</li><li>Quick “sign in as a role” demo buttons</li></ul></div>
+  </div>
+  <div class="say"><span class="q">Say this to the panel</span>“This is the secure sign-in. Your account has a <b>role</b>, and that role decides what you’re allowed to see and do inside the app.”</div>
+</section>
+
+<!-- COMMAND CENTER -->
+<section class="page-entry">
+  <span class="page-tag">PAGE 1</span>
+  <h2>Command Center</h2>
+  <p class="breadcrumb">Menu: <b>Monitor › Command Center</b> · the home screen</p>
+  <figure><img src="explainer-shots/02-command-center.png" alt="Command Center page"></figure>
+  <div class="oneline"><b>In one line:</b> the “home” dashboard — one glance tells the duty officer how bad things are right now and what needs attention.</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>A single situation screen for whoever is on duty. It combines the most urgent information so they don’t have to hunt across pages.</p></div>
+    <div><h4>What’s on it</h4><ul><li><b>Situation level</b> gauge (0–100 — how much needs attention)</li><li>Open high alerts, hotspots reaching the coast soon, detections awaiting checking</li><li>Big totals: detections, confirmed plastic, active hotspots, regions</li><li>The alert inbox and priority hotspots list</li><li>“Run all regions” button to trigger a fresh scan</li></ul></div>
+  </div>
+  <div class="say"><span class="q">Say this to the panel</span>“This is the operator’s home page. The gauge is a simple 0–100 score of how urgent the situation is, and everything urgent — alerts, coast-bound plastic, things to verify — is on this one screen.”</div>
+</section>
+
+<!-- MAP EXPLORER -->
+<section class="page-entry">
+  <span class="page-tag">PAGE 2</span>
+  <h2>Map Explorer</h2>
+  <p class="breadcrumb">Menu: <b>Monitor › Map Explorer</b></p>
+  <figure><img src="explainer-shots/03-map-explorer.png" alt="Map Explorer page"></figure>
+  <div class="oneline"><b>In one line:</b> draw a box on the real satellite map and the full 7-stage pipeline runs live for exactly that area.</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>Scanning any patch of sea you choose. You draw an <b>Area of Interest</b> (a box) on the map and the system fetches the satellite image and analyses it on the spot.</p></div>
+    <div><h4>What’s on it</h4><ul><li>Real satellite map you can pan and zoom</li><li>Coloured dots for detections (plastic, algae, etc.)</li><li>The <b>“Live processing”</b> strip showing all 7 stages running</li><li>A legend and result counts (Plastic / Algae / Sea Foam / Water)</li></ul></div>
+  </div>
+  <div class="note"><b>Note on the “Live processing” timings:</b> each stage shows how long it took. Stages that finish in under a millisecond now show <b>“&lt;1 ms”</b> (they really ran — there was just nothing to process for that area). If a scan finds no plastic, that’s the correct result for a land or clear-water area, not a bug.</div>
+  <div class="say"><span class="q">Say this to the panel</span>“I draw a box on the live satellite map, and the system downloads that image and runs the whole detection pipeline for just that area — the stages you see lighting up are the real steps happening.”</div>
+</section>
+
+<!-- AREAS -->
+<section class="page-entry">
+  <span class="page-tag">PAGE 3</span>
+  <h2>Areas</h2>
+  <p class="breadcrumb">Menu: <b>Monitor › Areas</b></p>
+  <figure><img src="explainer-shots/04-areas.png" alt="Areas page"></figure>
+  <div class="oneline"><b>In one line:</b> your saved sea areas — re-scan the same water over time and run a 72-hour “where will the plastic drift” forecast.</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>Keeping and re-visiting areas you care about. Any area you save from Map Explorer is stored with its full scan, so you can watch the same water change over days.</p></div>
+    <div><h4>What’s on it</h4><ul><li>Your saved areas with their last scan results</li><li>A <b>“re-scan”</b> button to check the same water again</li><li>The <b>72-hour drift forecast</b> — a predicted path plus an uncertainty cone</li><li>Forecast history, so past runs stay comparable</li></ul></div>
+  </div>
+  <div class="say"><span class="q">Say this to the panel</span>“Areas lets us monitor the same stretch of sea over time and predict where floating plastic will travel in the next three days, so a crew can intercept it before it hits the shore.”</div>
+</section>
+
+<!-- RECORDS -->
+<section class="page-entry">
+  <span class="page-tag">PAGE 4</span>
+  <h2>Records</h2>
+  <p class="breadcrumb">Menu: <b>Monitor › Records</b></p>
+  <figure><img src="explainer-shots/05-records.png" alt="Records page"></figure>
+  <div class="oneline"><b>In one line:</b> the searchable catalogue of <em>everything</em> the model has ever found — the project’s evidence log.</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>Browsing the full history of detections. Every scan saves its results here, so this grows over time into a complete record you can filter and export.</p></div>
+    <div><h4>What’s on it</h4><ul><li>Totals: detections, confirmed plastic, clusters, high-severity</li><li>A “Raw” view (every single detection) and a “Clustered” view (grouped hotspots)</li><li>Filters: region, status, class, confidence, time window</li><li>Each row: location, class, confidence, FDI value, status</li></ul></div>
+  </div>
+  <div class="note"><b>Is it real-time?</b> No — and that’s by design. Records is the saved <b>history</b>. The live scanning happens on Map Explorer and Pipeline; Records is where all those past results are stored so you can search them later.</div>
+  <div class="say"><span class="q">Say this to the panel</span>“Records is our evidence archive — every detection from every scan is stored here with its confidence and location, and we can filter it by region, class or date, or export it.”</div>
+</section>
+
+<!-- AI LAB -->
+<section class="page-entry">
+  <span class="page-tag">PAGE 5 · Coast Guard &amp; Admin only</span>
+  <h2>AI Lab</h2>
+  <p class="breadcrumb">Menu: <b>Intelligence › AI Lab</b></p>
+  <figure><img src="explainer-shots/06-ai-lab.png" alt="AI Lab page"></figure>
+  <div class="oneline"><b>In one line:</b> the model’s report card — how accurate the AI is, and what it tends to mix up.</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>Showing, honestly, how good the AI is. It’s where you prove the model actually works and understand its weak spots.</p></div>
+    <div><h4>What’s on it</h4><ul><li><b>Balanced score (macro-F1) 0.82</b> — the fair overall grade</li><li>Accuracy 99% — high, but inflated because most sea pixels are easy water</li><li>Per-class scores (how well it finds Plastic, Algae, Foam, Water)</li><li>A <b>confusion matrix</b> — what the model mixes up</li><li>“Visual fingerprints” from the Clay model (27,231 reference sites)</li></ul></div>
+  </div>
+  <div class="note"><b>Important honesty point:</b> always quote the <b>balanced score (macro-F1 = 0.82)</b>, not the 99% accuracy. The 99% looks amazing only because the ocean is mostly water and water is easy — the fair score that treats rare plastic as importantly as common water is 0.82.</div>
+  <div class="say"><span class="q">Say this to the panel</span>“This is the model’s report card. We lead with the balanced score of 0.82 because it’s the honest measure — it finds about 82% of real plastic, and the confusion matrix shows exactly what it occasionally mixes up.”</div>
+</section>
+
+<!-- ACTIVE LEARNING -->
+<section class="page-entry">
+  <span class="page-tag">PAGE 6 · Admin only</span>
+  <h2>Active Learning</h2>
+  <p class="breadcrumb">Menu: <b>Intelligence › Active Learning</b></p>
+  <figure><img src="explainer-shots/07-active-learning.png" alt="Active Learning page"></figure>
+  <div class="oneline"><b>In one line:</b> a human checks the AI’s guesses (“yes plastic” / “false alarm”), and those corrections are used to make the model smarter.</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>Human-in-the-loop improvement. A person reviews uncertain detections and confirms or rejects them. Collecting enough corrections lets us <b>retrain</b> the model to be more accurate.</p></div>
+    <div><h4>What’s on it</h4><ul><li>How many detections are awaiting review</li><li>Counts of confirmed plastic vs. false alarms</li><li>A “retrain readiness” bar (enough labels for a new training round?)</li><li>A queue of detections with <b>Confirm</b> / <b>False alarm</b> buttons</li><li>Export the checked set to retrain the model</li></ul></div>
+  </div>
+  <div class="note"><b>Why Admin-only?</b> Confirming labels here feeds directly into <b>retraining the AI</b> — that changes the whole system, so only an Administrator can do it.</div>
+  <div class="say"><span class="q">Say this to the panel</span>“This closes the loop: a human confirms or rejects the AI’s guesses, and those verified labels are exported to retrain the model — so it keeps getting better over time.”</div>
+</section>
+
+<!-- PIPELINE -->
+<section class="page-entry">
+  <span class="page-tag">PAGE 7</span>
+  <h2>Pipeline</h2>
+  <p class="breadcrumb">Menu: <b>Intelligence › Pipeline</b></p>
+  <figure><img src="explainer-shots/08-pipeline.png" alt="Pipeline page"></figure>
+  <div class="oneline"><b>In one line:</b> run the full detection pipeline for a whole region and watch each stage complete, step by step.</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>Running and watching the engine directly — the same 7 stages as Map Explorer, but for a saved region rather than a hand-drawn box. Good for demonstrating that the pipeline is real.</p></div>
+    <div><h4>What’s on it</h4><ul><li>A “live scan” you can trigger and stream stage-by-stage</li><li>Each stage card with its real duration and a short result line</li><li>The final counts: detections, plastic, hotspots, confidence</li></ul></div>
+  </div>
+  <div class="say"><span class="q">Say this to the panel</span>“The Pipeline page runs the exact same detection engine end-to-end and streams each stage as it finishes — it’s the clearest way to show the real processing steps.”</div>
+</section>
+
+<!-- FIELD OPS -->
+<section class="page-entry">
+  <span class="page-tag">PAGE 8</span>
+  <h2>Field Ops</h2>
+  <p class="breadcrumb">Menu: <b>Operate › Field Ops</b></p>
+  <figure><img src="explainer-shots/09-field-ops.png" alt="Field Operations page"></figure>
+  <div class="oneline"><b>In one line:</b> turn a detection into a real cleanup mission and track it from “planned” to a filed report.</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>The “do something about it” page. It connects detection to action — you dispatch a crew to a hotspot and follow the mission to completion.</p></div>
+    <div><h4>What’s on it</h4><ul><li>Stat cards: active missions, total, plastic collected (kg), area cleared (km²)</li><li>Status columns: Planned → Dispatched → In progress → Completed</li><li>Mission cards with severity, location and actions (Dispatch, File report, Cancel)</li><li>PDF export of a mission report</li></ul></div>
+  </div>
+  <div class="say"><span class="q">Say this to the panel</span>“Field Ops is where a detection becomes a real response — we dispatch a crew to a hotspot, track the mission, and record how much plastic was collected.”</div>
+</section>
+
+<!-- ANALYTICS -->
+<section class="page-entry">
+  <span class="page-tag">PAGE 9 · Coast Guard &amp; Admin only</span>
+  <h2>Analytics &amp; Reports</h2>
+  <p class="breadcrumb">Menu: <b>Operate › Analytics &amp; Reports</b></p>
+  <figure><img src="explainer-shots/10-analytics.png" alt="Analytics and Reports page"></figure>
+  <div class="oneline"><b>In one line:</b> the trends and charts — then export exactly what you analysed as a report (PDF/CSV/GeoJSON).</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>Understanding the bigger picture over time and producing shareable reports for stakeholders.</p></div>
+    <div><h4>What’s on it</h4><ul><li>Headline numbers: average confidence, area, false-alarm rate, model score</li><li>Detection trend over the last 60 days</li><li>Classification mix (how much plastic vs algae vs foam vs water)</li><li>Regional breakdown, and an <b>Export &amp; Report</b> tab to download the data</li></ul></div>
+  </div>
+  <div class="say"><span class="q">Say this to the panel</span>“Analytics shows the trends and the class mix over time, and lets us export a clean report — so findings can be shared with authorities, not just viewed on screen.”</div>
+</section>
+
+<!-- SETTINGS -->
+<section class="page-entry">
+  <span class="page-tag">PAGE 10</span>
+  <h2>Settings</h2>
+  <p class="breadcrumb">Menu: <b>System › Settings</b></p>
+  <figure><img src="explainer-shots/11-settings.png" alt="Settings page"></figure>
+  <div class="oneline"><b>In one line:</b> manage your own profile and account security (like turning on 2-factor authentication).</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>Personal account management — this is <em>your</em> profile, available to every role.</p></div>
+    <div><h4>What’s on it</h4><ul><li>Your profile details</li><li>Password &amp; two-factor authentication (2FA) setup</li><li>Session / preference options</li></ul></div>
+  </div>
+  <div class="say"><span class="q">Say this to the panel</span>“Settings is each user’s own account page — profile and security, including two-factor authentication.”</div>
+</section>
+
+<!-- ADMIN -->
+<section class="page-entry">
+  <span class="page-tag">PAGE 11 · Admin only</span>
+  <h2>Admin Panel</h2>
+  <p class="breadcrumb">Menu: <b>System › Admin</b></p>
+  <figure><img src="explainer-shots/12-admin.png" alt="Admin Panel page"></figure>
+  <div class="oneline"><b>In one line:</b> the control room — manage users &amp; their roles, see the monitored regions, and check the system’s health.</div>
+  <div class="two">
+    <div><h4>What it’s for</h4><p>Running the system itself. This is the one area only an Administrator can open — it’s about managing <em>people and configuration</em>, not detecting plastic.</p></div>
+    <div><h4>What’s on it</h4><ul><li><b>Users &amp; roles</b> table — who has which role and clearance level</li><li><b>Services</b> health — engine, queue and classifier status</li><li><b>Satellite</b> status — provider and latest scene downloaded</li><li><b>Scheduler</b> — how often scans run automatically</li><li>The list of monitored regions</li></ul></div>
+  </div>
+  <div class="say"><span class="q">Say this to the panel</span>“The Admin Panel is the system control room — only an administrator can manage users and their roles, and check that the engine, queue and satellite feed are all healthy.”</div>
+</section>
+
+<!-- ============================== HONEST NUMBERS ============================== -->
+<section class="sec-block">
+  <div class="sec-kicker">The numbers, honestly</div>
+  <h2 class="sec">How good is the model, really?</h2>
+  <p class="intro">Panels always ask “how accurate is it?” Here are the true numbers and how to present them without over-claiming.</p>
+  <table>
+    <tr><th>What</th><th>Number</th><th>What it means (simple)</th></tr>
+    <tr><td><b>Balanced score (macro-F1)</b></td><td>0.82</td><td>The fair overall grade. Treats rare plastic as importantly as common water. <b>Lead with this.</b></td></tr>
+    <tr><td>Plain accuracy</td><td>99%</td><td>Looks huge, but it’s inflated — most of the sea is water, and water is easy. Don’t over-sell this.</td></tr>
+    <tr><td>Plastic — recall</td><td>~82%</td><td>Of the real plastic, it correctly flags about 82%.</td></tr>
+    <tr><td>Plastic — precision</td><td>~78%</td><td>Of the things it calls plastic, about 78% really are.</td></tr>
+    <tr><td>High-confidence plastic</td><td>~90% precise</td><td>When it’s <em>very</em> sure, it’s right ~9 times out of 10 — this is what feeds hotspots &amp; dispatch.</td></tr>
+    <tr><td>Water</td><td>~99%</td><td>Almost never confuses open water — very reliable.</td></tr>
+  </table>
+  <p style="font-size:13px;color:var(--ink-soft)"><b>Trained on:</b> MARIDA + MADOS — real, published, scientist-labelled satellite datasets. <b>The honest headline:</b> “detecting plastic from space is genuinely hard because plastic and other floating matter look similar to a satellite — so we sell <em>precision and a full operations workflow</em>, not a perfect score.”</p>
+</section>
+
+<!-- ============================== GLOSSARY ============================== -->
+<section class="sec-block">
+  <div class="sec-kicker">Plain-English glossary</div>
+  <h2 class="sec">Words the panel might ask about</h2>
+  <div class="cards">
+    <div class="card"><h4>Sentinel-2</h4><p>A free European satellite that photographs the Earth about every 5 days. Our image source.</p></div>
+    <div class="card"><h4>AOI (Area of Interest)</h4><p>The box you draw on the map to choose which patch of sea to scan.</p></div>
+    <div class="card"><h4>FDI (Floating Debris Index)</h4><p>A formula using satellite colour bands that flags pixels that might be floating material.</p></div>
+    <div class="card"><h4>MLP</h4><p>The small, fast neural network that labels each flagged pixel (Plastic/Algae/Foam/Water).</p></div>
+    <div class="card"><h4>DBSCAN</h4><p>A method that groups nearby detection points into clusters (“hotspots”).</p></div>
+    <div class="card"><h4>Hotspot</h4><p>A cluster of plastic detections close together — what a crew would be sent to.</p></div>
+    <div class="card"><h4>Clay</h4><p>A large pre-trained AI (“foundation model”) used as a second opinion to confirm hotspots.</p></div>
+    <div class="card"><h4>Drift forecast</h4><p>A 72-hour prediction of where floating plastic will travel, using real currents and wind.</p></div>
+    <div class="card"><h4>macro-F1</h4><p>A fair accuracy score that treats rare classes (plastic) as importantly as common ones (water).</p></div>
+    <div class="card"><h4>Confidence</h4><p>How sure the model is about a detection, shown as a percentage.</p></div>
+  </div>
+</section>
+
+<!-- ============================== Q&A ============================== -->
+<section class="sec-block">
+  <div class="sec-kicker">Cheat-sheet</div>
+  <h2 class="sec">Likely panel questions &amp; simple answers</h2>
+  <div class="qa">
+    <p class="q">Q: Is the data real or simulated?</p>
+    <p class="a">Real. Free Sentinel-2 satellite imagery, and the AI is trained on real published datasets (MARIDA + MADOS). Every number on screen is computed by the actual pipeline.</p>
+    <p class="q">Q: How accurate is it?</p>
+    <p class="a">The fair overall score (macro-F1) is 0.82. For plastic specifically it finds ~82% of real plastic, and ~78% of its plastic calls are correct; its high-confidence plastic is ~90% precise. We lead with the balanced score, not the 99% accuracy, because 99% is inflated by easy open water.</p>
+    <p class="q">Q: Is it real-time?</p>
+    <p class="a">Scanning runs on demand and on a schedule (roughly every few hours, matching the satellite’s revisit). The Records page is the saved history of all past scans.</p>
+    <p class="q">Q: What makes it different / novel?</p>
+    <p class="a">Four things: (1) two AIs vote together (MLP + Clay) to cut false alarms; (2) a 72-hour drift forecast to act before plastic reaches the coast; (3) a full operations workflow — detect → dispatch a crew → file a report; (4) honest, transparent metrics.</p>
+    <p class="q">Q: What are the limitations?</p>
+    <p class="a">Plastic is spectrally hard — it can look like algae or foam to a satellite. Very small (sub-pixel) items are missed, and clouds or muddy/turbid water reduce reliability. We’re honest about this and grade the model fairly.</p>
+    <p class="q">Q: Why do some processing stages show “&lt;1 ms”?</p>
+    <p class="a">They ran, but had nothing to process for that area (for example, no plastic pixels), so they finished almost instantly. It’s the correct result, not a broken stage.</p>
+    <p class="q">Q: Why can’t a normal user see everything?</p>
+    <p class="a">Role-based access control. A Field Officer detects and runs missions; a Coast Guard user also sees the model report and analytics; only an Administrator can retrain the model and manage users. It’s enforced on the website and on the server.</p>
+  </div>
+  <p class="foot">Marine Plastic Tracker — project explainer for the panel. Screenshots captured from the running application. Prepared for a 4-member team. Present the model’s balanced score (0.82) as the honest headline number.</p>
+</section>
+
+</div>

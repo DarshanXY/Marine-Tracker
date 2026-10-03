@@ -1,0 +1,999 @@
+<meta charset="utf-8">
+<title>Marine Plastic Tracker — Foundations: Satellite, Datasets, Algorithms</title>
+<style>
+  :root {
+    --ink: #0f2830; --ink-soft: #43606b; --ink-faint: #6b8590;
+    --teal: #0d9488; --teal-dark: #0f766e; --ocean: #2f7fb5;
+    --line: #d6e6e6; --card: #ffffff; --wash: #f0f9f8; --wash2: #e7f5f3;
+    --amber: #b45309; --amber-wash: #fef6e7; --rose: #be123c; --rose-wash: #fdf2f4;
+    --violet: #6d28d9; --violet-wash: #f3f0fd;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink); background: #fff; line-height: 1.55; font-size: 13.5px;
+  }
+  @page { size: A4; margin: 14mm 0; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 26px; }
+
+  .cover {
+    min-height: 262mm;
+    background: linear-gradient(160deg, #d3efe9 0%, #eaf7f4 45%, #ffffff 100%);
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 50px 52px; page-break-after: always;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }
+  .brand .mark {
+    width: 46px; height: 46px; border-radius: 13px;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    display: grid; place-items: center; color: #fff; font-size: 22px;
+  }
+  .brand .name { font-size: 19px; font-weight: 800; letter-spacing: -.3px; }
+  .brand .name span { color: var(--teal); }
+  .brand .sub { font-size: 10px; letter-spacing: 3px; color: var(--ink-faint); text-transform: uppercase; }
+  .cover h1 { font-size: 40px; line-height: 1.07; margin: 0 0 14px; letter-spacing: -1px; }
+  .cover .lede { font-size: 16.5px; color: var(--ink-soft); max-width: 640px; margin: 0 0 22px; }
+  .cover .qlist {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 18px; margin: 0 0 22px; max-width: 640px; font-size: 12.5px;
+    color: var(--ink-soft); columns: 2; column-gap: 22px;
+  }
+  .cover .qlist div { margin: 3px 0; break-inside: avoid; }
+  .cover .meta { font-size: 12.5px; color: var(--ink-faint); border-top: 1px solid var(--line); padding-top: 15px; max-width: 640px; }
+  .cover .meta b { color: var(--ink); }
+
+  .sec-block { page-break-before: always; padding-top: 6px; }
+  .sec-kicker { font-size: 10.5px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--teal); font-weight: 700; }
+  h2.sec { font-size: 24px; letter-spacing: -.5px; margin: 2px 0 6px; }
+  h3 { font-size: 16px; margin: 20px 0 5px; }
+  h4 { font-size: 13.5px; margin: 14px 0 4px; color: var(--teal-dark); }
+  p { margin: 9px 0; }
+  p.intro { color: var(--ink-soft); font-size: 14.5px; margin-bottom: 14px; }
+  ul, ol { margin: 8px 0; padding-left: 20px; }
+  li { margin: 4px 0; }
+  b, strong { color: var(--ink); }
+  code { font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px;
+         background: var(--wash2); padding: 1px 5px; border-radius: 4px; color: var(--teal-dark); }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12.5px; page-break-inside: avoid; }
+  th { text-align: left; background: var(--wash2); color: var(--teal-dark);
+       font-size: 10.5px; text-transform: uppercase; letter-spacing: .8px;
+       padding: 7px 9px; border-bottom: 1px solid var(--line); }
+  td { padding: 7px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr.hi td { background: var(--wash); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .small { font-size: 11.5px; color: var(--ink-faint); }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 14px 16px; margin: 12px 0; page-break-inside: avoid; }
+  .card.wash { background: var(--wash); }
+  .card h4 { margin-top: 0; }
+  .note { border-left: 3px solid var(--teal); background: var(--wash); border-radius: 0 10px 10px 0;
+          padding: 11px 14px; margin: 12px 0; page-break-inside: avoid; }
+  .warn { border-left: 3px solid var(--amber); background: var(--amber-wash); border-radius: 0 10px 10px 0;
+          padding: 11px 14px; margin: 12px 0; page-break-inside: avoid; }
+  .warn b { color: var(--amber); }
+  .honest { border-left: 3px solid var(--rose); background: var(--rose-wash); border-radius: 0 10px 10px 0;
+            padding: 11px 14px; margin: 12px 0; page-break-inside: avoid; }
+  .honest b { color: var(--rose); }
+  .key { border-left: 3px solid var(--violet); background: var(--violet-wash); border-radius: 0 10px 10px 0;
+         padding: 12px 15px; margin: 13px 0; page-break-inside: avoid; }
+  .key b { color: var(--violet); }
+
+  .chain { font-family: "Cascadia Mono", Consolas, monospace; font-size: 11px;
+           background: var(--wash); border: 1px solid var(--line); border-radius: 10px;
+           padding: 12px 14px; margin: 12px 0; white-space: pre; overflow: hidden;
+           color: var(--ink-soft); line-height: 1.55; page-break-inside: avoid; }
+
+  .flow { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0; }
+  .flow .step { flex: 1 1 120px; background: #fff; border: 1px solid var(--line);
+                border-radius: 10px; padding: 9px 11px; }
+  .flow .step .n { font-size: 9.5px; font-weight: 800; color: var(--teal); letter-spacing: 1px; }
+  .flow .step .t { font-size: 12.5px; font-weight: 700; margin: 1px 0 2px; }
+  .flow .step .d { font-size: 11px; color: var(--ink-faint); line-height: 1.4; }
+
+  .two { display: flex; gap: 12px; }
+  .two > * { flex: 1; }
+
+  .pill { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 8px;
+          border-radius: 20px; letter-spacing: .4px; }
+  .pill.ours { background: #cceee8; color: var(--teal-dark); }
+  .pill.lib { background: #e6eef6; color: var(--ocean); }
+  .pill.free { background: #dcfce7; color: #15803d; }
+
+  .qa { margin: 14px 0; page-break-inside: avoid; }
+  .qa .q { font-weight: 700; color: var(--teal-dark); font-size: 14px; margin-bottom: 2px; }
+  .qa .a { color: var(--ink-soft); }
+
+  footer { margin-top: 26px; padding-top: 12px; border-top: 1px solid var(--line);
+           font-size: 11px; color: var(--ink-faint); }
+</style>
+
+<!-- ============================ COVER ============================ -->
+<div class="cover">
+  <div class="brand">
+    <div class="mark">🛰️</div>
+    <div>
+      <div class="name">Marine Plastic <span>Tracker</span></div>
+      <div class="sub">Foundations · From Scratch</div>
+    </div>
+  </div>
+
+  <h1>Satellites, datasets,<br>algorithms — and how<br>they connect.</h1>
+  <p class="lede">
+    Start at zero. Which satellite we use and who owns it, where the images live, how many we can get,
+    where the training data came from, whether it is even the same satellite, what algorithms do the
+    work, and the single path that runs from an empty folder to the system we have today.
+  </p>
+
+  <div class="qlist">
+    <div>→ What satellite, and who runs it?</div>
+    <div>→ Where are the images stored?</div>
+    <div>→ How many can we get at once?</div>
+    <div>→ Where did the datasets come from?</div>
+    <div>→ Same satellite as our live feed?</div>
+    <div>→ Does the provider give labels too?</div>
+    <div>→ What algorithms did we use?</div>
+    <div>→ Is preprocessing actually used?</div>
+    <div>→ How do the three connect?</div>
+    <div>→ Which papers, which gaps?</div>
+    <div>→ Where are we now?</div>
+    <div>→ What comes next?</div>
+  </div>
+
+  <div class="meta">
+    <b>Companion document.</b> This one covers the <i>foundations</i> — satellite, data provenance,
+    algorithms and the end-to-end flow. <b>Model_and_Data_Explainer.pdf</b> covers the <i>model</i> —
+    architecture, training recipe and measured results.<br>
+    <b>Everything here was verified against the running source code</b>, not from memory.<br>
+    <b>Prepared for:</b> project panel / viva · <b>Date:</b> 30 July 2026
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ============================ 1. MENTAL MODEL ============================ -->
+<div class="sec-block" style="page-break-before: avoid;">
+  <div class="sec-kicker">Section 1</div>
+  <h2 class="sec">The mental model — three worlds, one bridge</h2>
+  <p class="intro">
+    Almost every confusing question about this project dissolves once you see that there are
+    <b>three separate worlds</b>, and that one specific thing bridges them.
+  </p>
+
+  <div class="chain">┌─────────────────────┐   ┌──────────────────────┐   ┌────────────────────┐
+│  WORLD 1            │   │  WORLD 2             │   │  WORLD 3           │
+│  THE SATELLITE      │   │  THE DATASETS        │   │  OUR MODEL         │
+│                     │   │                      │   │                    │
+│  ESA Sentinel-2     │   │  MARIDA · MADOS      │   │  3-seed MLP        │
+│  Free imagery of    │   │  RFO · PLP           │   │  ensemble          │
+│  the whole planet,  │   │  Scientists took     │   │  Learns the        │
+│  every ~5 days.     │   │  Sentinel-2 images   │   │  pattern from      │
+│  Gives PIXELS.      │   │  and hand-marked     │   │  World 2, then     │
+│  Gives NO labels.   │   │  every pixel.        │   │  applies it to     │
+│                     │   │  Gives LABELS.       │   │  World 1, live.    │
+└──────────┬──────────┘   └──────────┬───────────┘   └─────────┬──────────┘
+           │                         │                         │
+           └───────────┬─────────────┴─────────────────────────┘
+                       ▼
+        THE BRIDGE: 11 numbers per pixel, computed by
+        ONE formula used identically in both worlds.</div>
+
+  <div class="key">
+    <b>The single most important fact in this whole project:</b> World 1 and World 2 are the
+    <b>same satellite</b>. MARIDA, MADOS, RFO and PLP are <i>all</i> built from Sentinel-2 imagery —
+    the exact same sensor whose pixels we download live today. The scientists did not fly their own
+    satellite; they downloaded the same free Sentinel-2 images we do, and then spent months
+    <b>hand-labelling</b> them. That is why a model trained on their pixels works on ours.
+  </div>
+
+  <p>
+    So the answer to "does the agency that gives us satellite access also give us the datasets?" is:
+    <b>partly, and it is the most important half that they do <i>not</i> give.</b>
+  </p>
+
+  <table>
+    <tr><th></th><th>Copernicus / ESA gives us</th><th>Researchers gave us</th></tr>
+    <tr><td><b>What</b></td>
+        <td>Raw <b>pixels</b> — reflectance measurements of the Earth's surface, worldwide, free,
+            forever, for anyone.</td>
+        <td><b>Labels</b> — "this specific pixel, in this specific image, is marine debris."</td></tr>
+    <tr><td><b>Cost</b></td>
+        <td>Free (account required for pixel access).</td>
+        <td>Free to download; enormously expensive to create (expert months).</td></tr>
+    <tr><td><b>Can a model learn from it alone?</b></td>
+        <td><b>No.</b> Pixels without answers teach nothing supervised.</td>
+        <td><b>No.</b> Labels are useless without the pixels they point at.</td></tr>
+    <tr class="hi"><td><b>Together</b></td>
+        <td colspan="2"><b>Yes — labelled pixels are exactly what supervised learning needs.</b>
+            This is why the project is possible at zero data-acquisition cost.</td></tr>
+  </table>
+
+  <div class="note">
+    <b>Why this matters for the panel.</b> If someone asks "how did you get labelled marine plastic
+    data — did you go out on a boat?", the honest and correct answer is: <b>no, and nobody could
+    afford to at this scale.</b> We stand on four published, peer-reviewed labelling efforts, cite
+    all of them, and our contribution is everything <i>after</i> the labels: unifying four
+    incompatible formats into one contract, training, calibration, and putting it into a live
+    operational system.
+  </div>
+</div>
+
+<!-- ============================ 2. THE SATELLITE ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 2</div>
+  <h2 class="sec">Everything about the satellite we use</h2>
+
+  <h3>Sentinel-2, in plain terms</h3>
+  <p>
+    <b>Sentinel-2</b> is a pair (now a small constellation) of Earth-observation satellites operated by
+    the <b>European Space Agency (ESA)</b> under the European Union's <b>Copernicus</b> programme.
+    It is the workhorse of free optical Earth observation, and it is the only sensor this project uses
+    for detection.
+  </p>
+
+  <table>
+    <tr><th>Property</th><th>Value</th><th>Why it matters to us</th></tr>
+    <tr><td><b>Operator</b></td><td>ESA / EU Copernicus programme</td>
+        <td>Public, civilian, non-commercial.</td></tr>
+    <tr class="hi"><td><b>Cost to us</b></td><td><b>₹0 — free and open</b> <span class="pill free">FREE</span></td>
+        <td>The entire project runs at zero data cost. This is a deliberate design constraint, not a
+            limitation we tolerate.</td></tr>
+    <tr><td><b>Orbit</b></td><td>Sun-synchronous, ~786 km altitude</td>
+        <td>Crosses every location at roughly the same local time → consistent sun angle, so
+            reflectance is comparable across dates.</td></tr>
+    <tr><td><b>Swath width</b></td><td>290 km</td>
+        <td>One pass covers a very wide strip — regional-scale monitoring is feasible.</td></tr>
+    <tr class="hi"><td><b>Revisit</b></td><td><b>~5 days</b> at the equator (constellation)</td>
+        <td><b>The hard operational limit.</b> We cannot watch a debris patch continuously. A patch
+            seen today gets its next look in about five days — which is precisely why drift
+            <b>forecasting</b> is a core feature and not a nice-to-have.</td></tr>
+    <tr class="hi"><td><b>Resolution</b></td><td><b>10 m</b> (some bands 20 m / 60 m)</td>
+        <td><b>The hard scientific limit.</b> One pixel = 10×10 m = 100 m² of sea. Anything smaller
+            than a few pixels is invisible. We can never see a bottle — only large rafts.</td></tr>
+    <tr><td><b>Spectral bands</b></td><td>13, from visible to short-wave infrared</td>
+        <td>The infrared bands are the whole game — plastic separates from water in the infrared,
+            not in visible colour.</td></tr>
+    <tr><td><b>Sees through cloud?</b></td><td><b>No</b> — it is an optical sensor</td>
+        <td>Monsoon and heavy cloud simply block observation. We measure and report cloud honestly
+            rather than guessing beneath it.</td></tr>
+    <tr><td><b>Sees at night?</b></td><td><b>No</b> — it needs sunlight</td>
+        <td>Daytime passes only.</td></tr>
+  </table>
+
+  <h3>The five bands we actually use, and why exactly these</h3>
+  <p>
+    Sentinel-2 offers 13 bands. We download <b>five</b> — plus one non-optical quality layer. Each was
+    chosen for a physical reason, and the wavelengths are hard-coded into our FDI formula.
+  </p>
+  <table>
+    <tr><th>Band</th><th class="num">Wavelength</th><th class="num">Native res.</th><th>What it is for</th></tr>
+    <tr><td><b>B04</b> Red</td><td class="num">665 nm</td><td class="num">10 m</td>
+        <td>Visible reference; feeds NDVI and the Plastic Index.</td></tr>
+    <tr><td><b>B06</b> Red-edge</td><td class="num">740 nm</td><td class="num">20 m</td>
+        <td>Lower anchor of the FDI baseline; separates vegetation/algae.</td></tr>
+    <tr class="hi"><td><b>B08</b> NIR</td><td class="num">842 nm</td><td class="num">10 m</td>
+        <td><b>The key band.</b> Water absorbs near-infrared almost completely, so it looks black —
+            anything floating on the surface reflects it and lights up.</td></tr>
+    <tr><td><b>B8A</b> Narrow NIR</td><td class="num">865 nm</td><td class="num">20 m</td>
+        <td>Second infrared view; helps distinguish algae from plastic.</td></tr>
+    <tr><td><b>B11</b> SWIR</td><td class="num">1610 nm</td><td class="num">20 m</td>
+        <td>Upper anchor of the FDI baseline; strongly absorbed by water.</td></tr>
+    <tr><td><b>SCL</b> <span class="small">(not a band)</span></td><td class="num">—</td><td class="num">20 m</td>
+        <td>Scene Classification Layer — ESA's own per-pixel verdict on cloud / shadow / water / land
+            / snow / nodata. We use it as a quality mask.</td></tr>
+  </table>
+
+  <div class="note">
+    <b>The physics in one sentence.</b> Clean water absorbs near-infrared almost perfectly, so healthy
+    open sea appears <b>black</b> in band B08 — therefore <b>anything that reflects near-infrared back
+    at the satellite is, by definition, not water</b>: it is something floating. The Floating Debris
+    Index measures exactly how far above the expected water baseline a pixel's infrared sits. That is
+    the entire physical foundation, and everything else is deciding <i>which kind</i> of floating thing
+    it is.
+  </div>
+
+  <h3>L1C versus L2A — and why we insist on L2A</h3>
+  <p>
+    Sentinel-2 data is published at two processing levels, and choosing correctly matters enormously:
+  </p>
+  <table>
+    <tr><th>Level</th><th>What it measures</th><th>Usable for us?</th></tr>
+    <tr><td><b>L1C</b><br><span class="small">Top-of-Atmosphere</span></td>
+        <td>Light arriving at the <b>satellite</b> — includes haze, aerosols and atmospheric scattering.</td>
+        <td><b>No.</b> The atmosphere would change the readings from day to day, so the same patch of
+            plastic would produce different numbers on different dates.</td></tr>
+    <tr class="hi"><td><b>L2A</b><br><span class="small">Bottom-of-Atmosphere</span></td>
+        <td>Light leaving the <b>Earth's surface</b>, after ESA removes the atmospheric effect.
+            Also ships the <b>SCL</b> quality layer.</td>
+        <td><b>Yes — we use L2A exclusively.</b> Values are comparable across dates and places, which
+            is exactly what a trained model requires.</td></tr>
+  </table>
+  <p class="small">
+    Our live request explicitly asks for <code>"type": "sentinel-2-l2a"</code>, and the datasets we
+    train on are surface-reflectance products too (MADOS uses the ACOLITE marine atmospheric
+    correction). Training and inference therefore see the same physical quantity.
+  </p>
+</div>
+
+<!-- ============================ 3. WHERE IMAGES LIVE ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 3</div>
+  <h2 class="sec">Where the satellite images are stored — and how many we can get</h2>
+
+  <div class="key">
+    <b>The answer will surprise you: we do not store satellite images at all.</b>
+    There is no image folder, no image database, no downloaded scene archive in this project.
+    We <b>stream</b> pixels on demand, use them within seconds, and let them go. What we keep is the
+    <i>result</i> — detections, hotspots, forecasts — never the imagery.
+  </div>
+
+  <h3>Where the images actually live</h3>
+  <table>
+    <tr><th>Layer</th><th>Where</th><th>Who pays / owns</th></tr>
+    <tr><td>The full Sentinel-2 archive</td>
+        <td><b>Copernicus Data Space Ecosystem (CDSE)</b> — ESA's own cloud, petabytes, every scene
+            since 2015.</td><td>ESA / EU. Free to access.</td></tr>
+    <tr><td>A mirror of the same archive</td>
+        <td><b>AWS Open Data</b> (Element 84's Earth Search catalogue).</td>
+        <td>Amazon hosts it free as open data.</td></tr>
+    <tr class="hi"><td><b>Our project</b></td>
+        <td><b>Nothing on disk.</b> Pixels arrive as an in-memory NumPy array and are discarded after
+            the scan. A <b>25-second</b> in-memory cache stops the UI re-fetching the same box while
+            polling.</td>
+        <td>Us — and it costs nothing because nothing is stored.</td></tr>
+    <tr><td>What we <i>do</i> keep</td>
+        <td>Detections, hotspots, trajectories, alerts and scan metadata in <b>PostgreSQL</b>; the
+            trained model as a 551 KB ONNX file.</td><td>Us.</td></tr>
+  </table>
+
+  <div class="note">
+    <b>Why streaming is the right architecture, not a shortcut.</b> One Sentinel-2 scene is roughly
+    a gigabyte. Storing enough of the Indian Ocean to be useful would mean terabytes, a storage bill,
+    a sync pipeline, and stale data. Instead ESA already stores it perfectly and gives us free access —
+    so our system holds <b>the answers, not the raw material</b>. As a bonus, every scan is
+    automatically as fresh as the satellite allows. The one real cost is that we cannot scan offline.
+  </div>
+
+  <h3>The two doors we use to reach the data</h3>
+  <p>We use two <i>different</i> services for two <i>different</i> jobs — a distinction worth being precise about:</p>
+
+  <div class="two">
+    <div class="card">
+      <h4>Door 1 — AWS Earth Search (STAC)</h4>
+      <p style="margin:4px 0"><b>Job:</b> find out <i>what exists</i>.<br>
+      <b>Returns:</b> metadata only — scene ID, MGRS tile, acquisition date, cloud-cover %, footprint,
+      thumbnail. <b>No pixels.</b><br>
+      <b>Auth:</b> <b>none</b> — completely keyless.<br>
+      <b>In code:</b> <code>satellite/download.py → search_scenes()</code>, default <b>8</b> scenes
+      per query.</p>
+    </div>
+    <div class="card">
+      <h4>Door 2 — CDSE Sentinel Hub Process API</h4>
+      <p style="margin:4px 0"><b>Job:</b> get <i>the actual pixels</i>.<br>
+      <b>Returns:</b> a float32 GeoTIFF of exactly the bands and area we ask for.<br>
+      <b>Auth:</b> <b>OAuth2 client credentials</b> — a free account at
+      <code>dataspace.copernicus.eu</code>; the token is cached until just before expiry.<br>
+      <b>In code:</b> <code>satellite/band_loader.py → fetch_bands()</code>.</p>
+    </div>
+  </div>
+
+  <h3>How many images can we get at a time?</h3>
+  <p>
+    This needs a careful answer, because <b>we do not request "images" at all</b> — we request
+    <b>an area</b>, and the server builds a custom composite for it.
+  </p>
+
+  <table>
+    <tr><th>Question</th><th>Precise answer</th><th>Where it is set</th></tr>
+    <tr><td>Scenes listed per search</td><td><b>8</b> by default (a parameter, not a hard cap)</td>
+        <td><code>search_scenes(limit=8)</code></td></tr>
+    <tr class="hi"><td><b>Images returned per pixel request</b></td>
+        <td><b>Exactly one composite</b> — <i>not</i> one scene. The server takes every pass in our
+            time window and builds one best image from them.</td>
+        <td><code>mosaickingOrder: "leastCC"</code></td></tr>
+    <tr><td>Maximum size of one request</td>
+        <td>Server allows 2,500 px per side; <b>we self-limit to 1,024</b> to bound cost and latency.</td>
+        <td><code>_MAX_DIM = 1024</code></td></tr>
+    <tr><td>Bigger areas</td>
+        <td><b>Native-resolution tiling</b> — split into up to <b>9 tiles</b> (3×3), fetched
+            separately and stitched into one array.</td>
+        <td><code>_MAX_TILES = 9</code></td></tr>
+    <tr><td>Very large regions</td>
+        <td>Rather than exploding into hundreds of tiles, it degrades to <b>one coarser request</b> —
+            deliberately trading resolution for a bounded quota.</td>
+        <td><code>fetch_bands()</code></td></tr>
+    <tr><td>Ground area covered</td>
+        <td>At ~20 m/px, one tile ≈ <b>20 km</b> per side; 3×3 tiles ≈ <b>61 km</b> per side.</td>
+        <td>derived</td></tr>
+    <tr><td>Time window searched</td>
+        <td>Last <b>45 days</b>, automatically widened to <b>180 days</b> if coverage is poor.</td>
+        <td><code>INGEST_DAYS_BACK</code></td></tr>
+    <tr><td>Cloud ceiling</td><td>Scenes above <b>50 %</b> cloud are excluded outright.</td>
+        <td><code>INGEST_MAX_CLOUD=50</code></td></tr>
+  </table>
+
+  <div class="warn">
+    <b>The "least-cloud composite" is a subtle idea worth explaining properly.</b>
+    We do not pick one photograph. We tell the server: <i>"for this box, look at every Sentinel-2 pass
+    in the last 45 days that was under 50 % cloud, and for each pixel give me the clearest available
+    observation."</i> The result is a single image built from possibly several dates. That is why a
+    scan works even when no single pass was cloud-free — and also why we display a
+    <b>reliability grade</b> (reliable / degraded / unusable) alongside every scan, computed from how
+    much of the box was actually observed and what it turned out to be.
+  </div>
+
+  <h3>Choosing 50 % cloud was tuned, not guessed</h3>
+  <table>
+    <tr><th>Setting</th><th>What happened</th></tr>
+    <tr><td>100 % (accept anything)</td><td>A monsoon scene returned <b>cloud-top false positives</b> — bright cloud edges have a high FDI.</td></tr>
+    <tr><td>25 % (very strict)</td><td>Too few clear passes existed; most pixels came back empty, leaving <b>~18 % coverage</b>.</td></tr>
+    <tr class="hi"><td><b>50 % (shipped)</b></td><td>Full coverage at effectively the same low cloud, because least-cloud compositing already picks the clearest pixels — while the scene filter still rejects the worst passes.</td></tr>
+  </table>
+</div>
+
+<!-- ============================ 4. SAME SATELLITE ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 4</div>
+  <h2 class="sec">Are the datasets from the same satellite?</h2>
+  <p class="intro">
+    Yes — and this is not a coincidence. It is the reason the project works at all, and we deliberately
+    rejected data that would have broken it.
+  </p>
+
+  <table>
+    <tr><th>Dataset</th><th>Satellite</th><th>Product level</th><th>Compatible with our live feed?</th></tr>
+    <tr><td><b>MARIDA</b></td><td>Sentinel-2</td><td>Surface reflectance</td><td><b>Yes</b> — identical sensor and bands</td></tr>
+    <tr><td><b>MADOS</b></td><td>Sentinel-2</td><td>ACOLITE marine surface reflectance</td><td><b>Yes</b> — bands stored per wavelength, re-sorted by our adapter</td></tr>
+    <tr><td><b>RFO</b></td><td>Sentinel-2</td><td>Mixed L1C / L2A, 12–13 bands</td><td><b>Yes</b>, after our adapter resolves bands per file and rescales</td></tr>
+    <tr><td><b>PLP</b></td><td>Sentinel-2</td><td>L2A</td><td><b>Yes</b></td></tr>
+    <tr><td><b>Our live scan</b></td><td>Sentinel-2</td><td>L2A via CDSE</td><td>— (this is the target)</td></tr>
+    <tr class="hi"><td colspan="4"><b>All five are the same instrument.</b> A model trained on any of them can be applied to any other, provided the features are computed identically.</td></tr>
+  </table>
+
+  <h3>The one dataset we own but deliberately did not use</h3>
+  <div class="honest">
+    <b>PLP 2022 ships PlanetScope imagery at 3 m resolution, and it is sitting on our disk unused.</b>
+    Three-metre pixels would largely solve our sub-pixel blindness. We did not use it, for a reason
+    that is worth stating: <b>PlanetScope has no short-wave infrared band</b>. No SWIR means no B11,
+    which means <b>the FDI cannot be computed at all</b> — our entire feature contract, and the physics
+    it encodes, does not exist on that sensor. Using it is not a data-loading task; it is
+    <b>a different model, different features and a different project</b> — and PlanetScope is
+    commercial, which breaks our zero-cost constraint. It is listed in Future Scope, honestly, rather
+    than quietly ignored.
+  </div>
+
+  <h3>What "compatible" actually required us to enforce</h3>
+  <p>
+    Same satellite is necessary but <b>not sufficient</b>. Four things had to be forced into agreement,
+    and each was a real source of bugs:
+  </p>
+  <table>
+    <tr><th>#</th><th>Must match</th><th>What broke when it didn't</th></tr>
+    <tr><td>1</td><td><b>Band selection and order</b> — always <code>B04, B06, B08, B8A, B11</code></td>
+        <td>MADOS names files by wavelength, MARIDA stacks by index, RFO varies 12/13 bands per file.
+            Any mismatch silently feeds the model the wrong number in the wrong slot.</td></tr>
+    <tr><td>2</td><td><b>Reflectance scale</b> — always 0–1</td>
+        <td>Some products ship integers 0–10,000. Our PLP reader once mis-detected this and wrote
+            <code>B11 = 158, FDI = −185</code> — physically impossible values — into a test set.</td></tr>
+    <tr><td>3</td><td><b>Pixel grid</b> — everything on 10 m</td>
+        <td>Bands come at 10/20/60 m. Mixing resolutions in one formula compares different ground areas.</td></tr>
+    <tr class="hi"><td>4</td><td><b>Feature formulas</b> — byte-identical arithmetic</td>
+        <td>If training computes FDI one way and the live engine another, the model receives a
+            different quantity than it learned, and fails <b>silently</b> — no crash, no error, just
+            quietly wrong answers.</td></tr>
+  </table>
+
+  <div class="note">
+    <b>How we made #4 impossible to get wrong.</b> The feature computation exists as one function in
+    the trainer (<code>augment11()</code>) and one mirrored function in the live engine
+    (<code>_features()</code>), with the canonical order frozen as a constant
+    (<code>model_loader.FEATURE_NAMES</code>). All three carry comments pointing at each other and
+    stating that they must be changed together. This is the bridge between World 1 and World 2 —
+    if it breaks, everything downstream is meaningless, so we designed it to be loud rather than subtle.
+  </div>
+</div>
+
+<!-- ============================ 5. COLLECTING DATASETS ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 5</div>
+  <h2 class="sec">How we collected the datasets, step by step</h2>
+  <p class="intro">
+    Concretely, what a person actually did — in the order they did it.
+  </p>
+
+  <div class="flow">
+    <div class="step"><div class="n">STEP 1</div><div class="t">Read the papers</div><div class="d">Find who has published labelled marine-debris imagery at all. The answer is: very few groups.</div></div>
+    <div class="step"><div class="n">STEP 2</div><div class="t">Follow the DOI</div><div class="d">Each paper links a Zenodo record or a university release page.</div></div>
+    <div class="step"><div class="n">STEP 3</div><div class="t">Download</div><div class="d">Archives, over a ~1 MB/s connection. MADOS alone is a 4.0 GB zip.</div></div>
+    <div class="step"><div class="n">STEP 4</div><div class="t">Unpack</div><div class="d">Into <code>data/&lt;name&gt;/</code>, left exactly as published — never edited in place.</div></div>
+    <div class="step"><div class="n">STEP 5</div><div class="t">Inspect</div><div class="d">Print the class histogram and mean spectra <b>before</b> trusting any documentation.</div></div>
+    <div class="step"><div class="n">STEP 6</div><div class="t">Write an adapter</div><div class="d">One Python reader per dataset, all emitting the identical 7-number contract.</div></div>
+    <div class="step"><div class="n">STEP 7</div><div class="t">Cache</div><div class="d">Compressed <code>.npz</code> arrays — 34 GB of imagery becomes 35 MB of features.</div></div>
+  </div>
+
+  <table>
+    <tr><th>Dataset</th><th>Where it came from</th><th class="num">Size on disk</th></tr>
+    <tr><td><b>MARIDA</b></td>
+        <td>Published with Kikaki et al. 2022 (<i>PLOS ONE</i> 17(1):e0262247) — public research release.</td>
+        <td class="num">4.5 GB</td></tr>
+    <tr><td><b>MADOS</b></td>
+        <td>Zenodo, DOI <b>10.5281/zenodo.10664073</b>, published with Kikaki et al. 2024 (<i>ISPRS JPRS</i>).</td>
+        <td class="num">5.6 GB</td></tr>
+    <tr><td><b>RFO</b></td>
+        <td>Public research release accompanying Rußwurm et al. 2023.</td>
+        <td class="num">23 GB</td></tr>
+    <tr><td><b>PLP</b></td>
+        <td>Plastic Litter Project, University of the Aegean (Topouzelis et al.) — campaign data for 2021 and 2022.</td>
+        <td class="num">79 MB</td></tr>
+    <tr><td><span class="small">Durban scene</span></td><td><span class="small">Auxiliary scene used with RFO.</span></td><td class="num">0.9 GB</td></tr>
+    <tr class="hi"><td colspan="2"><b>Total raw imagery collected</b></td><td class="num"><b>~34 GB</b></td></tr>
+    <tr class="hi"><td colspan="2"><b>What the classifier actually trains on after preprocessing</b></td><td class="num"><b>34.9 MB</b></td></tr>
+  </table>
+
+  <div class="warn">
+    <b>Nothing here was scraped, purchased, or generated by us.</b> Every real dataset is a citable,
+    peer-reviewed scientific artefact from a named research group, downloaded from its official
+    publication record. This matters if anyone questions provenance: we can point at a DOI for each one.
+  </div>
+</div>
+
+<!-- ============================ 6. PREPROCESSING ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 6</div>
+  <h2 class="sec">Is data preprocessing actually used?</h2>
+
+  <div class="key">
+    <b>Yes — and it runs in two completely separate places.</b> This is the part most people miss.
+    Preprocessing happens <b>once, offline, on the datasets</b> to create training arrays; and
+    <b>again, live, on every single scan</b> to create inference inputs. If those two paths ever
+    disagree, the model breaks silently. Keeping them identical is arguably the core engineering
+    discipline of the whole project.
+  </div>
+
+  <table>
+    <tr><th>Step</th><th>Offline (training data)</th><th>Live (every scan)</th><th>Same?</th></tr>
+    <tr><td>Get pixels</td><td>Read GeoTIFF from <code>data/</code></td><td>HTTP fetch from CDSE</td><td>different <i>source</i></td></tr>
+    <tr><td>Put on 10 m grid</td><td>Nearest-neighbour upsample 20/60 m bands</td><td>Server returns one uniform grid</td><td><b>equivalent</b></td></tr>
+    <tr><td>Select 5 bands</td><td><code>B04 B06 B08 B8A B11</code></td><td><code>B04 B06 B08 B8A B11</code></td><td><b>identical</b></td></tr>
+    <tr><td>Scale to 0–1</td><td>Per-scene DN detection ÷ 10,000</td><td>Server returns float32 reflectance</td><td><b>equivalent</b></td></tr>
+    <tr><td>Quality mask</td><td>Use only researcher-labelled pixels</td><td>Drop cloud/shadow/land/snow/nodata via SCL</td><td>different <i>purpose</i></td></tr>
+    <tr><td>Compute FDI &amp; NDVI</td><td><code>_features_from_bands()</code></td><td><code>fdi_calculator</code> + <code>_features()</code></td><td><b>identical maths</b></td></tr>
+    <tr class="hi"><td><b>Build 11 features</b></td><td><code>augment11()</code></td><td><code>inference_engine._features()</code></td><td><b>identical, mirrored line-for-line</b></td></tr>
+    <tr><td>Drop invalid</td><td><code>np.isfinite(...).all()</code></td><td>SCL mask + finite check</td><td><b>equivalent</b></td></tr>
+    <tr><td>Standardise</td><td>Mean/std stored <i>inside</i> the model</td><td>Nothing to do — it is baked into the ONNX</td><td><b>impossible to desync</b></td></tr>
+  </table>
+
+  <h3>Live-only preprocessing that training never needs</h3>
+  <ul>
+    <li><b>SCL masking.</b> Training data is already curated by researchers; a live scan is raw reality,
+        so cloud (3, 8, 9, 10), land (4, 5), snow (11) and nodata (0, 1) must be removed first.
+        We keep only SCL <b>6 (water)</b> and <b>7 (unclassified)</b> — class 7 matters because 20 m
+        debris rafts frequently land there.</li>
+    <li><b>Dropping SCL class 2 (dark area).</b> It used to be kept and was our single biggest
+        land/haze false-positive leak. Removing it is a one-line config change with a large real effect.</li>
+    <li><b>The FDI candidate gate.</b> Only pixels with <code>FDI &gt; 0.02</code> ever reach the model —
+        millions of pixels reduce to a few hundred candidates.</li>
+    <li><b>Surface composition and reliability grading.</b> Every scan reports how much of the box was
+        water, land, cloud, and actually observed at all, then grades itself
+        <i>reliable / degraded / unusable</i>.</li>
+  </ul>
+
+  <div class="honest">
+    <b>A real bug this discipline caught.</b> Our surface percentages were computed over the whole grid
+    including <b>nodata</b> pixels. A least-cloud composite leaves nodata wherever no clear pass existed
+    — so a genuinely half-land scene diluted to <b>"land 0 %"</b>. The fix was to compute composition
+    over <b>observed pixels only</b> and report <code>coverage_pct</code> separately. Same imagery, same
+    model, completely wrong readout — from a preprocessing detail nobody would notice without checking.
+  </div>
+</div>
+
+<!-- ============================ 7. ALGORITHMS ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 7</div>
+  <h2 class="sec">Every algorithm in the project</h2>
+  <p class="intro">
+    Not just the training algorithms — the complete list, in the order the data meets them.
+    <span class="pill ours">OURS</span> = implemented by us from the paper or definition.
+    <span class="pill lib">LIBRARY</span> = provided by a framework.
+  </p>
+
+  <h3>A. Detection algorithms</h3>
+  <table>
+    <tr><th>Algorithm</th><th>Who</th><th>What it does, in plain words</th></tr>
+    <tr><td><b>Floating Debris Index</b><br><span class="small">Biermann et al. 2020</span></td>
+        <td><span class="pill ours">OURS</span></td>
+        <td>Draws a straight line between the red-edge (740 nm) and short-wave infrared (1610 nm)
+            readings — where water "should" sit — then measures how far above that line the
+            near-infrared (842 nm) actually is. Floating material sits above the line. Pure arithmetic,
+            no learning, fully interpretable.</td></tr>
+    <tr><td><b>Spectral indices</b><br><span class="small">NDVI, PI, MNDWI, NDVI_RE, brightness</span></td>
+        <td><span class="pill ours">OURS</span></td>
+        <td>Five more ratios from the same five bands, each emphasising a different confuser —
+            vegetation, water, foam, glint.</td></tr>
+    <tr class="hi"><td><b>Multi-Layer Perceptron</b><br><span class="small">the classifier itself</span></td>
+        <td><span class="pill ours">OURS</span> arch<br><span class="pill lib">LIBRARY</span> autograd</td>
+        <td>A feed-forward neural network, 11 → 256 → 128 → 64 → 32 → 4. Each layer multiplies by a
+            weight matrix and zeroes negatives (ReLU). Learns non-linear combinations of the 11 features
+            that no hand-written rule could express.</td></tr>
+    <tr><td><b>Softmax + argmax</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Turns four raw scores into four probabilities summing to 1; the largest wins and its
+            probability becomes the confidence.</td></tr>
+    <tr><td><b>Ensemble averaging</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Three networks trained from different random starts; their raw outputs are averaged.
+            Uncorrelated mistakes cancel out.</td></tr>
+    <tr><td><b>Vision Transformer</b><br><span class="small">Clay v1.5, frozen</span></td>
+        <td><span class="pill lib">LIBRARY</span></td>
+        <td>A large pretrained geospatial foundation model. We never train it — we feed it a 64×64 chip
+            and take the 1024-number "fingerprint" it produces, then compare fingerprints.</td></tr>
+    <tr><td><b>Cosine similarity index</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Measures the angle between two fingerprints to answer "how similar is this patch to known
+            plastic?" Written in <b>pure NumPy</b> specifically so the production engine never needs
+            PyTorch installed.</td></tr>
+  </table>
+
+  <h3>B. Training algorithms</h3>
+  <table>
+    <tr><th>Algorithm</th><th>Who</th><th>What it does</th></tr>
+    <tr><td><b>Backpropagation</b></td><td><span class="pill lib">LIBRARY</span> (and <span class="pill ours">OURS</span> once, by hand)</td>
+        <td>Computes how much each weight contributed to the error, via the chain rule. PyTorch does it
+            in the shipped trainer — but we also wrote a complete <b>manual backprop implementation in
+            pure NumPy</b> (<code>ml/train.py</code>) to prove we understand it.</td></tr>
+    <tr><td><b>AdamW optimiser</b></td><td><span class="pill lib">LIBRARY</span> (hand-written in the NumPy baseline)</td>
+        <td>Decides how far to step each weight, adapting per-parameter using running averages of
+            gradient and gradient-squared, with weight decay to discourage large weights.</td></tr>
+    <tr><td><b>Cosine annealing LR</b></td><td><span class="pill lib">LIBRARY</span></td>
+        <td>Starts with big learning steps and smoothly shrinks them to near zero — explore first,
+            settle later.</td></tr>
+    <tr class="hi"><td><b>Focal loss</b><br><span class="small">Lin et al. 2017</span></td><td><span class="pill ours">OURS</span></td>
+        <td>Scales each pixel's error by <code>(1 − p_correct)^1.5</code> so easy, abundant water
+            pixels stop dominating the gradient and the network is forced to work on the hard rare
+            classes.</td></tr>
+    <tr class="hi"><td><b>Class-balanced weights</b><br><span class="small">Cui et al. 2019</span></td><td><span class="pill ours">OURS</span></td>
+        <td>Weights each class by its "effective number of samples" rather than raw frequency —
+            gentler than inverse-frequency, which had previously collapsed sea-foam precision to 1.6 %.</td></tr>
+    <tr><td><b>Label smoothing + dropout</b></td><td><span class="pill lib">LIBRARY</span></td>
+        <td>Two anti-overconfidence measures: never demand a 100 % certain answer, and randomly
+            switch off neurons during training so no single path is relied upon.</td></tr>
+    <tr class="hi"><td><b>Coordinate-ascent bias calibration</b></td><td><span class="pill ours">OURS</span></td>
+        <td>After training, searches a small grid of per-class output offsets for the combination that
+            maximises validation macro-F1, then folds the winner into the final layer's bias. Moves the
+            decision boundary to the right place without any threshold logic at inference.</td></tr>
+    <tr><td><b>Best-epoch selection</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Score validation macro-F1 after every epoch, keep the best snapshot, discard the rest.
+            Prevents shipping an overfitted final epoch.</td></tr>
+  </table>
+
+  <h3>C. Post-detection algorithms</h3>
+  <table>
+    <tr><th>Algorithm</th><th>Who</th><th>What it does</th></tr>
+    <tr class="hi"><td><b>DBSCAN clustering</b><br><span class="small">Ester et al. 1996</span></td>
+        <td><span class="pill ours">OURS</span><br><span class="small">from scratch, no scikit-learn</span></td>
+        <td>Groups scattered plastic pixels into <b>hotspots</b>. Any point with at least
+            <b>3</b> neighbours within <b>0.09°</b> seeds a cluster, which then grows outward through
+            its neighbours. Points that never qualify are labelled <b>noise</b> and dropped — which is
+            exactly the behaviour we want: isolated single detections should not dispatch a boat.</td></tr>
+    <tr><td><b>Severity scoring</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Detections per hotspot → HIGH (≥10) / MEDIUM (≥5) / LOW (≥3). Only HIGH and MEDIUM raise
+            alerts.</td></tr>
+    <tr class="hi"><td><b>Lagrangian drift, RK4</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Predicts where a patch travels over 72 hours. It advances a virtual parcel one hour at a
+            time using <b>4th-order Runge–Kutta</b> — which samples the current field four times per
+            step instead of once — because simple Euler steps drift badly off curved ocean currents.</td></tr>
+    <tr><td><b>Windage ensemble</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Floating plastic is pushed by wind as well as current, and how much depends on how high it
+            floats. We run a spread of windage values (1.5–3 %) and output a <b>cone of uncertainty,
+            not a single line</b> — an honest forecast, not a false-precision one.</td></tr>
+    <tr><td><b>Liu–Weisberg skill score</b><br><span class="small">Liu &amp; Weisberg 2011</span></td>
+        <td><span class="pill ours">OURS</span></td>
+        <td>The standard way to score a predicted trajectory against an observed one. <b>The harness
+            exists; we have not yet run real drifter tracks through it</b> — so drift ETAs are labelled
+            as unvalidated estimates.</td></tr>
+  </table>
+
+  <div class="note">
+    <b>Why write DBSCAN and RK4 by hand instead of importing them?</b> Two reasons, both practical.
+    First, the production engine is deliberately kept to <b>numpy + onnxruntime only</b> — no
+    scikit-learn, no SciPy, no PyTorch — so it starts fast, installs anywhere and has a small
+    dependency surface. Second, we can explain every line to a panel, which we could not honestly do
+    for an imported black box.
+  </div>
+</div>
+
+<!-- ============================ 8. THE FULL FLOW ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 8</div>
+  <h2 class="sec">The complete flow — from an empty folder to today</h2>
+  <p class="intro">
+    If someone had to rebuild this project from zero, this is the exact order in which it would have to
+    happen. Phases 1–4 are done once; phase 5 runs every time an analyst presses Scan.
+  </p>
+
+  <div class="chain">╔═══ PHASE 1 · UNDERSTAND THE PROBLEM ══════════════════════════════════════╗
+  Read the literature → learn that water absorbs near-infrared, so floating
+  matter is visible in NIR → find the Floating Debris Index (Biermann 2020)
+  → discover the ceiling: 10 m pixels, ~5-day revisit, no cloud penetration.
+╚═══════════════════════════════════════════════════════════════════════════╝
+                                    ▼
+╔═══ PHASE 2 · GET LABELLED DATA ═══════════════════════════════════════════╗
+  Find published labelled Sentinel-2 debris data (there is very little)
+  → download MARIDA, MADOS, RFO, PLP  (~34 GB)
+  → unpack into data/, untouched.
+╚═══════════════════════════════════════════════════════════════════════════╝
+                                    ▼
+╔═══ PHASE 3 · BUILD THE BRIDGE (preprocessing) ════════════════════════════╗
+  Decide the contract: 5 bands → 7 features → 11 features, fixed order
+  → write ONE adapter per dataset, all emitting that contract
+  → verify class meanings by mean spectra, not by documentation
+  → map 15 research classes → 4 operational classes
+  → respect official / scene-disjoint / date-disjoint splits
+  → cache to .npz   (34 GB  →  34.9 MB)
+╚═══════════════════════════════════════════════════════════════════════════╝
+                                    ▼
+╔═══ PHASE 4 · TRAIN AND PROVE ═════════════════════════════════════════════╗
+  Train the MLP on GPU (focal loss + class-balanced weights + calibration)
+  → select the best epoch by VALIDATION macro-F1
+  → 3 seeds, average the logits
+  → export to ONNX, prove parity = 1.0
+  → score once on 499,907 untouched test pixels  →  macro-F1 0.818
+  → test on data never trained on: RFO new seas, PLP deployed targets
+  → publish the failures too.
+╚═══════════════════════════════════════════════════════════════════════════╝
+                                    ▼
+╔═══ PHASE 5 · RUN IT LIVE (every scan, ~seconds) ══════════════════════════╗
+  Analyst draws a box
+     → STAC search: which scenes exist, how cloudy   (keyless)
+     → CDSE Process API: least-cloud composite, 5 bands + SCL   (OAuth)
+     → mask cloud / land / shadow / nodata via SCL
+     → FDI > 0.02  → millions of pixels become a few hundred candidates
+     → build the SAME 11 features
+     → marinenet.onnx → class + confidence per candidate
+     → keep HIGH-confidence plastic (P ≥ 0.648, ~90% precise)
+     → DBSCAN → hotspots → severity
+     → Clay verifier → CONFIRMED / POSSIBLE
+     → RK4 drift, 72 h, windage cone → landfall ETA
+     → alerts, map, exports; results to PostgreSQL — imagery discarded
+╚═══════════════════════════════════════════════════════════════════════════╝</div>
+
+  <h3>How the three worlds touch, one more time</h3>
+  <table>
+    <tr><th>Connection</th><th>What actually links them</th></tr>
+    <tr><td><b>Satellite → Datasets</b></td>
+        <td>Researchers downloaded Sentinel-2 scenes and hand-labelled the pixels. The imagery is the
+            same public archive we use; the labels are their contribution.</td></tr>
+    <tr><td><b>Datasets → Model</b></td>
+        <td>Our adapters convert every dataset into the identical 11-feature contract; the trainer
+            learns the mapping from those 11 numbers to 4 classes.</td></tr>
+    <tr class="hi"><td><b>Model → Satellite</b></td>
+        <td>The live engine computes <b>the same 11 numbers</b> from a fresh CDSE fetch and feeds them
+            to the trained file. <b>This only works because step 1 and step 3 use identical maths</b> —
+            which is why the feature contract is guarded so carefully.</td></tr>
+  </table>
+</div>
+
+<!-- ============================ 9. PAPERS & GAPS ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 9</div>
+  <h2 class="sec">The papers we read, and the gaps we found</h2>
+
+  <h3>Foundational reading</h3>
+  <table>
+    <tr><th>Work</th><th>What we took from it</th><th>Where it lives in our code</th></tr>
+    <tr><td><b>Biermann et al. 2020</b><br><span class="small">Finding plastic patches in coastal waters using optical satellite data · <i>Scientific Reports</i></span></td>
+        <td>The Floating Debris Index itself, and the finding that Sentinel-2 <i>can</i> see plastic
+            aggregations at all. This paper is the reason the project exists.</td>
+        <td><code>satellite/fdi_calculator.py</code></td></tr>
+    <tr><td><b>Kikaki et al. 2022</b><br><span class="small">MARIDA · <i>PLOS ONE</i> 17(1):e0262247</span></td>
+        <td>The first properly labelled benchmark with official splits, plus the insight that debris
+            must be distinguished from <i>other</i> floating matter, not just from water.</td>
+        <td><code>ml/datasets/marida.py</code></td></tr>
+    <tr><td><b>Kikaki et al. 2024</b><br><span class="small">MADOS · <i>ISPRS J. Photogramm. Remote Sens.</i></span></td>
+        <td>A much larger successor benchmark; the volume that made a deep model viable.</td>
+        <td><code>ml/datasets/mados.py</code></td></tr>
+    <tr><td><b>Rußwurm et al. 2023</b><br><span class="small">RefinedFloatingObjects</span></td>
+        <td>Scene-disjoint evaluation as the honest test of generalisation, and globally diverse
+            water negatives.</td>
+        <td><code>ml/datasets/rfo.py</code></td></tr>
+    <tr><td><b>Topouzelis et al.</b><br><span class="small">Plastic Litter Project, Univ. of the Aegean</span></td>
+        <td>The only true ground truth in the field — physically deployed targets. Also the source of
+            our most important negative result.</td>
+        <td><code>ml/datasets/plp.py</code>, <code>ml/validate_plp.py</code></td></tr>
+    <tr><td><b>Lin et al. 2017</b> · Focal loss<br><b>Cui et al. 2019</b> · Class-balanced loss</td>
+        <td>The two techniques that made a 1,134 : 1 class imbalance trainable.</td>
+        <td><code>ml/train_perpixel_gpu.py</code></td></tr>
+    <tr><td><b>Ester et al. 1996</b> · DBSCAN<br><b>Liu &amp; Weisberg 2011</b> · Skill score</td>
+        <td>Density clustering with an explicit noise class; the standard trajectory-validation metric.</td>
+        <td><code>hotspot/dbscan_clusterer.py</code>, <code>ml/validate_drift.py</code></td></tr>
+    <tr><td><b>Clay v1.5</b><br><span class="small">open geospatial foundation model</span></td>
+        <td>A pretrained backbone generalises across seas far better than a small CNN trained from
+            scratch on a few hundred scenes.</td>
+        <td><code>ml/clay_*.py</code></td></tr>
+  </table>
+
+  <h3>The gaps we found — and what we did about each</h3>
+  <table>
+    <tr><th>Gap in the field</th><th>Our response</th></tr>
+    <tr class="hi"><td><b>1. Papers detect; nothing operates.</b> The literature produces accuracy
+        tables. Almost none produce something an agency could actually use on a Monday morning —
+        no console, no dispatch, no drift forecast, no audit trail.</td>
+        <td><b>This is our primary contribution.</b> An end-to-end operational console: scan → detect
+            → cluster → forecast → alert → dispatch → export, with role-based access and a stored
+            history.</td></tr>
+    <tr><td><b>2. Detection without prediction.</b> Debris moves several kilometres a day, and the
+        satellite returns in ~5 days. A detection alone is already stale when a crew reaches it.</td>
+        <td>72-hour RK4 Lagrangian drift forecasting with a windage ensemble, producing a
+            <b>cone</b> and a landfall ETA rather than a single misleading line.</td></tr>
+    <tr><td><b>3. Metrics that flatter.</b> Marine-debris papers frequently headline accuracy on data
+        that is ~98 % water, where "always water" scores 0.98.</td>
+        <td>Macro-F1 first, everywhere, in the product and in every document; accuracy always captioned
+            as water-inflated; per-class numbers always shown.</td></tr>
+    <tr><td><b>4. No confidence tiering.</b> A detection is usually presented as binary, which is
+        useless for deciding whether to send a boat.</td>
+        <td>A two-tier system calibrated on held-out data: HIGH (~90 % precise) versus candidate.
+            <b>Only HIGH-tier plastic can form a hotspot or dispatch a crew.</b></td></tr>
+    <tr><td><b>5. Negative results are not published.</b> Nobody reports the architecture that lost or
+        the extra data that hurt.</td>
+        <td>We publish ours in-app: the patch CNN at 0.555, PLP at 0/33, the PLP retrain that cost
+            12 points of precision, and unvalidated drift.</td></tr>
+    <tr><td><b>6. No closed loop.</b> Models are trained once and frozen; analyst knowledge never
+        returns to the system.</td>
+        <td>An active-learning loop where analyst labels are captured and queued for retraining.</td></tr>
+  </table>
+</div>
+
+<!-- ============================ 10. WHERE WE ARE / FUTURE ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 10</div>
+  <h2 class="sec">Where we are now — and what comes next</h2>
+
+  <h3>Honest status</h3>
+  <table>
+    <tr><th>Capability</th><th>Status</th><th>Evidence</th></tr>
+    <tr><td>Real satellite ingest</td><td><b>Working</b></td><td>Live CDSE OAuth fetch, native-resolution tiling, SCL masking, reliability grading</td></tr>
+    <tr><td>Trained classifier</td><td><b>Working</b></td><td>macro-F1 0.818 on 499,907 untouched pixels; ONNX parity 1.0</td></tr>
+    <tr><td>Two-tier confidence</td><td><b>Working</b></td><td>90.1 % precision measured at the shipped threshold</td></tr>
+    <tr><td>Hotspots + alerts</td><td><b>Working</b></td><td>Hand-written DBSCAN, severity thresholds, dispatch gating</td></tr>
+    <tr><td>Drift forecasting</td><td><b>Working, unvalidated</b></td><td>Real CMEMS/Open-Meteo forcing, RK4, windage cone — but no drifter tracks scored yet</td></tr>
+    <tr><td>Clay verifier</td><td><b>Working</b></td><td>GPU sidecar; fusion precision 0.92</td></tr>
+    <tr><td>Active learning</td><td><b>Loop closed</b></td><td>Analyst labels captured and queued</td></tr>
+    <tr><td>Sub-pixel plastic</td><td><b>Not solved — and not solvable at 10 m</b></td><td>PLP 0/33, with the mechanism proven</td></tr>
+  </table>
+
+  <h3>Future scope, ordered by honest value</h3>
+
+  <div class="card">
+    <h4>1. Validate the drift model against real drifter tracks <span class="pill free">HIGHEST VALUE, LOWEST COST</span></h4>
+    <p style="margin:4px 0">
+      The harness already exists — <code>ml/validate_drift.py</code> with the Liu–Weisberg skill score.
+      What is missing is <b>data</b>: real GPS drifter tracks (NOAA Global Drifter Program publishes
+      them free). Feed a track's start point in, compare the predicted path against the observed one,
+      publish the score. <b>This converts our single largest unvalidated claim into a measured one,
+      costs nothing, and needs no new model.</b> If we had time for exactly one more thing, it is this.
+    </p>
+  </div>
+
+  <div class="card">
+    <h4>2. Higher-resolution imagery for the sub-pixel problem</h4>
+    <p style="margin:4px 0">
+      PlanetScope at 3 m would make a 14 m target span ~5 pixels instead of a fraction of one.
+      <b>The honest catch, stated earlier:</b> PlanetScope has no SWIR band, so FDI cannot be computed
+      and the entire feature contract must be redesigned — plus it is commercial. This is a new model,
+      not an upgrade. Drone or aerial imagery for local validation is a cheaper variant of the same idea.
+    </p>
+  </div>
+
+  <div class="card">
+    <h4>3. SAR fusion (Sentinel-1)</h4>
+    <p style="margin:4px 0">
+      Radar penetrates cloud and works at night — directly attacking our worst operational limitation,
+      the monsoon. Debris rafts dampen surface roughness, which radar can see. Combining Sentinel-1
+      radar with Sentinel-2 optical would give all-weather capability. Substantial work: different
+      physics, different preprocessing, different features.
+    </p>
+  </div>
+
+  <div class="card">
+    <h4>4. Multi-temporal analysis</h4>
+    <p style="margin:4px 0">
+      Currently each scan is judged alone. But a real debris raft <b>moves consistently with the
+      current</b> across passes, whereas a cloud artefact or sun-glint does not. Tracking candidates
+      across the ~5-day cycle and rewarding physically plausible motion could raise precision using
+      <b>only data we already fetch</b>.
+    </p>
+  </div>
+
+  <div class="card">
+    <h4>5. Complete the active-learning loop end to end</h4>
+    <p style="margin:4px 0">
+      Labels are already captured. The remaining step is automatic periodic retraining with the
+      existing head-to-head promotion gate, so analyst corrections measurably improve the shipped model
+      over time rather than sitting in a queue.
+    </p>
+  </div>
+
+  <div class="card">
+    <h4>6. Field validation with an agency</h4>
+    <p style="margin:4px 0">
+      The scientifically strongest possible next step: send a boat to a HIGH-confidence hotspot and
+      record what is actually there. Even ten verified dispatches would give a real-world precision
+      figure — something almost no paper in this field has.
+    </p>
+  </div>
+
+  <div class="warn">
+    <b>What we would <i>not</i> do, and why it matters that we know.</b> Download more 10 m labelled
+    debris data expecting better plastic recall. <b>We tested this.</b> Adding PLP hurt precision
+    (0.776 → 0.660) for two extra sub-pixel targets. More data at the same resolution cannot fix a
+    resolution limit — knowing which lever is exhausted is as valuable as knowing which one to pull.
+  </div>
+</div>
+
+<!-- ============================ 11. FAQ ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 11</div>
+  <h2 class="sec">Straight answers to the questions that started this</h2>
+
+  <div class="qa"><div class="q">Which satellite do we use, and who runs it?</div>
+    <div class="a">Sentinel-2, operated by the European Space Agency under the EU's Copernicus
+      programme. Free and open. ~5-day revisit, 10 m pixels, 13 bands, 290 km swath. We use five bands
+      plus ESA's SCL quality layer, at processing level L2A (surface reflectance).</div></div>
+
+  <div class="qa"><div class="q">Where are the satellite images stored?</div>
+    <div class="a">In ESA's Copernicus Data Space Ecosystem and its AWS Open Data mirror —
+      <b>not in our project</b>. We stream pixels per scan into memory, use them, and discard them.
+      Only results are stored, in PostgreSQL. There is no image folder anywhere in this repository.</div></div>
+
+  <div class="qa"><div class="q">How many images can we get at a time?</div>
+    <div class="a">A metadata search returns 8 scenes by default. A pixel request returns <b>one
+      composite image</b> built from every qualifying pass in the last 45 days, capped at 1,024 px per
+      side; larger areas are stitched from up to 9 native-resolution tiles (~61 km per side), and very
+      large regions deliberately fall back to one coarser request to protect the free quota.</div></div>
+
+  <div class="qa"><div class="q">Are the datasets from the same satellite as our live feed?</div>
+    <div class="a">Yes — all four are Sentinel-2. That is exactly why a model trained on them can be
+      applied to our live pixels. It is the single design fact the whole project rests on.</div></div>
+
+  <div class="qa"><div class="q">Does Copernicus give us the datasets too?</div>
+    <div class="a">No. Copernicus gives <b>pixels</b>, worldwide and free, with no labels whatsoever.
+      The labels — "this pixel is marine debris" — came from four independent research groups who
+      downloaded the same free imagery and hand-annotated it, then published it with a DOI. We
+      collected those releases and wrote the adapters that make them mutually compatible.</div></div>
+
+  <div class="qa"><div class="q">What algorithms did we use?</div>
+    <div class="a">FDI and five spectral indices for physics-based screening; an MLP ensemble trained
+      with backpropagation, AdamW, focal loss, class-balanced weights and coordinate-ascent bias
+      calibration; DBSCAN for hotspots; RK4 Lagrangian advection with a windage ensemble for drift; and
+      a frozen Vision Transformer with cosine similarity as a verifier. DBSCAN, RK4, the losses, the
+      calibration and the similarity index are all written by us.</div></div>
+
+  <div class="qa"><div class="q">Is data preprocessing actually used?</div>
+    <div class="a">Extensively, in two separate places — offline to build training arrays from 34 GB of
+      raw imagery, and live on every scan. Keeping those two paths numerically identical is the core
+      engineering discipline of the project, and the feature computation is deliberately mirrored
+      line-for-line between them.</div></div>
+
+  <div class="qa"><div class="q">If someone started from scratch, what is the order?</div>
+    <div class="a">Read the physics → find labelled data → build one common feature contract and the
+      adapters that reach it → train, calibrate, and test on data you never touched → wrap it in a live
+      ingest path that computes the identical features → cluster, forecast and act on the results.
+      Section 8 is that path in full.</div></div>
+
+  <footer>
+    <b>Everything in this document was verified against source</b> while writing it:
+    <code>satellite/band_loader.py</code> (CDSE OAuth, tiling, composite),
+    <code>satellite/download.py</code> (STAC discovery, ingest orchestration),
+    <code>satellite/cloud_masker.py</code> (SCL classes, reliability),
+    <code>config.py</code> (all thresholds quoted),
+    <code>ml/datasets/*.py</code> (dataset provenance and adapters),
+    <code>ml/train_perpixel_gpu.py</code> (training algorithms),
+    <code>hotspot/dbscan_clusterer.py</code> and <code>trajectory/lagrangian_model.py</code>
+    (from-scratch implementations).
+    <br><br>
+    Companion document: <b>Model_and_Data_Explainer.pdf</b> — architecture, training recipe and
+    measured results.
+    <br><br>
+    Marine Plastic Tracker · Foundations · 30 July 2026
+  </footer>
+</div>
+</div>

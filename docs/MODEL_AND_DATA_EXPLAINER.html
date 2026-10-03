@@ -1,0 +1,1226 @@
+<meta charset="utf-8">
+<title>Marine Plastic Tracker — The Model, The Data, The Results</title>
+<style>
+  :root {
+    --ink: #0f2830;
+    --ink-soft: #43606b;
+    --ink-faint: #6b8590;
+    --teal: #0d9488;
+    --teal-dark: #0f766e;
+    --ocean: #2f7fb5;
+    --line: #d6e6e6;
+    --card: #ffffff;
+    --wash: #f0f9f8;
+    --wash2: #e7f5f3;
+    --amber: #b45309;
+    --amber-wash: #fef6e7;
+    --rose: #be123c;
+    --rose-wash: #fdf2f4;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    line-height: 1.55;
+    font-size: 13.5px;
+  }
+  @page { size: A4; margin: 14mm 0; }
+
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 26px; }
+
+  /* ---------- cover ---------- */
+  .cover {
+    min-height: 262mm;
+    background: linear-gradient(160deg, #d3efe9 0%, #eaf7f4 45%, #ffffff 100%);
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 50px 52px;
+    page-break-after: always;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 34px; }
+  .brand .mark {
+    width: 46px; height: 46px; border-radius: 13px;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    display: grid; place-items: center; color: #fff; font-size: 22px;
+  }
+  .brand .name { font-size: 19px; font-weight: 800; letter-spacing: -.3px; }
+  .brand .name span { color: var(--teal); }
+  .brand .sub { font-size: 10px; letter-spacing: 3px; color: var(--ink-faint); text-transform: uppercase; }
+  .cover h1 { font-size: 42px; line-height: 1.06; margin: 0 0 14px; letter-spacing: -1px; }
+  .cover .lede { font-size: 17px; color: var(--ink-soft); max-width: 620px; margin: 0 0 26px; }
+  .cover .meta { font-size: 12.5px; color: var(--ink-faint); border-top: 1px solid var(--line); padding-top: 16px; max-width: 620px; }
+  .cover .meta b { color: var(--ink); }
+  .cover .kpis { display: flex; gap: 10px; margin: 4px 0 26px; flex-wrap: wrap; }
+  .cover .kpi {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 16px; min-width: 128px;
+  }
+  .cover .kpi .v { font-size: 24px; font-weight: 800; color: var(--teal-dark); letter-spacing: -.5px; }
+  .cover .kpi .l { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--ink-faint); }
+
+  /* ---------- sections ---------- */
+  .sec-block { page-break-before: always; padding-top: 6px; }
+  .sec-kicker { font-size: 10.5px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--teal); font-weight: 700; }
+  h2.sec { font-size: 25px; letter-spacing: -.5px; margin: 2px 0 6px; }
+  h3 { font-size: 16px; margin: 20px 0 5px; }
+  h4 { font-size: 13.5px; margin: 14px 0 4px; color: var(--teal-dark); }
+  p { margin: 9px 0; }
+  p.intro { color: var(--ink-soft); font-size: 14.5px; margin-bottom: 14px; }
+  ul, ol { margin: 8px 0; padding-left: 20px; }
+  li { margin: 4px 0; }
+  b, strong { color: var(--ink); }
+  code {
+    font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px;
+    background: var(--wash2); padding: 1px 5px; border-radius: 4px; color: var(--teal-dark);
+  }
+  a { color: var(--ocean); text-decoration: none; }
+
+  /* ---------- tables ---------- */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12.5px; page-break-inside: avoid; }
+  th { text-align: left; background: var(--wash2); color: var(--teal-dark);
+       font-size: 10.5px; text-transform: uppercase; letter-spacing: .8px;
+       padding: 7px 9px; border-bottom: 1px solid var(--line); }
+  td { padding: 7px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr.hi td { background: var(--wash); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .small { font-size: 11.5px; color: var(--ink-faint); }
+
+  /* ---------- cards / callouts ---------- */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 14px 16px; margin: 12px 0; page-break-inside: avoid; }
+  .card.wash { background: var(--wash); }
+  .card h4 { margin-top: 0; }
+  .note { border-left: 3px solid var(--teal); background: var(--wash); border-radius: 0 10px 10px 0;
+          padding: 11px 14px; margin: 12px 0; page-break-inside: avoid; }
+  .warn { border-left: 3px solid var(--amber); background: var(--amber-wash); border-radius: 0 10px 10px 0;
+          padding: 11px 14px; margin: 12px 0; page-break-inside: avoid; }
+  .warn b { color: var(--amber); }
+  .honest { border-left: 3px solid var(--rose); background: var(--rose-wash); border-radius: 0 10px 10px 0;
+            padding: 11px 14px; margin: 12px 0; page-break-inside: avoid; }
+  .honest b { color: var(--rose); }
+
+  /* ---------- flow ---------- */
+  .flow { display: flex; flex-wrap: wrap; gap: 7px; align-items: stretch; margin: 14px 0; }
+  .flow .step {
+    flex: 1 1 120px; background: #fff; border: 1px solid var(--line);
+    border-radius: 10px; padding: 9px 11px; position: relative;
+  }
+  .flow .step .n { font-size: 9.5px; font-weight: 800; color: var(--teal); letter-spacing: 1px; }
+  .flow .step .t { font-size: 12.5px; font-weight: 700; margin: 1px 0 2px; }
+  .flow .step .d { font-size: 11px; color: var(--ink-faint); line-height: 1.4; }
+
+  .chain { font-family: "Cascadia Mono", Consolas, monospace; font-size: 11.5px;
+           background: var(--wash); border: 1px solid var(--line); border-radius: 10px;
+           padding: 12px 14px; margin: 12px 0; white-space: pre; overflow: hidden;
+           color: var(--ink-soft); line-height: 1.6; page-break-inside: avoid; }
+
+  .two { display: flex; gap: 12px; }
+  .two > * { flex: 1; }
+
+  /* confusion matrix */
+  table.cm td, table.cm th { text-align: center; padding: 6px 4px; font-size: 12px; }
+  table.cm td.rowh { text-align: left; font-weight: 700; background: var(--wash2); }
+  table.cm td.diag { background: #cceee8; font-weight: 800; color: var(--teal-dark); }
+  table.cm td.bad { background: #fdeaee; color: var(--rose); font-weight: 700; }
+
+  .pill { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 8px;
+          border-radius: 20px; letter-spacing: .4px; }
+  .pill.ours { background: #cceee8; color: var(--teal-dark); }
+  .pill.lib { background: #e6eef6; color: var(--ocean); }
+
+  footer { margin-top: 26px; padding-top: 12px; border-top: 1px solid var(--line);
+           font-size: 11px; color: var(--ink-faint); }
+</style>
+
+<!-- ============================ COVER ============================ -->
+<div class="cover">
+  <div class="brand">
+    <div class="mark">🌊</div>
+    <div>
+      <div class="name">Marine Plastic <span>Tracker</span></div>
+      <div class="sub">Model · Data · Results</div>
+    </div>
+  </div>
+
+  <h1>The model, the data,<br>and what the numbers<br>really say.</h1>
+  <p class="lede">
+    A plain-English walkthrough of the machine-learning side of the project: which model we trained,
+    the five datasets we used and where they came from, how raw satellite files became training
+    numbers, and exactly how accurate the result is — including the parts that did not work.
+  </p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v">5</div><div class="l">Datasets</div></div>
+    <div class="kpi"><div class="v">2.12 M</div><div class="l">Labelled pixels</div></div>
+    <div class="kpi"><div class="v">0.818</div><div class="l">Macro-F1</div></div>
+    <div class="kpi"><div class="v">90 %</div><div class="l">High-tier precision</div></div>
+  </div>
+
+  <div class="meta">
+    <b>Project:</b> Marine Plastic Tracker — satellite plastic detection + drift forecasting for the Indian Ocean<br>
+    <b>Shipped model:</b> <code>python_engine/models/marinenet.onnx</code> — 3-seed per-pixel MLP ensemble<br>
+    <b>Every number in this document</b> was read from the project's own metrics files or re-measured
+    live against the shipped model while writing it. Nothing is estimated.<br>
+    <b>Prepared for:</b> project panel / viva · <b>Date:</b> 30 July 2026
+  </div>
+</div>
+
+<!-- ============================ 1. THE 60-SECOND ANSWER ============================ -->
+<div class="wrap">
+<div class="sec-block" style="page-break-before: avoid;">
+  <div class="sec-kicker">Section 1</div>
+  <h2 class="sec">The 60-second answer</h2>
+  <p class="intro">If the panel asks one question and you have one minute, this is the whole story.</p>
+
+  <div class="card wash">
+    <h4>What the model is</h4>
+    <p style="margin:4px 0">
+      A <b>per-pixel neural network classifier</b> — technically an ensemble of three small
+      multi-layer perceptrons (MLPs). It looks at <b>one 10 m × 10 m patch of sea at a time</b>,
+      reads <b>11 numbers</b> describing the colour of that patch, and answers with one of
+      <b>four labels</b>: <b>Plastic</b>, <b>Algae</b>, <b>Sea&nbsp;Foam</b>, or <b>Water</b>,
+      plus a confidence score.
+    </p>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <h4>What it learned from</h4>
+      <p style="margin:4px 0">
+        <b>Real hand-labelled Sentinel-2 satellite data</b> from published scientific benchmarks —
+        <b>MARIDA</b> + <b>MADOS</b> (<b>1,081,615</b> training pixels, <b>532,566</b> validation,
+        <b>499,907</b> completely unseen test pixels) plus <b>3,789</b> points from four
+        <b>RFO</b> scenes. Two independent exams are held back entirely: RFO's Durban and Marmara
+        scenes, and every <b>PLP</b> deployed-plastic target.
+      </p>
+    </div>
+    <div class="card">
+      <h4>How well it works</h4>
+      <p style="margin:4px 0">
+        On the 499,907 unseen pixels: <b>macro-F1 = 0.818</b>.
+        For plastic specifically, <b>F1 = 0.799</b> (precision 0.776, recall 0.824).
+        With our high-confidence filter switched on, plastic calls are
+        <b>90 % precise</b> — 9 out of 10 flagged pixels really are debris.
+      </p>
+    </div>
+  </div>
+
+  <div class="warn">
+    <b>Say macro-F1, never accuracy.</b> Our raw accuracy is <b>0.9899</b>, which sounds spectacular
+    and is actually meaningless: <b>98 % of ocean pixels are plain water</b>, so a model that answered
+    "water" to everything would already score ~0.98. Macro-F1 averages the score of all four classes
+    equally, so rare-but-important plastic counts as much as water. <b>0.818 is the honest number.</b>
+  </div>
+
+  <div class="card">
+    <h4>What we built ourselves</h4>
+    <p style="margin:4px 0">
+      The datasets are public, and PyTorch/NumPy/ONNX are libraries. Everything between them is ours:
+      the four-class label mapping, the 11-feature spectral contract, the dataset readers, the loss
+      function, the class-imbalance weighting, the decision-boundary calibration, the ensemble, the
+      ONNX export with a bit-parity check, the two-tier confidence system, and the whole live
+      inference path. <b>Section 10</b> is the itemised list, file by file.
+    </p>
+  </div>
+
+  <h3>The whole journey on one line</h3>
+  <div class="chain">raw satellite files (GeoTIFF)  →  dataset adapter  →  11 features per pixel  →  .npz cache
+        →  GPU training (PyTorch)  →  ONNX export  →  live engine (onnxruntime)  →  map markers</div>
+</div>
+
+<!-- ============================ 2. WHAT THE MODEL DOES ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 2</div>
+  <h2 class="sec">What the model actually does</h2>
+  <p class="intro">
+    Before the datasets and the training, be crystal clear about the job. It is a very narrow job,
+    and that is deliberate.
+  </p>
+
+  <h3>One pixel in, one label out</h3>
+  <p>
+    A Sentinel-2 satellite image is a grid. Each cell of that grid — each <b>pixel</b> — covers a
+    square of sea <b>10 metres across</b>. The satellite does not record "colour" the way a phone
+    camera does; it records <b>reflectance</b> in separate wavelength bands, including bands the human
+    eye cannot see (near-infrared, short-wave infrared). Floating plastic reflects infrared light
+    differently from water, and that difference is the entire physical basis of the project.
+  </p>
+  <p>
+    Our model takes the reflectance numbers for <b>one pixel</b> and outputs four scores that add up
+    to 1 — how likely that pixel is Plastic, Algae, Sea Foam, or Water. The highest score wins.
+  </p>
+
+  <div class="chain">INPUT  (11 numbers for one pixel)              OUTPUT (4 probabilities)
+  B04  red reflectance                          Plastic    0.83   ←  winner
+  B06  red-edge                                 Algae      0.09
+  B08  near-infrared                            Sea_Foam   0.05
+  B8A  narrow near-infrared                     Water      0.03
+  B11  short-wave infrared
+  FDI  Floating Debris Index
+  NDVI vegetation index
+  PI   Plastic Index
+  MNDWI water index
+  NDVI_RE red-edge vegetation
+  BRIGHT  overall brightness</div>
+
+  <h3>Why four classes and not two</h3>
+  <p>
+    A naive "plastic vs. not-plastic" model floods the map with false alarms, because the two things
+    that most look like plastic from space are <b>floating algae/sargassum</b> and <b>sea foam</b>.
+    By forcing the model to name <i>which</i> of these it is seeing, we make it learn the differences
+    instead of lumping every bright patch together. The four classes are our own mapping, condensed
+    from the 15 fine-grained classes the source datasets ship with.
+  </p>
+
+  <h3>Why the last 4 features are free</h3>
+  <p>
+    Only the five band values (<code>B04 B06 B08 B8A B11</code>) are actually downloaded. The other six
+    features are <b>arithmetic on those five</b> — published spectral indices that make the physics
+    easier for a small network to learn. This matters practically: adding them cost us
+    <b>zero extra satellite data and zero extra download time</b>.
+  </p>
+
+  <table>
+    <tr><th>Feature</th><th>Formula</th><th>What it highlights</th></tr>
+    <tr><td><b>FDI</b><br><span class="small">Floating Debris Index</span></td>
+        <td><code>B08 − [B06 + (B11 − B06) × 0.1172 × 10]</code></td>
+        <td>Anything floating on the surface — the primary debris signal (Biermann et al. 2020)</td></tr>
+    <tr><td><b>NDVI</b></td><td><code>(B08 − B04) / (B08 + B04)</code></td>
+        <td>Living vegetation → separates algae from plastic</td></tr>
+    <tr><td><b>PI</b><span class="small"> Plastic Index</span></td><td><code>B08 / (B08 + B04)</code></td>
+        <td>Plastic-specific NIR/red balance</td></tr>
+    <tr><td><b>MNDWI</b></td><td><code>(B08 − B11) / (B08 + B11)</code></td>
+        <td>Water vs. floating matter</td></tr>
+    <tr><td><b>NDVI_RE</b></td><td><code>(B8A − B06) / (B8A + B06)</code></td>
+        <td>Red-edge vegetation → sargassum</td></tr>
+    <tr><td><b>BRIGHT</b></td><td><code>mean of all 5 bands</code></td>
+        <td>Foam and sun-glint, which are simply bright</td></tr>
+  </table>
+
+  <div class="note">
+    <b>The contract rule.</b> These 11 numbers must be computed in <i>exactly</i> the same order and
+    with exactly the same formulas during training and during live scanning — otherwise the model
+    silently receives garbage. We enforce this by having one function in the trainer
+    (<code>augment11</code> in <code>train_perpixel_gpu.py</code>) mirrored line-for-line by one function
+    in the engine (<code>_features</code> in <code>inference_engine.py</code>), with the order also
+    frozen as a constant in <code>model_loader.py</code>. This is the single most common way an ML
+    project quietly breaks, and we designed against it.
+  </div>
+</div>
+
+<!-- ============================ 3. THE DATASETS ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 3</div>
+  <h2 class="sec">The five datasets — and where they came from</h2>
+  <p class="intro">
+    We work with <b>five datasets</b>. Three contribute training data, two provide exams the model
+    never learns from, and one is a synthetic sanity-check baseline we generate ourselves. (RFO does
+    both: four of its six scenes train, two are held out.) Every real one is a published, citable
+    scientific dataset — none of it is scraped or invented.
+  </p>
+
+  <table>
+    <tr>
+      <th>#</th><th>Dataset</th><th>Source &amp; citation</th><th>What is in it</th><th>Our role for it</th>
+    </tr>
+    <tr class="hi">
+      <td>1</td>
+      <td><b>MARIDA</b><br><span class="small">Marine Debris Archive</span></td>
+      <td>Kikaki, Karantzalos et al., <i>PLOS ONE</i> 17(1):e0262247, <b>2022</b>. Public research release.</td>
+      <td>Hand-labelled Sentinel-2 patches: 11-band reflectance GeoTIFFs + a pixel-level class mask,
+          15 fine classes, with <b>official train/val/test split files</b>.
+          <b>1,381 patches</b> (694 train / 328 val / 359 test).</td>
+      <td><b>TRAIN + TEST</b></td>
+    </tr>
+    <tr class="hi">
+      <td>2</td>
+      <td><b>MADOS</b><br><span class="small">Marine Debris &amp; Oil Spill</span></td>
+      <td>Kikaki, Kakogeorgiou, Hoteit, Karantzalos, <i>ISPRS J. Photogramm. Remote Sens.</i>, <b>2024</b>.
+          Zenodo DOI <b>10.5281/zenodo.10664073</b>. (~4.0 GB download.)</td>
+      <td>The same group's successor to MARIDA. <b>174 scenes</b>, sparse pixel-level annotation,
+          15 thematic classes, ACOLITE surface reflectance.
+          <b>2,803 crops</b> (1,433 / 642 / 728).</td>
+      <td><b>TRAIN + TEST</b></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><b>RFO</b><br><span class="small">RefinedFloatingObjects</span></td>
+      <td>Rußwurm et al., <b>2023</b>. Public research release.</td>
+      <td><b>6 full Sentinel-2 scenes</b> from six different seas — Accra, Durban, Lagos, Marmara,
+          New Orleans, Venice — with <b>4,689</b> hand-refined point annotations
+          (debris = 1, water = 0).</td>
+      <td><b>TRAIN (4 scenes)</b><br><b>+ EXAM (2 scenes)</b><br>
+          <span class="small">Durban &amp; Marmara held out</span></td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><b>PLP</b><br><span class="small">Plastic Litter Project 2021/2022</span></td>
+      <td>Topouzelis et al., <b>University of the Aegean</b>. Public research release.</td>
+      <td>The only <b>true ground truth</b> available anywhere: researchers physically floated
+          <b>real HDPE and PVC plastic targets</b> at known coordinates on known dates and had
+          Sentinel-2 photograph them — plus <b>wooden decoys</b> as controls.
+          <b>21 target dates.</b></td>
+      <td><b>HELD-OUT EXAM</b><br><span class="small">hardest possible test</span></td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><b>Synthetic spectral library</b></td>
+      <td><b>Ours</b> — generated by <code>ml/datasets/dataset.py</code></td>
+      <td>Physics-derived fake pixels for each class, from published reflectance ranges.</td>
+      <td><b>BASELINE ONLY</b><br><span class="small">never shipped</span></td>
+    </tr>
+  </table>
+
+  <div class="note">
+    <b>Why four real datasets instead of one?</b> Each one closes a hole the others leave open.
+    MARIDA gives clean official splits. MADOS triples the volume and adds scene variety.
+    RFO adds <b>globally diverse water and debris examples from six different seas</b> — and its two
+    withheld scenes answer "does it work in a sea it has never seen?" PLP answers "does it find
+    <i>actual verified plastic</i>?" A project with only MARIDA can be accused of overfitting one
+    benchmark; with all four, the weaknesses are measured rather than guessed at.
+  </div>
+
+  <h3>How much labelled data actually reached the model</h3>
+  <p>
+    Not every pixel in these datasets is usable. Only pixels the researchers explicitly labelled count,
+    and we deliberately discard some classes (ships, clouds, waves, wakes, cloud shadows, oil spills,
+    jellyfish, sea snot) because they are not part of our four-class job and would only add noise.
+    After that filtering:
+  </p>
+
+  <table>
+    <tr><th>Split</th><th>Source</th><th class="num">Total pixels</th><th class="num">Plastic</th>
+        <th class="num">Algae</th><th class="num">Sea Foam</th><th class="num">Water</th></tr>
+    <tr><td rowspan="4"><b>Train</b></td><td>MARIDA</td><td class="num">347,204</td><td class="num">1,943</td><td class="num">2,684</td><td class="num">469</td><td class="num">342,108</td></tr>
+    <tr><td>MADOS</td><td class="num">734,411</td><td class="num">2,561</td><td class="num">9,548</td><td class="num">469</td><td class="num">721,833</td></tr>
+    <tr><td>RFO <span class="small">(4 scenes, points)</span></td><td class="num">3,789</td><td class="num">1,549</td><td class="num">—</td><td class="num">—</td><td class="num">2,240</td></tr>
+    <tr class="hi"><td><b>combined</b></td><td class="num"><b>1,085,404</b></td><td class="num">6,053</td><td class="num">12,232</td><td class="num">938</td><td class="num">1,066,181</td></tr>
+    <tr><td rowspan="3"><b>Validation</b></td><td>MARIDA</td><td class="num">187,163</td><td class="num">1,075</td><td class="num">1,644</td><td class="num">369</td><td class="num">184,075</td></tr>
+    <tr><td>MADOS</td><td class="num">345,403</td><td class="num">1,162</td><td class="num">4,462</td><td class="num">369</td><td class="num">339,410</td></tr>
+    <tr class="hi"><td><b>combined</b></td><td class="num"><b>532,566</b></td><td class="num">2,237</td><td class="num">6,106</td><td class="num">738</td><td class="num">523,485</td></tr>
+    <tr><td rowspan="3"><b>Test</b><br><span class="small">never seen</span></td><td>MARIDA</td><td class="num">153,762</td><td class="num">381</td><td class="num">1,690</td><td class="num">387</td><td class="num">151,304</td></tr>
+    <tr><td>MADOS</td><td class="num">346,145</td><td class="num">973</td><td class="num">5,638</td><td class="num">387</td><td class="num">339,147</td></tr>
+    <tr class="hi"><td><b>combined</b></td><td class="num"><b>499,907</b></td><td class="num">1,354</td><td class="num">7,328</td><td class="num">774</td><td class="num">490,451</td></tr>
+    <tr><td colspan="2"><b>Grand total</b></td><td class="num"><b>2,117,877</b></td><td colspan="4" class="small">plus 900 held-out RFO points (Durban, Marmara) and 21 PLP target dates held aside as exams</td></tr>
+  </table>
+
+  <div class="warn">
+    <b>Look at the imbalance — it drives every design decision that follows.</b>
+    In training there are <b>1,063,941 water pixels and 938 sea-foam pixels</b>: a ratio of about
+    <b>1,134 : 1</b>. Left alone, gradient descent simply learns "always say water". Section 7 explains
+    the three specific techniques we used to defeat this.
+  </div>
+
+  <p class="small">
+    Supporting data used elsewhere in the app but <b>not</b> for training the classifier: Copernicus
+    Marine (CMEMS) ocean-current and wind fields for the 72-hour drift forecast, and a Natural Earth
+    coastline GeoJSON for shoreline-impact estimates.
+  </p>
+</div>
+
+<!-- ============================ 4. GETTING DATA IN ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 4</div>
+  <h2 class="sec">How we got the datasets into the project</h2>
+  <p class="intro">
+    This is the question panels ask when they suspect a downloaded notebook. The honest answer is that
+    the download is the easy 5 %; the work is the <b>adapter layer</b> we wrote to turn four completely
+    different file formats into one identical numeric contract.
+  </p>
+
+  <div class="flow">
+    <div class="step"><div class="n">STEP 1</div><div class="t">Download</div><div class="d">Fetch each dataset from its published source (Zenodo / research page) as an archive.</div></div>
+    <div class="step"><div class="n">STEP 2</div><div class="t">Unpack</div><div class="d">Extract into a fixed folder under <code>data/</code>, one folder per dataset, untouched.</div></div>
+    <div class="step"><div class="n">STEP 3</div><div class="t">Adapter</div><div class="d">Our Python reader opens the GeoTIFFs/shapefiles and emits the same 7 numbers per pixel.</div></div>
+    <div class="step"><div class="n">STEP 4</div><div class="t">Cache</div><div class="d">Save as compressed <code>.npz</code> arrays so retraining never re-reads a GeoTIFF.</div></div>
+    <div class="step"><div class="n">STEP 5</div><div class="t">Train</div><div class="d">The GPU trainer loads only <code>.npz</code> — no GDAL, no rasterio, instant startup.</div></div>
+  </div>
+
+  <h3>Where things live on disk</h3>
+  <div class="chain">marine-plastic-tracker/
+├── data/                                   ← raw datasets, exactly as published
+│   ├── marida/        patches/  splits/  shapefiles/  labels_mapping.txt
+│   ├── MADOS/         Scene_0 … Scene_173/  splits/
+│   ├── refinedfloatingobjects/             6 scenes + point shapefiles
+│   └── plp/PLP/       PLP2021/  PLP2022/   Sentinel-2 scenes + target shapefiles
+│
+└── python_engine/
+    ├── ml/datasets/                        ← THE ADAPTERS (written by us)
+    │   ├── marida.py    reads 11-band GeoTIFF + class mask
+    │   ├── mados.py     reads per-wavelength bands, resamples 20 m/60 m → 10 m
+    │   ├── rfo.py       reads full scenes + point shapefiles, scene-disjoint split
+    │   ├── plp.py       reprojects deployed-target coordinates into scene pixels
+    │   └── dataset.py   synthetic baseline library
+    ├── ml/train_perpixel_gpu.py             ← THE TRAINER
+    └── models/                              ← caches + trained weights
+        ├── marida_{train,val,test}.npz      cached feature/label arrays
+        ├── mados_{train,val,test}.npz
+        ├── rfo_pixels_{train,test}.npz      held-out exam
+        ├── plp_pixels_{train,test}.npz      held-out exam
+        ├── marinenet.onnx                   ← THE SHIPPED MODEL (551 KB)
+        └── metrics.json                     ← the published model card</div>
+
+  <div class="note">
+    <b>34 GB in, 35 MB out.</b> The raw datasets on disk total about <b>34 GB</b> of satellite imagery
+    (RFO 23 GB, MADOS 5.6 GB, MARIDA 4.5 GB, Durban 0.9 GB, PLP 79 MB). What the classifier actually
+    trains on is <b>34.9 MB</b> of <code>.npz</code> feature arrays — a roughly <b>1,000× reduction</b>.
+    That gap <i>is</i> the preprocessing: out of tens of gigabytes of pixels, only the ones a researcher
+    explicitly labelled, in the five bands we can fetch live, reduced to 7 numbers each, survive. It is
+    also why retraining takes minutes instead of hours — no GeoTIFF is ever re-read.
+  </div>
+
+  <h3>Why each adapter was real work, not boilerplate</h3>
+  <table>
+    <tr><th>Dataset</th><th>The problem in the raw files</th><th>What our adapter does about it</th></tr>
+    <tr>
+      <td><b>MARIDA</b></td>
+      <td>Bands are stacked in one 11-band file; labels are 1–15 in a separate mask file; patch names
+          encode their folder (<code>11-6-18_16PCC_13</code> → <code>S2_11-6-18_16PCC/</code>).</td>
+      <td>Resolves the filename convention, indexes out the 5 bands we need by position, and applies
+          our 15→4 class map.</td>
+    </tr>
+    <tr>
+      <td><b>MADOS</b></td>
+      <td>Every band is a <b>separate file named by wavelength</b> (<code>..._rhorc_833_0.tif</code>),
+          stored in <code>10/</code>, <code>20/</code>, <code>60/</code> folders at three different
+          <b>pixel sizes</b>. And the class IDs are <b>renumbered</b> vs. MARIDA.</td>
+      <td>Sorts files by wavelength to recover MARIDA's band order, nearest-neighbour upsamples the
+          20 m and 60 m bands onto the 10 m grid, and — importantly — we <b>verified the class
+          renumbering empirically</b> instead of copying MARIDA's map (see the note below).</td>
+    </tr>
+    <tr>
+      <td><b>RFO</b></td>
+      <td>Six scenes from different years vary between 12-band and 13-band, L1C and L2A, and values
+          are stored as integers (0–10000), not reflectance.</td>
+      <td>Resolves band position per file via its embedded descriptions, divides by 10,000, and does
+          one windowed read per labelled point. Splits by <b>scene</b>, not randomly.</td>
+    </tr>
+    <tr>
+      <td><b>PLP</b></td>
+      <td>Targets are given as map coordinates in a shapefile with its own projection — not pixels.
+          Some scenes are integer-scaled, some already reflectance.</td>
+      <td>Reads the shapefile's <code>.prj</code>, builds a coordinate transformer into the scene's
+          projection, converts to a row/column, and reads that one pixel. Decides the scaling factor
+          <b>once per scene</b> from a whole-scene median.</td>
+    </tr>
+  </table>
+
+  <div class="honest">
+    <b>A real bug we found and fixed — worth telling the panel.</b>
+    Our first PLP reader decided integer-vs-reflectance scaling <i>per pixel</i>. Dark water pixels
+    read below the threshold even in an integer-scaled scene, so the divide-by-10,000 was skipped and
+    raw integers landed in the cache — <code>B11 ≈ 158</code>, <code>FDI ≈ −185</code>, physically
+    impossible values poisoning our hardest test set. Fix: decide the factor <b>once per scene</b>
+    from a coarse whole-scene median, which cleanly separates the two cases. This is the kind of silent
+    data bug that inflates or destroys results without any error message.
+  </div>
+
+  <div class="note">
+    <b>We did not trust the documentation.</b> MADOS class 6 is documented as "Ships". It holds 140,000
+    pixels — far too many for ships. So we wrote a diagnostic (<code>class_signatures()</code>) that
+    prints the <b>mean spectral signature of every raw class</b>. Class 6 came back with
+    <code>FDI 0.0117</code>, <code>NDVI −0.09</code> and water-like brightness: unambiguously water
+    background, not ships. We mapped it to Water. Had we copied MARIDA's map blindly, 140,000 water
+    pixels would have been mislabelled.
+  </div>
+</div>
+
+<!-- ============================ 5. PREPROCESSING ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 5</div>
+  <h2 class="sec">Preprocessing, step by step</h2>
+  <p class="intro">
+    This is the pipeline that turns a folder of satellite GeoTIFFs into two NumPy arrays —
+    <code>x</code> of shape <b>[n, 11]</b> and <code>y</code> of shape <b>[n]</b>. Nothing more exotic
+    than that is needed, but every step has a reason.
+  </p>
+
+  <h4>Step 1 — Open the scene and its label mask</h4>
+  <p>Read the reflectance array and the researcher-drawn class mask, and crop both to their common
+     overlap (they occasionally differ by a row or column).</p>
+
+  <h4>Step 2 — Put every dataset on one 10 m grid</h4>
+  <p>Sentinel-2 records different bands at different resolutions (10 m, 20 m, 60 m). Our features mix
+     bands across resolutions, so all bands are <b>nearest-neighbour upsampled to 10 m</b>. Nearest
+     neighbour, not bilinear — interpolation would <b>invent</b> reflectance values that were never
+     measured, and a fake bright pixel next to a real debris pixel is exactly the kind of false
+     positive we are trying to eliminate.</p>
+
+  <h4>Step 3 — Select 5 bands out of 11</h4>
+  <p>We keep only <code>B04, B06, B08, B8A, B11</code>. Not to save space — because <b>the live
+     satellite pipeline only downloads these five</b>. Training on bands we cannot fetch at run time
+     would produce a model that is useless in production. The training contract is deliberately
+     handcuffed to the operational contract.</p>
+
+  <h4>Step 4 — Fix the scale to reflectance 0–1</h4>
+  <p>Some providers ship integers 0–10,000; some ship reflectance 0–1. Everything is normalised to
+     0–1 so a pixel means the same thing regardless of which dataset it came from.</p>
+
+  <h4>Step 5 — Compute the features</h4>
+  <p>Apply the FDI and NDVI formulas → <b>7 base features</b>. Later, in the trainer, apply
+     <code>augment11()</code> → <b>11 features</b>. Both stages are pure arithmetic on the five bands.</p>
+
+  <h4>Step 6 — Map 15 research classes down to our 4</h4>
+  <table>
+    <tr><th>Our class</th><th>MARIDA source classes</th><th>MADOS source classes</th></tr>
+    <tr><td><b>Plastic (0)</b></td><td>Marine Debris</td><td>Marine Debris</td></tr>
+    <tr><td><b>Algae (1)</b></td><td>Dense Sargassum, Sparse Sargassum, Natural Organic Material</td>
+        <td>Dense Sargassum, Sparse Floating Algae, Natural Organic Material</td></tr>
+    <tr><td><b>Sea Foam (2)</b></td><td>Foam</td><td>Foam</td></tr>
+    <tr><td><b>Water (3)</b></td><td>Marine Water, Sediment-Laden Water, Turbid Water, Shallow Water, Mixed Water</td>
+        <td>Marine Water, Sediment-Laden Water, Turbid Water, Shallow Water, + verified class 6</td></tr>
+    <tr><td class="small"><b>Dropped</b></td>
+        <td class="small">Ship, Clouds, Waves, Cloud Shadows, Wakes</td>
+        <td class="small">Oil Spills, Oil Platforms, Sea Snot, Jellyfish, Waves &amp; Wakes</td></tr>
+  </table>
+  <div class="note">
+    <b>One mapping choice is our best anti-false-positive trick.</b> Sending
+    <b>Sediment-Laden and Turbid Water → Water</b> is deliberate. Muddy monsoon coastal water is
+    <i>bright</i> and produces a high FDI, so a naive index-threshold detector screams "plastic" all
+    along the Indian coast in monsoon season. By feeding thousands of labelled turbid-water pixels in
+    as <b>Water</b>, we teach the network directly that bright brown water is not debris.
+  </div>
+
+  <h4>Step 7 — Drop non-finite pixels</h4>
+  <p>Any pixel whose 7 features are not all finite (division by zero, nodata gaps, sensor artefacts) is
+     dropped: <code>np.isfinite(px).all(axis=1)</code>. One <code>NaN</code> reaching a gradient turns
+     every weight in the network to <code>NaN</code>.</p>
+
+  <h4>Step 8 — Respect the official splits</h4>
+  <p>Both MARIDA and MADOS ship <b>official train/val/test split files</b>, and we use them verbatim
+     rather than shuffling all pixels randomly. This matters enormously: neighbouring pixels in one
+     scene are almost identical, so a random split leaks the test set into training and inflates every
+     score. RFO is split by <b>scene</b> (train: Accra, Lagos, New Orleans, Venice — test: Durban,
+     Marmara) and PLP by <b>date</b> (earlier dates train, latest 30 % test), for the same reason.</p>
+
+  <h4>Step 9 — Cache to .npz</h4>
+  <p>The result is saved compressed. This is not just a speed trick — it <b>decouples the
+     environments</b>. Reading GeoTIFFs needs rasterio/GDAL; training needs a CUDA PyTorch build.
+     Getting both into one Python environment on Windows is painful. Caching means the GPU trainer
+     only ever loads <code>.npz</code> files and needs neither.</p>
+
+  <h4>Step 10 — Standardise inside the model, not outside</h4>
+  <p>Neural networks want inputs centred near zero. Rather than normalising in a preprocessing script
+     the engine would then have to replicate exactly, we store the training mean and standard deviation
+     as <b>buffers inside the network</b> and subtract them in <code>forward()</code>. When exported,
+     the ONNX file therefore <b>consumes raw features</b>. There is no external normalisation step that
+     could drift out of sync — a whole class of production bug is designed out of existence.</p>
+
+  <div class="chain">GeoTIFF → 10 m grid → 5 bands → reflectance 0-1 → 7 features → 15→4 labels
+        → drop NaN → official split → .npz cache → augment11 → [n, 11] + [n]</div>
+</div>
+
+<!-- ============================ 6. THE MODEL ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 6</div>
+  <h2 class="sec">The model we trained</h2>
+
+  <h3>Architecture</h3>
+  <p>
+    Three independent <b>multi-layer perceptrons</b>, each with layer widths
+    <b>11 → 256 → 128 → 64 → 32 → 4</b>, ReLU activations and dropout between hidden layers. At
+    inference all three run and their raw outputs (logits) are <b>averaged</b> before the winner is
+    picked. About <b>141,000 parameters</b> total; the exported file is <b>551 KB</b>.
+  </p>
+  <div class="chain">   11 features
+        │
+   ┌────┴────┬─────────┐          seed 1        seed 2        seed 3
+   ▼         ▼         ▼        256-128-64-32  256-128-64-32  256-128-64-32
+ MLP #1    MLP #2    MLP #3      (identical shape, different random init)
+   │         │         │
+   └────┬────┴─────────┘
+        ▼
+   average the 3 logit vectors
+        ▼
+   softmax  →  Plastic / Algae / Sea_Foam / Water  + confidence</div>
+
+  <h3>Why an MLP and not a CNN — we tested it, we did not assume it</h3>
+  <p>
+    The obvious choice for satellite imagery is a convolutional network that sees spatial context.
+    <b>We built one</b> — a residual ResNet-style CNN on 64×64×6 patches, GPU-trained
+    (<code>train_patch_cnn.py</code>) — and evaluated it on the <i>identical</i> held-out test.
+    It lost, badly and instructively:
+  </p>
+
+  <table>
+    <tr><th>Model</th><th class="num">Train accuracy</th><th class="num">Held-out macro-F1</th><th>Diagnosis</th></tr>
+    <tr><td>Patch CNN (ResNet, 64×64×6)</td><td class="num">0.9872</td><td class="num">0.555</td>
+        <td><b>Memorised scenes.</b> Huge train–test gap: with only a few hundred distinct
+            acquisitions, 64×64 texture identifies <i>the scene</i>, not the plastic.</td></tr>
+    <tr class="hi"><td><b>Per-pixel MLP ensemble</b></td><td class="num">0.9899</td><td class="num"><b>0.818</b></td>
+        <td>The spectral signature of plastic is a <b>physical</b> property that transfers to any sea;
+            texture is not.</td></tr>
+  </table>
+
+  <p>
+    The CNN is kept in the repository behind an opt-in environment variable
+    (<code>CNN_MODEL_PATH</code>) and its 0.555 is published in <code>metrics.json</code>. It is a
+    <b>reported negative result</b>, not a hidden failure — and it is the single strongest evidence
+    that our architecture choice was measured rather than guessed.
+  </p>
+
+  <h3>The second stage: Clay v1.5 as a verifier</h3>
+  <p>
+    We also wired in <b>Clay v1.5</b>, an open geospatial foundation model. Its encoder is
+    <b>frozen</b> — we do not retrain it — and we trained only a small <code>1024 → 256 → 4</code> head
+    on top of the 1024-dimensional embeddings it produces for a 64×64 chip.
+  </p>
+  <table>
+    <tr><th>On identical held-out chips</th><th class="num">Clay + head</th><th class="num">Our MLP</th><th class="num">Scratch CNN</th></tr>
+    <tr><td>macro-F1</td><td class="num"><b>0.711</b></td><td class="num">0.690</td><td class="num">0.555</td></tr>
+    <tr><td>Debris recall, brand-new seas (Durban + Marmara)</td><td class="num"><b>0.542</b></td><td class="num">0.222</td><td class="num">—</td></tr>
+    <tr><td>Water false-positive rate on those seas</td><td class="num">7.6 %</td><td class="num"><b>0.4 %</b></td><td class="num">—</td></tr>
+  </table>
+  <p>
+    Read that table carefully, because it explains our design. A pretrained backbone <b>fixes the
+    scene-overfitting that killed our own CNN</b> and catches <b>2.4× more debris in seas it has never
+    seen</b> — but it is far more trigger-happy over open water, and its own plastic F1 is only 0.37.
+    So Clay is <b>not</b> the detector. Our MLP detects; Clay <b>confirms</b>. When both agree that a
+    patch is plastic, measured precision rises to <b>0.92</b>. Two independent methods agreeing is a
+    stronger claim than either alone.
+  </p>
+</div>
+
+<!-- ============================ 7. TRAINING ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 7</div>
+  <h2 class="sec">How training actually worked</h2>
+  <p class="intro">
+    Hardware: one <b>NVIDIA RTX 4050 laptop GPU</b>. Framework: PyTorch, in a separate conda
+    environment (<code>mpt-train</code>) that is kept entirely out of the production engine.
+  </p>
+
+  <h3>The basic loop</h3>
+  <ol>
+    <li>Load the cached <code>.npz</code> arrays — MARIDA + MADOS training splits plus the 3,789 RFO
+        points from the four training scenes — and compute the 11 features.</li>
+    <li>Compute the training mean/std and store them <b>inside</b> the model.</li>
+    <li>For each epoch: shuffle, walk through in mini-batches of <b>8,192</b> pixels, forward pass,
+        compute loss, backpropagate, step <b>AdamW</b> (learning rate 2×10⁻³, cosine decay,
+        weight decay 10⁻⁴), with mixed-precision on the GPU.</li>
+    <li>After every epoch, score <b>macro-F1 on the validation split</b> and keep a snapshot if it
+        improved.</li>
+    <li>At the end, <b>restore the best-validation epoch</b> — not the last one.</li>
+  </ol>
+  <div class="note">
+    <b>Point 4 and 5 are the honesty mechanism.</b> Epoch selection uses <b>macro-F1</b>, not accuracy,
+    on the <b>validation</b> split — never the test split. The 499,907 test pixels are touched exactly
+    once, at the very end. Nothing about them influenced any choice.
+  </div>
+
+  <h3>The three techniques that beat the 1,134 : 1 imbalance</h3>
+
+  <div class="card">
+    <h4>1. Focal loss <span class="pill ours">written by us, 8 lines</span></h4>
+    <p style="margin:4px 0">
+      Ordinary cross-entropy gives every pixel an equal vote, so a million easy water pixels drown out
+      four thousand hard plastic ones. Focal loss (Lin et al. 2017) multiplies each pixel's loss by
+      <code>(1 − p_correct)^γ</code> with <b>γ = 1.5</b>. A water pixel the model already gets right
+      with 99 % confidence contributes almost nothing; a plastic pixel it is unsure about contributes
+      almost fully. <b>Attention is redirected to the hard, rare classes.</b>
+    </p>
+  </div>
+
+  <div class="card">
+    <h4>2. Class-balanced weights <span class="pill ours">written by us</span></h4>
+    <p style="margin:4px 0">
+      Each class is additionally weighted by the <b>effective number of samples</b>
+      (Cui et al. 2019): <code>w_c ∝ (1 − β) / (1 − β^n_c)</code> with <b>β = 0.999</b>. This is
+      deliberately gentler than plain inverse-frequency, and we chose it after being burned:
+      full inverse-frequency weighting made an earlier model flag Sea Foam at
+      <b>1.6 % precision</b> — a flood of false positives.
+    </p>
+  </div>
+
+  <div class="card">
+    <h4>3. Folded bias calibration <span class="pill ours">written by us</span></h4>
+    <p style="margin:4px 0">
+      Even a well-trained network's raw <i>argmax</i> is not the macro-F1-optimal decision boundary
+      under extreme imbalance. So after training we run <b>coordinate ascent</b> over a small grid of
+      per-class logit offsets, keeping whatever maximises <b>validation</b> macro-F1 — then
+      <b>add those offsets into the final layer's bias vector</b>. The exported model needs no
+      threshold logic at run time: plain argmax is already calibrated. This was the single largest
+      macro-F1 lever we found.
+    </p>
+  </div>
+
+  <div class="card">
+    <h4>4. Three seeds, averaged</h4>
+    <p style="margin:4px 0">
+      Train the same architecture three times from different random initialisations and average the
+      logits. Each network makes slightly different mistakes; averaging cancels the uncorrelated ones.
+      <b>Nothing is free</b> — see the trade below.
+    </p>
+  </div>
+
+  <h3>The trade we made on purpose</h3>
+  <p>
+    A single calibrated 11-feature model actually scored a <b>higher headline macro-F1</b> than the
+    ensemble. We shipped the ensemble anyway:
+  </p>
+  <table>
+    <tr><th>Metric</th><th class="num">Single model</th><th class="num">3-seed ensemble (shipped)</th><th>Verdict</th></tr>
+    <tr><td>macro-F1 (headline)</td><td class="num">0.8242</td><td class="num">0.8175</td><td>slightly worse ✗</td></tr>
+    <tr class="hi"><td><b>Plastic F1</b></td><td class="num">0.742</td><td class="num"><b>0.799</b></td><td>better ✓</td></tr>
+    <tr class="hi"><td><b>Plastic precision</b></td><td class="num">0.652</td><td class="num"><b>0.776</b></td><td>much better ✓</td></tr>
+    <tr class="hi"><td><b>False plastic over open water, new seas</b></td><td class="num">3.0 %</td><td class="num"><b>0.7 %</b></td><td>4× better ✓</td></tr>
+  </table>
+  <p>
+    <b>The reasoning is operational, not statistical.</b> This system dispatches boats and crews.
+    A false alarm sends a real crew to empty water and burns credibility; a slightly lower average
+    score across four classes costs nothing operationally. We optimised for <b>plastic precision</b>
+    and accepted 0.007 of macro-F1 to get <b>four times fewer false alarms</b>. That choice, and the
+    fact that we can show the numbers on both sides of it, is the point.
+  </p>
+
+  <h3>Export, and proving the export is faithful</h3>
+  <p>
+    The trained PyTorch model is exported to <b>ONNX</b> (opset 13) so the production engine can run it
+    with <code>onnxruntime</code> and <b>never needs PyTorch installed</b> — the engine is numpy +
+    onnxruntime only. Export can silently change numerics, so we verify: push 256 random vectors
+    through both PyTorch and the exported ONNX and compare predictions.
+    <b>Agreement = 1.0000</b>, recorded in <code>metrics.json</code>. The thing we measured is
+    <i>exactly</i> the thing that ships.
+  </p>
+  <div class="chain">$ conda run -n mpt-train python -m ml.train_perpixel_gpu \
+      --epochs 80 --loss focal --weights cb --hidden 256,128,64,32 --calibrate</div>
+  <p class="small">
+    Nothing is promoted automatically. The trainer writes candidates
+    (<code>marinenet_pp7.onnx</code>, <code>marinenet_pp11.onnx</code>) plus a head-to-head verdict
+    against the currently shipped model on an identical test set. A human reads the verdict and copies
+    the winner over <code>marinenet.onnx</code>. Every superseded model is kept
+    (<code>marinenet_pre_*.onnx</code>) so any claim can be re-checked.
+  </p>
+</div>
+
+<!-- ============================ 8. RESULTS ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 8</div>
+  <h2 class="sec">Results — how accurate is it, really</h2>
+  <p class="intro">
+    All figures below are on the <b>499,907 held-out pixels</b> the model never saw during training or
+    model selection. They come from <code>python_engine/models/metrics.json</code> and were
+    re-measured against the shipped ONNX file while this document was written.
+  </p>
+
+  <h3>Headline</h3>
+  <table>
+    <tr><th>Metric</th><th class="num">Value</th><th>How to read it</th></tr>
+    <tr class="hi"><td><b>Macro-F1</b></td><td class="num"><b>0.8175</b></td>
+        <td><b>Lead with this.</b> Average F1 across all four classes, each counting equally.</td></tr>
+    <tr><td>Accuracy</td><td class="num">0.9899</td>
+        <td><b>Water-inflated — always caption it.</b> Water is 98 % of pixels; "always water" scores ~0.98.</td></tr>
+    <tr><td>Balanced macro-F1</td><td class="num">0.8776</td>
+        <td>Same metric on a class-balanced subsample (Water capped at 4,000 pixels).</td></tr>
+    <tr><td>Test pixels</td><td class="num">499,907</td><td>Official MARIDA + MADOS test splits.</td></tr>
+    <tr><td>ONNX ↔ PyTorch agreement</td><td class="num">1.0000</td><td>The exported file is the model we measured.</td></tr>
+  </table>
+
+  <h3>Per class</h3>
+  <table>
+    <tr><th>Class</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th><th>In plain words</th></tr>
+    <tr class="hi"><td><b>Plastic</b></td><td class="num">0.776</td><td class="num">0.824</td><td class="num"><b>0.799</b></td>
+        <td>Of every 100 pixels called plastic, ~78 really are. Of all real plastic present, it finds ~82 %.</td></tr>
+    <tr><td>Algae</td><td class="num">0.648</td><td class="num">0.822</td><td class="num">0.725</td>
+        <td>Finds most algae but over-calls it — the weakest class.</td></tr>
+    <tr><td>Sea Foam</td><td class="num">0.681</td><td class="num">0.835</td><td class="num">0.750</td>
+        <td>Respectable given only <b>938</b> training examples exist.</td></tr>
+    <tr><td>Water</td><td class="num">0.998</td><td class="num">0.993</td><td class="num">0.995</td>
+        <td>Near-perfect — and the reason accuracy alone is misleading.</td></tr>
+  </table>
+
+  <h3>Confusion matrix — where the mistakes actually go</h3>
+  <p class="small">Rows = ground truth · Columns = model's prediction · green diagonal = correct</p>
+  <table class="cm">
+    <tr><th></th><th>→ Plastic</th><th>→ Algae</th><th>→ Foam</th><th>→ Water</th><th class="num">Total</th></tr>
+    <tr><td class="rowh">Plastic</td><td class="diag">1,116</td><td>93</td><td>10</td><td class="bad">135</td><td class="num">1,354</td></tr>
+    <tr><td class="rowh">Algae</td><td class="bad">186</td><td class="diag">6,024</td><td>142</td><td>976</td><td class="num">7,328</td></tr>
+    <tr><td class="rowh">Sea Foam</td><td class="bad">48</td><td>10</td><td class="diag">646</td><td>70</td><td class="num">774</td></tr>
+    <tr><td class="rowh">Water</td><td class="bad">88</td><td>3,163</td><td>150</td><td class="diag">487,050</td><td class="num">490,451</td></tr>
+  </table>
+  <p>
+    Three things a panel should notice:
+  </p>
+  <ul>
+    <li><b>Only 88 of 490,451 water pixels</b> were called plastic — a <b>0.018 %</b> false-alarm rate
+        on the class that dominates every real scan. This is the number that makes the system usable.</li>
+    <li>The main plastic confusion is <b>135 plastic pixels called water</b> (missed, usually faint or
+        partly-filled pixels) and <b>186 algae pixels called plastic</b> — the physically hardest
+        confusion, since sargassum and plastic genuinely overlap spectrally.</li>
+    <li>The largest single error, <b>3,163 water pixels called algae</b>, is a nuisance rather than a
+        risk: it depresses algae precision but never dispatches a crew, because only <i>plastic</i>
+        drives hotspots and dispatch.</li>
+  </ul>
+
+  <h3>Per dataset — and why they differ</h3>
+  <table>
+    <tr><th>Test set</th><th class="num">Pixels</th><th class="num">Accuracy</th><th class="num">Macro-F1</th><th class="num">Plastic F1</th></tr>
+    <tr><td>MARIDA</td><td class="num">153,762</td><td class="num">0.9981</td><td class="num">0.9047</td><td class="num">0.822</td></tr>
+    <tr><td>MADOS</td><td class="num">346,145</td><td class="num">0.9862</td><td class="num">0.7843</td><td class="num">0.791</td></tr>
+    <tr class="hi"><td><b>Combined (reported)</b></td><td class="num"><b>499,907</b></td><td class="num">0.9899</td><td class="num"><b>0.8175</b></td><td class="num">0.799</td></tr>
+  </table>
+  <p>
+    MADOS is harder — sparser annotation, more scenes, messier coastal water. <b>We report the
+    combined figure, which is the lower one.</b> Quoting MARIDA's 0.905 alone would be cherry-picking.
+  </p>
+
+  <h3>The two-tier confidence system</h3>
+  <p>
+    A single model gives one number; operations needs two answers — "show me everything that might be
+    plastic" and "show me only what I would send a boat to". So we swept the plastic-probability
+    threshold across the held-out test and published the trade-off curve. These rows were
+    <b>re-measured live</b> for this document:
+  </p>
+  <table>
+    <tr><th>Threshold on P(plastic)</th><th class="num">Pixels flagged</th><th class="num">Precision</th><th class="num">Recall</th><th>Used for</th></tr>
+    <tr><td>argmax (no filter)</td><td class="num">1,438</td><td class="num">0.776</td><td class="num">0.824</td><td>Nothing — too noisy for dispatch</td></tr>
+    <tr><td>≥ 0.50</td><td class="num">1,220</td><td class="num">0.838</td><td class="num">0.755</td><td>—</td></tr>
+    <tr class="hi"><td><b>≥ 0.648 → "HIGH"</b></td><td class="num">850</td><td class="num"><b>0.901</b></td><td class="num">0.566</td>
+        <td><b>Hotspots and crew dispatch use this tier only</b></td></tr>
+    <tr><td>≥ 0.79</td><td class="num">232</td><td class="num">0.948</td><td class="num">0.163</td><td>Available if a mission needs near-certainty</td></tr>
+  </table>
+  <p>
+    <b>0.648 is not a guess</b> — it is the threshold at which measured precision crosses 90 %.
+    Everything below it still appears on the map, clearly labelled as a lower-confidence detection.
+    <b>We trade recall for precision on purpose</b>, because the cost of a wasted patrol is much higher
+    than the cost of missing one patch that the next 5-day satellite pass will likely catch again.
+  </p>
+
+  <h3>Adding Clay: the confirmation tier</h3>
+  <table>
+    <tr><th>Decision</th><th class="num">Precision</th><th class="num">Recall</th><th>Shown in the app as</th></tr>
+    <tr><td>MLP plastic, HIGH tier</td><td class="num">0.901</td><td class="num">0.566</td><td>Plastic detection</td></tr>
+    <tr class="hi"><td><b>MLP + Clay both agree</b></td><td class="num"><b>0.922</b></td><td class="num">0.704</td><td><b>CONFIRMED</b></td></tr>
+    <tr><td>MLP plastic, Clay disagrees</td><td class="num">—</td><td class="num">—</td><td>POSSIBLE (downgraded, still visible)</td></tr>
+  </table>
+</div>
+
+<!-- ============================ 9. HONEST LIMITS ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 9</div>
+  <h2 class="sec">The independent exams — including the one we fail</h2>
+  <p class="intro">
+    MARIDA and MADOS are the benchmarks we trained on, so good scores there are necessary but not
+    sufficient. <b>Durban and Marmara</b> (RFO) and <b>every PLP target</b> were never trained on.
+    Both results are published in-app, not buried.
+  </p>
+
+  <h3>Exam 1 — RFO: two seas the model has never seen</h3>
+  <p>
+    RFO's six scenes are split <b>by scene</b>, not randomly: Accra, Lagos, New Orleans and Venice
+    contribute training points; <b>Durban and Marmara</b> are withheld entirely — 900 hand-refined
+    points in two unfamiliar bodies of water. Measured live for this document:
+  </p>
+  <table>
+    <tr><th>Metric</th><th class="num">Result</th><th>Reading</th></tr>
+    <tr class="hi"><td><b>False plastic over open water</b></td><td class="num"><b>0.74 %</b></td>
+        <td>The critical number. In two unfamiliar seas it stays calm: ~7 false alarms per 1,000 water points.</td></tr>
+    <tr><td>Debris recall</td><td class="num">30.7 %</td>
+        <td>It finds under a third of the flagged debris. Honest and expected — see below.</td></tr>
+  </table>
+  <p>
+    Why recall drops from 82 % to 31 %: RFO's "debris" points are <b>mixed floating matter</b> — wood,
+    sargassum and litter together — while we trained on "Marine Debris". Missing a floating log is
+    arguably correct behaviour for a plastic detector. And crucially, the failure mode is
+    <b>conservative</b>: it misses things rather than inventing them.
+  </p>
+  <h3>Why RFO's training scenes are in the model — measured, by ablation</h3>
+  <p>
+    We did not simply assume the extra data helped. We trained the <b>identical ensemble recipe twice</b>
+    — same seeds, same configuration, RFO in versus RFO out — and scored both on the same held-out test:
+  </p>
+  <table>
+    <tr><th>Ensemble variant</th><th class="num">Macro-F1</th><th class="num">Plastic precision</th><th class="num">Plastic recall</th><th class="num">Plastic F1</th></tr>
+    <tr><td>Without RFO training points</td><td class="num">0.747</td><td class="num">0.694</td><td class="num">0.901</td><td class="num">0.784</td></tr>
+    <tr class="hi"><td><b>With RFO (shipped)</b></td><td class="num"><b>0.818</b></td><td class="num"><b>0.776</b></td><td class="num">0.824</td><td class="num"><b>0.799</b></td></tr>
+  </table>
+  <p>
+    <b>The mechanism is worth stating precisely:</b> RFO's value is not more plastic examples — it is
+    <b>diverse global water <i>negatives</i></b> from six unrelated seas. Those sharpen the water/plastic
+    boundary, which is why <b>precision</b> rises by 8 points while recall drops slightly. More
+    negatives, not more positives, is what bought the reliability.
+  </p>
+  <p class="small">
+    Historical note for completeness: an <i>earlier, pre-ensemble</i> single model that added RFO lost
+    ground on the primary benchmark (0.787 → 0.767) and was rejected at the time — that experiment is
+    still recorded in <code>metrics.json</code> under <code>rfoExperiment</code>. It was the later
+    ensemble recipe, with focal loss and calibration, that turned RFO into a clear win. Both records are
+    kept, so the decision trail is auditable rather than retrofitted.
+  </p>
+
+  <h3>Exam 2 — PLP: real plastic, physically deployed. We score 0 / 33.</h3>
+  <div class="honest">
+    <b>Published, not hidden.</b> The Plastic Litter Project floated real HDPE and PVC targets in the
+    Aegean at known coordinates on known dates. On the date-disjoint held-out split — <b>33 pixels of
+    genuinely verified plastic</b> — our shipped model detects <b>0</b>.
+    <br><br>
+    It also raised <b>0 false plastics on the 120 held-out water pixels</b> from the same scenes,
+    which tells you the model is not broken; it simply cannot see these targets.
+  </div>
+  <p><b>Why, physically:</b> the targets are <b>3.5–14 m across</b>. A Sentinel-2 pixel is
+     <b>10 m × 10 m = 100 m²</b>. A 28 m² target fills roughly a quarter of one pixel, so the pixel the
+     satellite records is <b>~75–90 % water</b>. The plastic signature is diluted below anything a
+     spectral classifier can recover. This is a <b>resolution limit of the sensor</b>, not a defect in
+     our training.</p>
+
+  <p><b>And we proved it is a resolution limit rather than a data gap</b>, by testing the obvious
+     objection — "just train on PLP too":</p>
+  <table>
+    <tr><th>Model</th><th class="num">Plastic precision</th><th class="num">PLP targets found</th><th>Decision</th></tr>
+    <tr class="hi"><td><b>Shipped (no PLP in training)</b></td><td class="num"><b>0.776</b></td><td class="num">0 / 33</td><td>Kept</td></tr>
+    <tr><td>Retrained with PLP included</td><td class="num">0.660</td><td class="num">2 / 33</td><td><b>Rejected</b></td></tr>
+  </table>
+  <p>
+    Teaching the network that water-like spectra are "plastic" bought <b>2 extra sub-pixel targets</b>
+    and cost <b>12 points of plastic precision</b> — thousands of new false positives across a real
+    scan. We did not promote it. <b>Reporting a tested negative result is stronger science than hiding
+    it</b>, and we would rather the panel hear it from us with the numbers than discover it themselves.
+  </p>
+  <p class="small">
+    A looser variant of the same test — allowing a 3-pixel search window around each target across all
+    21 dates — does register a plastic hit on <b>7 of 21 dates (33 %)</b>. Both figures are recorded in
+    <code>metrics.json</code>. We lead with the strict 0/33 because it is the less flattering one.
+  </p>
+
+  <h3>The ceiling, stated plainly</h3>
+  <div class="warn">
+    <b>Plastic F1 cannot be pushed to 0.95 with Sentinel-2 spectral data, by us or by anyone.</b>
+    Plastic overlaps algae, foam and wet wood spectrally, and real debris is frequently sub-pixel at
+    10 m. The remaining levers are not better training recipes — they are <b>higher-resolution imagery</b>
+    (PlanetScope 3 m, drones), <b>SAR</b>, or <b>multi-temporal fusion</b>: different projects, not
+    tuning runs. So the honest claim is not "we detect plastic better than the field".
+    It is: <b>when we say HIGH-confidence plastic, we are right about 9 times out of 10, and we can
+    show you exactly how we know that.</b> We sell precision, and transparency about the limits.
+  </div>
+
+  <p><b>Other limits we disclose in the app rather than in a footnote:</b></p>
+  <ul>
+    <li>The drift forecast's physics harness exists (Liu–Weisberg skill score) but has
+        <b>not yet been validated against real drifter tracks</b>, so ETAs are labelled as estimates.</li>
+    <li>The biofouling correction is a <b>labelled heuristic</b>, and is off by default.</li>
+    <li>Satellites pass every ~5 days and cannot see through cloud. Each pixel is 10 m, so only
+        <b>large patches</b> are visible — never a single bottle. The app states this on its own
+        landing page.</li>
+  </ul>
+</div>
+
+<!-- ============================ 10. WHAT WE BUILT ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 10</div>
+  <h2 class="sec">What we implemented ourselves</h2>
+  <p class="intro">
+    The fair question is: where does the library end and the project begin?
+    Here is the line, itemised. <span class="pill ours">OURS</span> = code we wrote.
+    <span class="pill lib">LIBRARY</span> = something standard we used.
+  </p>
+
+  <table>
+    <tr><th>Component</th><th>Who</th><th>What it involved</th><th>File</th></tr>
+    <tr><td><b>Four-class label mapping</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Condensing 15 research classes to 4 for both datasets, including the anti-false-positive
+            turbid-water decision and <b>empirically validating</b> MADOS's renumbering by mean spectra
+            rather than trusting the docs.</td>
+        <td><code>datasets/marida.py</code>, <code>datasets/mados.py</code></td></tr>
+    <tr><td><b>11-feature spectral contract</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Choosing the features, implementing FDI/NDVI/PI/MNDWI/NDVI_RE/BRIGHT, and mirroring the
+            exact order in three places so training and inference can never diverge.</td>
+        <td><code>augment11()</code>, <code>inference_engine._features</code>, <code>model_loader.FEATURE_NAMES</code></td></tr>
+    <tr><td><b>Four dataset adapters</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Wavelength-sorted band stacking, multi-resolution resampling, coordinate reprojection of
+            deployed targets, per-scene reflectance scaling, scene- and date-disjoint splitting,
+            <code>.npz</code> caching.</td>
+        <td><code>ml/datasets/*.py</code></td></tr>
+    <tr><td><b>Focal loss</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Implemented directly in ~8 lines with optional label smoothing — not imported.</td>
+        <td><code>train_perpixel_gpu.py:106</code></td></tr>
+    <tr><td><b>Class-balanced weights</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Effective-number-of-samples weighting, with the <code>β</code> chosen after a documented
+            failure of plain inverse-frequency weighting.</td>
+        <td><code>cb_weights()</code></td></tr>
+    <tr><td><b>Bias calibration</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Coordinate-ascent search over per-class logit offsets against validation macro-F1, then
+            folded into the final layer so the export stays a plain argmax drop-in.</td>
+        <td><code>calibrate_bias()</code></td></tr>
+    <tr><td><b>Metrics + evaluation harness</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Confusion matrix, per-class precision/recall/F1, macro-F1, balanced-subsample view,
+            per-dataset breakdown, automatic head-to-head verdict against the shipped model.</td>
+        <td><code>_confusion</code>, <code>_prf</code>, <code>_macro_f1</code>, <code>report()</code></td></tr>
+    <tr><td><b>Ensembling &amp; promotion policy</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Three seeds averaged into one exported graph; nothing auto-promoted; every superseded model
+            retained for re-checking.</td>
+        <td><code>models/marinenet*.onnx</code></td></tr>
+    <tr><td><b>ONNX export + parity proof</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Export with dynamic batch axis, plus a 256-vector PyTorch-vs-ONNX agreement check
+            (=&nbsp;1.0000) recorded in the model card.</td>
+        <td><code>export_onnx()</code></td></tr>
+    <tr><td><b>Hand-written MLP baseline</b></td><td><span class="pill ours">OURS</span></td>
+        <td>A complete <b>pure-NumPy</b> MLP — forward pass, manual backpropagation, Adam optimiser
+            hand-implemented, standardisation algebraically folded into the first Gemm, and the ONNX
+            graph <b>hand-constructed node by node</b> with <code>onnx.helper</code>. No autograd
+            anywhere. Written to prove we understand what PyTorch does for us.</td>
+        <td><code>ml/train.py</code></td></tr>
+    <tr><td><b>Two-tier confidence system</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Threshold sweep on held-out data, 0.648 chosen where precision crosses 90 %, wired through
+            to hotspot clustering and dispatch so only HIGH-tier plastic can send a crew.</td>
+        <td><code>config.py:63</code>, <code>batch_classifier.py</code>, <code>main_pipeline.py:89</code></td></tr>
+    <tr><td><b>Clay verifier path</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Frozen-encoder head training, embedding cache, a <b>pure-NumPy</b> cosine similarity index
+            (so the production engine needs no PyTorch), plastic-affinity and novelty scores, and the
+            confidence-fusion rule calibrated to 0.92 precision.</td>
+        <td><code>clay_*.py</code>, <code>similarity_service.py</code>, <code>confidence_fusion.py</code></td></tr>
+    <tr><td><b>Production inference path</b></td><td><span class="pill ours">OURS</span></td>
+        <td>Lazy thread-safe model loading (so two concurrent scans can't observe a half-loaded model
+            and silently fall back), automatic CUDA provider with CPU fallback, a
+            <code>REQUIRE_MODEL</code> strict mode that refuses to run un-benchmarked heuristics, and a
+            model card served over HTTP to the UI.</td>
+        <td><code>model_loader.py</code>, <code>inference_engine.py</code></td></tr>
+    <tr><td>Neural network primitives, autograd, CUDA kernels</td><td><span class="pill lib">LIBRARY</span></td>
+        <td>PyTorch (training only), NumPy, onnxruntime (serving), rasterio/GDAL (GeoTIFF reading),
+            pyproj (reprojection).</td><td>—</td></tr>
+    <tr><td>Datasets and the Clay backbone</td><td><span class="pill lib">LIBRARY</span></td>
+        <td>Published research artefacts, cited. We wrote every line that reads, cleans, labels,
+            splits, trains on, evaluates and serves them.</td><td>—</td></tr>
+  </table>
+</div>
+
+<!-- ============================ 11. RUNTIME ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 11</div>
+  <h2 class="sec">How the model gets its data when the app is running</h2>
+  <p class="intro">
+    Training is offline and finished. This is what happens live when an analyst draws a box on the map
+    and presses <b>Scan</b> — the same 11 features, computed by the same formulas, on fresh satellite
+    pixels instead of cached ones.
+  </p>
+
+  <div class="flow">
+    <div class="step"><div class="n">STAGE 1</div><div class="t">Find a scene</div><div class="d">Query Copernicus for Sentinel-2 passes over the box; pick the least-cloudy composite under 50 % cloud.</div></div>
+    <div class="step"><div class="n">STAGE 2</div><div class="t">Download 5 bands</div><div class="d">Fetch <code>B04 B06 B08 B8A B11</code> at native 10 m resolution.</div></div>
+    <div class="step"><div class="n">STAGE 3</div><div class="t">Mask</div><div class="d">Drop cloud, cirrus, shadow, snow, land and nodata pixels via the scene's own SCL layer.</div></div>
+    <div class="step"><div class="n">STAGE 4</div><div class="t">FDI screen</div><div class="d">Compute FDI for every surviving pixel; keep only <code>FDI &gt; 0.02</code> as candidates.</div></div>
+    <div class="step"><div class="n">STAGE 5</div><div class="t">Classify</div><div class="d">Build the 11 features per candidate → <code>marinenet.onnx</code> → class + confidence.</div></div>
+    <div class="step"><div class="n">STAGE 6</div><div class="t">Cluster</div><div class="d">Group <b>HIGH-tier plastic only</b> into hotspots and score severity.</div></div>
+    <div class="step"><div class="n">STAGE 7</div><div class="t">Forecast</div><div class="d">Push each hotspot 72 h forward on real currents + wind; raise alerts.</div></div>
+  </div>
+
+  <div class="note">
+    <b>Why the FDI screen comes before the model.</b> A modest scan area contains <b>millions</b> of
+    pixels. Running a network on every one is wasteful, and the physics already tells us that debris
+    must sit above the water baseline in the near-infrared. FDI is a cheap, published, interpretable
+    filter that reduces millions of pixels to a handful of candidates; the network then does the
+    genuinely hard part — deciding <i>which kind</i> of floating thing each candidate is. This is also
+    why RFO/PLP recall measured through the full pipeline is lower than the model alone: a pixel has to
+    clear the FDI gate before the model ever sees it.
+  </div>
+
+  <div class="card">
+    <h4>Fail-loud design</h4>
+    <p style="margin:4px 0">
+      If the ONNX file is missing or fails to load, the engine <i>can</i> fall back to a hand-written
+      spectral rule set — but it <b>logs an error, banners the UI, and tags the result "heuristic"</b>,
+      and with <code>REQUIRE_MODEL=1</code> it refuses to run at all. An un-benchmarked fallback must
+      never be able to masquerade as a benchmarked model. Model loading is also behind a lock, so a
+      second concurrent scan cannot catch a half-loaded state and silently degrade.
+    </p>
+  </div>
+
+  <h3>Reproduce any number in this document, live</h3>
+  <div class="chain"># rebuild a dataset cache from raw GeoTIFFs
+python -m ml.datasets.marida          python -m ml.datasets.mados
+python -m ml.datasets.rfo             python -m ml.datasets.plp
+
+# retrain on the GPU (writes candidates + a head-to-head verdict, promotes nothing)
+conda run -n mpt-train python -m ml.train_perpixel_gpu \
+    --epochs 80 --loss focal --weights cb --hidden 256,128,64,32 --calibrate
+
+# independent exams
+python -m ml.validate_plp             # deployed HDPE targets
+python -m ml.validate_plp_clay        # + the Clay confirmation tier</div>
+  <p>
+    The app itself carries an <b>AI Lab</b> page with an <b>Evaluate</b> button that re-scores the
+    shipped ONNX model on a held-out split <b>live, in front of the panel</b> — macro-F1 first,
+    accuracy captioned as water-inflated, confusion matrix drawn from the run.
+    Nothing on that screen is a hard-coded number.
+  </p>
+</div>
+
+<!-- ============================ 12. PANEL CRIB ============================ -->
+<div class="sec-block">
+  <div class="sec-kicker">Section 12</div>
+  <h2 class="sec">Panel crib sheet</h2>
+  <p class="intro">Short, honest answers to the questions most likely to be asked.</p>
+
+  <table>
+    <tr><th style="width:33%">Question</th><th>Answer</th></tr>
+    <tr><td><b>Which model, in one sentence?</b></td>
+        <td>A 3-seed ensemble of 11→256→128→64→32→4 per-pixel MLPs, trained with focal loss,
+            class-balanced weights and folded bias calibration, exported to ONNX with proven parity.</td></tr>
+    <tr><td><b>What is it trained on?</b></td>
+        <td>1,081,615 hand-labelled Sentinel-2 pixels from MARIDA (2022) and MADOS (2024) official
+            splits, plus 3,789 points from four RFO scenes — 1,085,404 in total. Then 532,566
+            validation and 499,907 untouched test pixels.</td></tr>
+    <tr><td><b>How many datasets?</b></td>
+        <td>Five. MARIDA + MADOS + four RFO scenes train it; RFO's Durban and Marmara scenes and all of
+            PLP are held-out exams; one synthetic baseline of our own that is never shipped.</td></tr>
+    <tr><td><b>How accurate?</b></td>
+        <td>Macro-F1 0.818. Plastic F1 0.799. In the HIGH-confidence tier that drives dispatch,
+            plastic precision is 90 %. Accuracy is 0.99 but that is water-inflated and we always say so.</td></tr>
+    <tr><td><b>Why not a CNN?</b></td>
+        <td>We built one and it scored 0.555 versus 0.818 — it memorised scenes. The result is published
+            in our model card, not hidden.</td></tr>
+    <tr><td><b>Isn't 0.99 accuracy suspicious?</b></td>
+        <td>Yes, and we flag it ourselves. 98 % of pixels are water. That is precisely why we lead with
+            macro-F1 everywhere in the product.</td></tr>
+    <tr><td><b>You detect 0 of 33 real deployed targets.</b></td>
+        <td>Correct, and we publish it. They are 3.5–14 m targets in a 10 m pixel, so the pixel is
+            ~90 % water. We tested the obvious fix and it made the product worse — plastic precision
+            0.776 → 0.660 for 2/33. On patch-scale benchmarks plastic recall is 90.6 % (MARIDA) and
+            89.9 % (MADOS).</td></tr>
+    <tr><td><b>How do we know you didn't tune on the test set?</b></td>
+        <td>Epoch selection and calibration both use the <b>validation</b> split. The test split is read
+            once, at the end. And you can re-run the evaluation live from the AI Lab page.</td></tr>
+    <tr><td><b>What did you actually build?</b></td>
+        <td>Every line between the public datasets and the running product: the label mapping, four
+            dataset adapters, the feature contract, the loss, the weighting, the calibration, the
+            ensemble, the ONNX export and parity check, the two-tier confidence system, the Clay
+            verifier, and the live inference path. Plus a from-scratch NumPy MLP with hand-written
+            backpropagation and a hand-built ONNX graph, to demonstrate the fundamentals.</td></tr>
+    <tr><td><b>Biggest weakness?</b></td>
+        <td>Sub-pixel plastic. It is a sensor resolution limit at 10 m, and the fix is higher-resolution
+            imagery or SAR fusion — a different project, not a better training run.</td></tr>
+  </table>
+
+  <div class="card wash">
+    <h4>Three rules when presenting this</h4>
+    <ol style="margin:4px 0">
+      <li><b>Lead with macro-F1 (0.818)</b>, and caption accuracy as water-inflated every single time.</li>
+      <li><b>Never round upward.</b> Say 0.82, not "about 0.9". Say 0/33, not "it struggles a bit".</li>
+      <li><b>Volunteer the negative results</b> — the 0.555 CNN, the 0/33 PLP, the unvalidated drift
+          ETAs. Every one of them has a measured explanation and a tested alternative attached. Hearing
+          them from you reads as rigour; having them discovered reads as a gap.</li>
+    </ol>
+  </div>
+
+  <footer>
+    <b>Sources for every figure in this document:</b>
+    <code>python_engine/models/metrics.json</code> (published model card) ·
+    <code>perpixel_gpu_summary_ens.json</code> · <code>perpixel_gpu_summary_rfo.json</code> ·
+    <code>clay_head_summary.json</code> · <code>plp_validation.json</code> ·
+    <code>plp_clay_validation.json</code> · <code>fusion_thresholds.json</code>.
+    Pixel counts read directly from the <code>.npz</code> caches; the headline accuracy, two-tier
+    threshold table, RFO held-out figures and the PLP 0/33 result were re-measured against the shipped
+    <code>marinenet.onnx</code> while this document was written.
+    <br><br>
+    <b>One known staleness in the repo, noted for accuracy:</b> the <code>trainSamples</code> field and
+    <code>dataset</code> string inside <code>metrics.json</code> record only the MARIDA + MADOS count
+    (1,081,615) and omit the 3,789 RFO training points that the shipped ensemble also learned from.
+    The training-set composition quoted in this document is the one established by the RFO in/out
+    ablation in <code>perpixel_gpu_summary_ens.json</code>, which is the reliable record. Held-out
+    evaluation is unaffected either way — Durban and Marmara are withheld in both variants.
+    <br><br>
+    Marine Plastic Tracker · Model &amp; Data Explainer · 30 July 2026
+  </footer>
+</div>
+</div>

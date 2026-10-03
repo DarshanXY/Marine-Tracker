@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marine Plastic Tracker - Code Tour</title>
+<style>
+:root { color-scheme: light; --page:#F6FEFC; --surface:#fff; --border:#D6EDE9; --ink:#0F172A; --ink2:#475569;
+        --muted:#64748B; --accent:#0D9488; --wash:#F0FDFA; --code:#F1F5F9; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+body { margin:0; background:var(--page); color:var(--ink); font:15px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif; }
+.layout { display:grid; grid-template-columns: 290px minmax(0,1fr); gap:28px; max-width:1320px; margin:0 auto; padding:24px 20px 80px; }
+nav.toc { position:sticky; top:16px; align-self:start; max-height:calc(100vh - 32px); overflow:auto; background:var(--surface);
+          border:1px solid var(--border); border-radius:12px; padding:14px 16px; font-size:13px; }
+nav.toc .t { font-weight:650; margin:0 0 8px; }
+nav.toc ul { list-style:none; margin:0; padding:0; } nav.toc ul ul { padding-left:12px; }
+nav.toc a { color:var(--ink2); text-decoration:none; display:block; padding:2px 0; }
+nav.toc a:hover { color:var(--accent); }
+main { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:8px 34px 34px; min-width:0; }
+h1 { font-size:30px; line-height:1.2; margin:26px 0 6px; letter-spacing:-0.01em; }
+h2 { font-size:22px; margin:44px 0 10px; padding-top:14px; border-top:2px solid var(--border); }
+h3 { font-size:17px; margin:28px 0 6px; }
+p, li { color:var(--ink); } li { margin:3px 0; }
+a { color:#0F766E; } a:hover { color:var(--accent); }
+a[href^="vscode://"] { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size:.9em; background:var(--wash);
+                       border:1px solid var(--border); border-radius:5px; padding:0 5px; text-decoration:none; white-space:nowrap; }
+a[href^="vscode://"] code { background:none; padding:0; border:0; }
+code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size:.9em; background:var(--code); border-radius:4px; padding:1px 5px; }
+pre { background:var(--code); border:1px solid var(--border); border-radius:10px; padding:14px 16px; overflow:auto; line-height:1.45; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; width:100%; margin:12px 0; font-size:14px; display:block; overflow-x:auto; }
+th, td { border:1px solid var(--border); padding:7px 10px; text-align:left; vertical-align:top; }
+th { background:var(--wash); font-weight:650; }
+blockquote { margin:14px 0; padding:10px 16px; border-left:4px solid var(--accent); background:var(--wash); border-radius:0 8px 8px 0; }
+blockquote p { margin:4px 0; }
+.meta { color:var(--muted); font-size:12px; }
+@media (max-width: 980px) { .layout { grid-template-columns: 1fr; } nav.toc { position:static; max-height:none; } main { padding:6px 18px 24px; } }
+@media print { nav.toc { display:none; } .layout { display:block; padding:0; } main { border:0; padding:0; } a[href^="vscode://"] { border:0; background:none; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="Contents"><p class="t">Contents</p><div class="toc">
+<ul>
+<li><a href="#the-three-questions-in-60-seconds">The three questions in 60 seconds</a></li>
+<li><a href="#1-the-system-in-one-picture">1. The system in one picture</a></li>
+<li><a href="#2-one-click-end-to-end-you-draw-a-box-what-runs">2. One click, end to end: "You draw a box - what runs?"</a></li>
+<li><a href="#3-the-screenshot-element-by-element">3. The screenshot, element by element</a></li>
+<li><a href="#4-how-plastic-is-detected-the-seven-stages">4. How plastic is detected: the seven stages</a><ul>
+<li><a href="#stage-1-scan-scene-download-get-real-pixels">Stage 1 - Scan scene (DOWNLOAD): get real pixels</a></li>
+<li><a href="#stage-2-fdi-index-fdi-find-something-floating">Stage 2 - FDI index (FDI): find "something floating"</a></li>
+<li><a href="#stage-3-classify-cnn-code-card-says-mlp-what-is-it">Stage 3 - Classify (CNN code, card says "MLP"): what is it?</a></li>
+<li><a href="#stage-4-cluster-dbscan-turn-pixels-into-hotspots">Stage 4 - Cluster (DBSCAN): turn pixels into hotspots</a></li>
+<li><a href="#stage-5-clay-verify-clay-a-second-independent-opinion">Stage 5 - Clay verify (CLAY): a second, independent opinion</a></li>
+<li><a href="#stage-6-drift-where-does-it-go-in-72-hours">Stage 6 - Drift: where does it go in 72 hours?</a></li>
+<li><a href="#stage-7-alerts">Stage 7 - Alerts</a></li>
+<li><a href="#the-numbers-to-quote-from-the-models-own-files">The numbers to quote (from the model's own files)</a></li>
+</ul>
+</li>
+<li><a href="#5-why-the-folders-are-named-10-20-and-60">5. Why the folders are named 10, 20 and 60</a></li>
+<li><a href="#6-where-the-training-data-and-the-model-come-from">6. Where the training data and the model come from</a></li>
+<li><a href="#7-every-other-page-route-code-data">7. Every other page: route -&gt; code -&gt; data</a></li>
+<li><a href="#8-the-backend-in-order-of-how-a-request-travels">8. The backend, in order of how a request travels</a></li>
+<li><a href="#9-the-engine-folder-by-folder">9. The engine, folder by folder</a></li>
+<li><a href="#10-questions-the-panel-is-likely-to-ask">10. Questions the panel is likely to ask</a></li>
+<li><a href="#11-weak-points-and-how-to-say-them-honestly">11. Weak points, and how to say them honestly</a></li>
+<li><a href="#12-before-you-present-a-6-point-checklist">12. Before you present: a 6-point checklist</a></li>
+<li><a href="#13-files-that-look-important-but-are-not-used">13. Files that look important but are not used</a></li>
+</ul>
+</div>
+<p class="meta">Built 2026-10-02 03:51<br>Click any <code>file:line</code> link to open it in VS Code.</p></nav>
+<main>
+<h1 id="code-tour-where-is-the-code-for-what-we-are-showing">Code Tour: where is the code for what we are showing?</h1>
+<p><strong>Marine Plastic Tracker.</strong> This page connects everything you can see on screen to the exact lines of code behind it, and explains the logic in words you can say out loud to the panel.</p>
+<blockquote>
+<p><strong>How to use it in the viva</strong></p>
+<ol>
+<li>Open <strong><code>docs/CODE_TOUR.html</code></strong> in the browser. Click any <code>file:line</code> link and <strong>VS Code opens on that exact line</strong> (the first time, the browser asks "Open Visual Studio Code?" - tick <em>always allow</em>).</li>
+<li>Or open <strong><code>docs/CODE_TOUR.md</code></strong> in VS Code, press <code>Ctrl+Shift+V</code>, and <code>Ctrl+click</code> a link.</li>
+<li>If a link ever fails: <code>Ctrl+P</code> -&gt; type the file name -&gt; <code>Ctrl+G</code> -&gt; line number. Or search the <strong>exact text you see on screen</strong> with <code>Ctrl+Shift+F</code> (section 3 lists them).</li>
+<li>After anyone edits code, run <code>C:\Anaconda\python.exe docs\code-tour\build_code_tour.py</code> (Anaconda has the <code>markdown</code> package the HTML page needs). It recomputes every line number from the real files and <strong>stops with an error if something was renamed</strong>, so no link can silently point at the wrong place. <code>python docs\code-tour\build_code_tour.py --check</code> needs nothing extra and only verifies the links.</li>
+</ol>
+</blockquote>
+<h2 id="the-three-questions-in-60-seconds">The three questions in 60 seconds</h2>
+<p><strong>1. How do you detect plastic?</strong>
+Plastic floating on the sea reflects <strong>near-infrared light</strong> more than water does (water swallows it). We download a Sentinel-2 satellite image, compute the <strong>Floating Debris Index (FDI)</strong> for every pixel - "how much brighter than water is this pixel in near-infrared" - and keep the pixels above a threshold as <em>candidates</em>. FDI cannot tell plastic from seaweed, foam or wood, so a small <strong>neural network (MLP)</strong> looks at 11 spectral numbers per candidate and says Plastic / Algae / Sea-foam / Water with a confidence. Confident plastic pixels that sit close together are grouped by <strong>DBSCAN</strong> into <em>hotspots</em>; a second AI (<strong>Clay</strong>) double-checks them; and a <strong>drift model</strong> forecasts where each hotspot travels in 72 hours. Code: <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:217" title="python_engine/main_pipeline.py:217">run_aoi() in main_pipeline.py</a> - it is 80 lines and reads like the list above.</p>
+<p><strong>2. Where is the code of this UI?</strong>
+The screen in the screenshot is the <strong>Map Explorer</strong> page: <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:467" title="frontend/src/pages/MapExplorer.tsx:467"><code>MapExplorer.tsx:467</code></a>. The seven "Live processing" cards are <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:1098" title="frontend/src/pages/MapExplorer.tsx:1098"><code>MapExplorer.tsx:1098</code></a>. Every element is mapped to its code in <strong>section 3</strong>, and the full click-to-database chain is in <strong>section 2</strong>.</p>
+<p><strong>3. Why are the MADOS folders called 10, 20 and 60?</strong>
+It is the <strong>pixel size in metres</strong>. Sentinel-2 photographs different colours (bands) at different sharpness: 4 bands at 10 m, 6 bands at 20 m, and others at 60 m. The dataset stores each band in the folder for its own resolution. Full answer with our own numbers: <strong>section 5</strong>.</p>
+<h2 id="1-the-system-in-one-picture">1. The system in one picture</h2>
+<pre><code> Browser   React + Vite  (:5173)                      frontend/src
+    |  axios  -&gt;  /api/...   (login token in every request)
+    v
+ Backend   Node + Express  (:3001)                    backend/src
+    |  login + roles, saving results to the database, job queue, live WebSocket, CSV/PDF export
+    |  fetch  -&gt;  http://localhost:8000
+    v
+ Engine    Python + FastAPI  (:8000)                  python_engine
+    |  ALL the science: download -&gt; FDI -&gt; classify -&gt; cluster -&gt; Clay -&gt; drift -&gt; alerts
+    |  optional  -&gt;  http://localhost:8010   Clay verifier (GPU sidecar)
+    v
+ Outside data:  Copernicus Data Space (real Sentinel-2 pixels) - AWS Earth Search (scene list, thumbnails)
+                Open-Meteo (ocean currents, wind, elevation) - Esri (satellite basemap tiles)
+ Storage:       PostgreSQL :5432 (LIVE app database: users + every detection/hotspot/alert)
+                Redis :6379 (job queue)
+                MySQL :3306 (read-only COPY for browsing/reports: all datasets + a snapshot of the app tables)
+</code></pre>
+<p><strong>Two databases, two jobs - be ready to explain this.</strong> The running app reads and writes <strong>only PostgreSQL</strong> (Prisma, <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/prisma/schema.prisma:12" title="backend/prisma/schema.prisma:12">schema.prisma</a>). <strong>MySQL</strong> is a separate, read-only copy built by two scripts in <code>database/mysql</code>: <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/database/mysql/load_datasets.py:634" title="database/mysql/load_datasets.py:634">load_datasets.py</a> loads every training dataset (MARIDA, MADOS, RFO, PLP, the 2.1 M labelled pixels, model scores) into <code>mpt_datasets</code>, and <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/database/mysql/sync_app.py:164" title="database/mysql/sync_app.py:164">sync_app.py</a> copies the live PostgreSQL tables into <code>mpt_app</code> (leaving out passwords, secrets and tokens). Nothing in the backend reads MySQL; it exists so the data can be opened in MySQL Workbench, Power BI or the generated <code>dashboard.html</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Its one job</th>
+<th>Entry file</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frontend</td>
+<td>draws the screens, sends the user's requests</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/App.tsx:122" title="frontend/src/App.tsx:122">App.tsx (routes)</a></td>
+</tr>
+<tr>
+<td>Backend</td>
+<td>who you are (JWT + roles), what to save, talks to the engine</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/index.ts:105" title="backend/src/index.ts:105">index.ts</a></td>
+</tr>
+<tr>
+<td>Engine</td>
+<td>every calculation about the sea</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/api/app.py:29" title="python_engine/api/app.py:29">app.py</a></td>
+</tr>
+</tbody>
+</table>
+<p>Start everything with <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/start-all.cmd:9" title="start-all.cmd:9">start-all.cmd</a> (database, Redis, engine, Clay, backend, frontend - each in its own window).</p>
+<h2 id="2-one-click-end-to-end-you-draw-a-box-what-runs">2. One click, end to end: "You draw a box - what runs?"</h2>
+<ol>
+<li><strong>You drag a rectangle.</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:50" title="frontend/src/pages/MapExplorer.tsx:50"><code>MapExplorer.tsx:50</code></a> listens to <code>mousedown / mousemove / mouseup</code> on the map and turns the drag into <code>{north, south, east, west}</code>. Boxes smaller than 0.01 degrees are ignored (<code>MIN_DEG</code>).</li>
+<li><strong>The page reacts.</strong> <code>setBbox(...)</code> in <code>MapExplorer</code> changes state, which makes <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/hooks/useApi.ts:78" title="frontend/src/hooks/useApi.ts:78">useAoiAnalysis</a> fire automatically (React-Query). A new box always scans fresh (<code>staleTime: 0</code>); <em>Go live</em> repeats it every 30 seconds.</li>
+<li><strong>The API call.</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/lib/api.ts:360" title="frontend/src/lib/api.ts:360">api.analyzeAoi</a> sends <code>POST /api/pipeline/run</code> with the box. The timeout is 130 s because a real satellite download is slow.</li>
+<li><strong>Express checks the login.</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/pipeline.routes.ts:115" title="backend/src/routes/pipeline.routes.ts:115">POST /run</a> runs the <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/middleware/auth.ts:13" title="backend/src/middleware/auth.ts:13">authenticate</a> middleware (valid JWT?), validates the box with <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/pipeline.routes.ts:74" title="backend/src/routes/pipeline.routes.ts:74">parseBbox</a>, and forwards it with <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/lib/engine.ts:7" title="backend/src/lib/engine.ts:7">callEngine</a> (120 s timeout).</li>
+<li><strong>FastAPI receives it.</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/api/predict_route.py:42" title="python_engine/api/predict_route.py:42">pipeline_run</a> keeps a 20-second cache (so a double click does not download twice) and calls the orchestrator.</li>
+<li><strong>The orchestrator runs seven stages.</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:217" title="python_engine/main_pipeline.py:217">run_aoi</a> - each stage records its own duration and a one-line detail; those become the cards on screen. Section 4 explains each stage.</li>
+<li><strong>Back in Express, the result is saved.</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/services/pipelinePersist.service.ts:59" title="backend/src/services/pipelinePersist.service.ts:59">persistRun</a> writes a <code>SatelliteImage</code>, all <code>Detection</code> rows, <code>Hotspot</code> rows, <code>Trajectory</code> rows, deduplicated <code>Alert</code> rows and one <code>PipelineLog</code> row per stage into PostgreSQL, then announces it on the WebSocket (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/lib/live.ts:25" title="backend/src/lib/live.ts:25">publishLive</a>). Saving is <em>best-effort</em>: if the database is down, the scan still returns.</li>
+<li><strong>The browser draws the answer.</strong> Markers, the cards, the surface bar and the result panel all render from the one <code>result</code> object (see section 3).</li>
+</ol>
+<p><strong>What if something is down?</strong> Engine unreachable -&gt; <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/pipeline.routes.ts:85" title="backend/src/routes/pipeline.routes.ts:85">offlineAoiResult</a> returns an honest "engine offline" result with <strong>no invented detections</strong>. Satellite download fails -&gt; the engine falls back to a <em>labelled synthetic</em> scene (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/download.py:276" title="python_engine/satellite/download.py:276">scene_for_bbox</a>) and the UI says so (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:311" title="frontend/src/pages/MapExplorer.tsx:311">SurfaceReadout</a>).</p>
+<h2 id="3-the-screenshot-element-by-element">3. The screenshot, element by element</h2>
+<p>The screen in the panel's screenshot is <code>localhost:5173/app/map</code>. Left column = the exact text on screen (search for it with <code>Ctrl+Shift+F</code>).</p>
+<table>
+<thead>
+<tr>
+<th>On screen</th>
+<th>Where the code is</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Left sidebar: <em>Monitor - Command Center, Map Explorer, Areas, Records; Intelligence - AI Lab; Operate - Field Ops, Analytics &amp; Reports; System - Settings</em></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/config/nav.ts:37" title="frontend/src/config/nav.ts:37">NAV_SECTIONS</a> drawn by <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/components/layout/AppLayout.tsx:58" title="frontend/src/components/layout/AppLayout.tsx:58">AppLayout</a></td>
+<td>One list feeds the sidebar <strong>and</strong> the search box. <code>minRole</code> hides pages you are not cleared for; <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/components/layout/RequireRole.tsx:14" title="frontend/src/components/layout/RequireRole.tsx:14">RequireRole</a> also blocks the URL.</td>
+</tr>
+<tr>
+<td><em>Search... Ctrl+K</em></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/components/layout/CommandPalette.tsx:37" title="frontend/src/components/layout/CommandPalette.tsx:37">CommandPalette</a></td>
+<td>Jump to any page by typing; uses the <code>keywords</code> in nav.ts.</td>
+</tr>
+<tr>
+<td>Bell with red badge</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/components/layout/NotificationCenter.tsx:27" title="frontend/src/components/layout/NotificationCenter.tsx:27">NotificationCenter</a></td>
+<td>The badge counts <strong>unacknowledged</strong> alerts; the panel lists the latest 8 and Coast Guard and above can acknowledge them. New HIGH alerts also pop up as toasts via <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/hooks/useAlertNotifications.ts:38" title="frontend/src/hooks/useAlertNotifications.ts:38">useAlertNotifications</a>.</td>
+</tr>
+<tr>
+<td>Green chip <em>Live satellite</em></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/components/layout/AppLayout.tsx:18" title="frontend/src/components/layout/AppLayout.tsx:18">DataBadge</a></td>
+<td>Three states from the backend's satellite status: <strong>Live satellite</strong> (real imagery mode is on), <strong>Demo data</strong> (backend up, real imagery off), <strong>Offline - mock</strong> (backend unreachable).</td>
+</tr>
+<tr>
+<td>Satellite map (Esri, "Leaflet / Imagery (c) Esri")</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/components/map/MapContainer.tsx:30" title="frontend/src/components/map/MapContainer.tsx:30">MapContainer</a></td>
+<td>Free real satellite tiles. Leaflet draws the map.</td>
+</tr>
+<tr>
+<td>Teal rectangle</td>
+<td>drawing: <code>AoiSelector</code>; committed: <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:756" title="frontend/src/pages/MapExplorer.tsx:756">the AOI outline</a></td>
+<td>The area that was sent to the engine.</td>
+</tr>
+<tr>
+<td><strong>Legend</strong> box (Plastic, Algae, High-severity hotspot, ...)</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:936" title="frontend/src/pages/MapExplorer.tsx:936">the Legend</a></td>
+<td>Colours come from <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/lib/classColors.ts:8" title="frontend/src/lib/classColors.ts:8">classColors.ts</a> so every page uses the same palette.</td>
+</tr>
+<tr>
+<td><strong>Live processing</strong> - 7 cards: Scan scene, FDI index, Classify (MLP), Cluster, Clay verify, Drift, Alerts</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:1098" title="frontend/src/pages/MapExplorer.tsx:1098">StageTimeline</a> and the card names in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:39" title="frontend/src/pages/MapExplorer.tsx:39">STAGE_META</a></td>
+<td>One card per engine stage. Green tick = the stage finished. The small grey text is that stage's own <code>detail</code> string from the engine.</td>
+</tr>
+<tr>
+<td>Card time, e.g. <em>DOWNLOAD - 71.5s</em>, <em>FDI - 55ms</em>, <em>DBSCAN - &lt;1ms</em></td>
+<td>measured in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:34" title="python_engine/main_pipeline.py:34">_ms()</a> around each stage</td>
+<td>The download is slow because ~20 MB of satellite pixels come over the internet. All the maths after it takes milliseconds.</td>
+</tr>
+<tr>
+<td><em>500 candidate pixels for AOI via sentinelhub - REAL Sentinel-2 reflectance - surface 76.8% water / 23.0%...</em></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:53" title="python_engine/main_pipeline.py:53">_download_detail</a></td>
+<td>"sentinelhub" = real pixels from Copernicus. 500 is the cap on candidate pixels per scan (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/threshold_applier.py:14" title="python_engine/satellite/threshold_applier.py:14">extract_candidates</a>).</td>
+</tr>
+<tr>
+<td><em>343 candidate pixels above FDI 0.02 - 157 inland (&gt;3 km from coast) dropped</em></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:75" title="python_engine/main_pipeline.py:75">_drop_inland</a></td>
+<td>157 candidates were on land more than 3 km from the coast (ponds, wet fields), so they were removed before classification.</td>
+</tr>
+<tr>
+<td><em>0 plastic of N classified via per-pixel model (model_loaded=True)</em></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/batch_classifier.py:32" title="python_engine/ml/batch_classifier.py:32">classify_candidates</a></td>
+<td>Which classifier ran. <code>model_loaded=True</code> = the trained ONNX network, not the fallback rules.</td>
+</tr>
+<tr>
+<td><em>Scanning: Open water</em> + coloured bar <em>water 76.8% - land 23% - cloud 0.1% - 44% observed</em></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:311" title="frontend/src/pages/MapExplorer.tsx:311">SurfaceReadout</a>, numbers from <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/cloud_masker.py:58" title="python_engine/satellite/cloud_masker.py:58">surface_from_scl</a></td>
+<td>Uses the satellite's own land/cloud/water map (SCL). <em>44% observed</em> = only 44% of the box had a clear pass; the other 56% was cloud-gapped, so shares are of the observed part only.</td>
+</tr>
+<tr>
+<td>Amber warning "This tool detects floating debris on water..."</td>
+<td>same <code>SurfaceReadout</code> (<code>notWater</code> branch), and <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:587" title="frontend/src/pages/MapExplorer.tsx:587">scanUsable</a></td>
+<td>If the box is mostly land or cloud, the detections are <strong>not drawn on the map</strong> and the warning explains why, instead of painting a fake debris field over land.</td>
+</tr>
+<tr>
+<td><strong>This area, right now</strong> panel + <em>ON DEMAND / live - 30s</em> badge</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:1182" title="frontend/src/pages/MapExplorer.tsx:1182">AoiResultPanel</a></td>
+<td>Summary of the last scan.</td>
+</tr>
+<tr>
+<td>Orange badge <strong>RESTORED - NOT RE-SCANNED</strong></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:493" title="frontend/src/pages/MapExplorer.tsx:493">the restored logic</a> with <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/stores/mapStore.ts:45" title="frontend/src/stores/mapStore.ts:45">useMapStore</a></td>
+<td>If you leave and return, the last result is reloaded from the browser instead of re-downloading. Press <strong>Rescan</strong> for fresh pixels.</td>
+</tr>
+<tr>
+<td>Four numbers: <em>Candidate px, Plastic, Hotspots, Avg conf.</em></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:1376" title="frontend/src/pages/MapExplorer.tsx:1376">Metric</a> fed by <code>result.stats</code>, built at the end of <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:290" title="python_engine/main_pipeline.py:290">run_aoi()</a></td>
+<td>Straight from the engine.</td>
+</tr>
+<tr>
+<td><em>GeoJSON</em> button</td>
+<td><code>exportGeojson</code> inside <code>AoiResultPanel</code></td>
+<td>Downloads detections, hotspots, drift lines and the box for QGIS / ArcGIS.</td>
+</tr>
+<tr>
+<td>Image on the right (satellite thumbnail, scene id, tile, date, cloud %)</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:1299" title="frontend/src/pages/MapExplorer.tsx:1299">SceneCard</a> from <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:364" title="python_engine/main_pipeline.py:364">_scene_ref_for_bbox</a></td>
+<td>Which real Sentinel-2 scene covers the box (looked up through the free AWS STAC catalogue).</td>
+</tr>
+<tr>
+<td><em>Advanced tools</em>: Min confidence slider, Dedupe, Biofouling</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:1005" title="frontend/src/pages/MapExplorer.tsx:1005">Advanced tools</a></td>
+<td>Options sent with the request. <strong>Min confidence</strong> hides weaker detections, so a high setting can make <em>"0 plastic of 0 classified"</em> appear even though 343 candidates were found - check it is 0% before a demo.</td>
+</tr>
+<tr>
+<td>Buttons <em>72h forecast, Change vs 6 mo, Export FDI GeoTIFF</em></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:1027" title="frontend/src/pages/MapExplorer.tsx:1027">the tool buttons</a></td>
+<td>Drift forecast for the top hotspot, change detection against 6 months ago, and a GeoTIFF of the FDI layer.</td>
+</tr>
+<tr>
+<td>Save area / Areas page</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:534" title="frontend/src/pages/MapExplorer.tsx:534">onSaveArea</a></td>
+<td>Stores the box and result on the server so it can be re-scanned later.</td>
+</tr>
+<tr>
+<td>Click a hotspot -&gt; side drawer</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/components/map/SimilarSitesDrawer.tsx:62" title="frontend/src/components/map/SimilarSitesDrawer.tsx:62">SimilarSitesDrawer</a></td>
+<td>Finds visually similar sites using Clay embeddings.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-how-plastic-is-detected-the-seven-stages">4. How plastic is detected: the seven stages</h2>
+<p><code>run_aoi</code> in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:226" title="python_engine/main_pipeline.py:226">main_pipeline.py</a> runs these in order. Every threshold below lives in one file: <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/config.py:44" title="python_engine/config.py:44">config.py</a>.</p>
+<h3 id="stage-1-scan-scene-download-get-real-pixels">Stage 1 - Scan scene (<code>DOWNLOAD</code>): get real pixels</h3>
+<ul>
+<li><strong>What we ask for:</strong> five spectral bands <strong>B04, B06, B08, B8A, B11</strong> plus the <strong>SCL</strong> land/cloud map, for the drawn box - <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/band_loader.py:33" title="python_engine/satellite/band_loader.py:33">BANDS</a> and the request script <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/band_loader.py:99" title="python_engine/satellite/band_loader.py:99">_EVALSCRIPT</a>.</li>
+<li><strong>From where:</strong> Copernicus Data Space "Sentinel Hub Process API", logged in with free OAuth credentials (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/band_loader.py:165" title="python_engine/satellite/band_loader.py:165">get_token</a>). One request returns all bands already aligned to one grid.</li>
+<li><strong>Cloud handling:</strong> we ask for a <strong>least-cloud composite</strong> - for every pixel, the clearest recent pass (max 50% scene cloud, last 45 days, widening to 180 days only if coverage is poor): <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/config.py:79" title="python_engine/config.py:79">ingest_max_cloud</a>, <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/download.py:220" title="python_engine/satellite/download.py:220">_real_ingest</a>.</li>
+<li><strong>Which pixels may become candidates:</strong> only SCL classes 6 (water) and 7 (unclassified) - <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/config.py:86" title="python_engine/config.py:86">ingest_keep_scl</a>, <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/cloud_filter.py:24" title="python_engine/satellite/cloud_filter.py:24">keep_mask</a>. Clouds, shadows, vegetation and bare soil are excluded.</li>
+<li><strong>Reliability grade:</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/cloud_masker.py:28" title="python_engine/satellite/cloud_masker.py:28">reliability_for</a> calls a scan <em>reliable / degraded / unusable</em> from coverage and cloud/land share.</li>
+</ul>
+<h3 id="stage-2-fdi-index-fdi-find-something-floating">Stage 2 - FDI index (<code>FDI</code>): find "something floating"</h3>
+<p>The formula (Biermann et al., 2020), in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/fdi_calculator.py:19" title="python_engine/satellite/fdi_calculator.py:19">floating_debris_index</a>:</p>
+<pre><code>FDI = B08 - [ B06 + (B11 - B06) * (842 - 740) / (1610 - 740) * 10 ]
+</code></pre>
+<p><em>In words:</em> draw a straight line between the red-edge band (740 nm) and the SWIR band (1610 nm). At the near-infrared wavelength (842 nm) that line tells you what <strong>plain water</strong> would reflect. FDI is how far the real NIR value sits <strong>above</strong> that line. Floating solids (plastic, wood, seaweed, foam) push NIR up; clean water does not.</p>
+<ul>
+<li><strong>Threshold:</strong> a pixel is a candidate if <code>FDI &gt; 0.02</code> (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/config.py:66" title="python_engine/config.py:66">fdi_threshold</a>). Applied to the whole image at once in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/threshold_applier.py:14" title="python_engine/satellite/threshold_applier.py:14">extract_candidates</a>.</li>
+<li><strong>Inland filter:</strong> candidates more than <strong>3 km inland</strong> are dropped using country outlines from <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/data/coastline/countries.geojson:1" title="data/coastline/countries.geojson:1">countries.geojson</a> (Natural Earth): <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/landmask.py:73" title="python_engine/satellite/landmask.py:73">_COASTLINE</a>, <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/landmask.py:180" title="python_engine/satellite/landmask.py:180">deep_inland</a>.</li>
+<li><strong>Honest limit:</strong> FDI is a <em>screen</em>. It also lights up for seaweed, foam, ships, cloud edges and very turbid water. That is why stage 3 exists.</li>
+</ul>
+<h3 id="stage-3-classify-cnn-code-card-says-mlp-what-is-it">Stage 3 - Classify (<code>CNN</code> code, card says "MLP"): what is it?</h3>
+<ul>
+<li><strong>Model:</strong> a small neural network, a <strong>multi-layer perceptron (MLP)</strong>, exported as <code>marinenet.onnx</code> and run with ONNX Runtime (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/model_loader.py:61" title="python_engine/ml/model_loader.py:61">get_model</a>). The shipped one is a <strong>3-model ensemble</strong> (256-128-64-32 neurons each), trained on about 1.08 million labelled pixels - <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/models/metrics.json:4" title="python_engine/models/metrics.json:4">metrics.json</a>.</li>
+<li><strong>Input - 11 numbers per pixel:</strong> the 5 bands, FDI, and 5 derived indices: NDVI (vegetation), PI (plastic index), MNDWI, red-edge NDVI, brightness - <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/inference_engine.py:27" title="python_engine/ml/inference_engine.py:27">_features</a>.</li>
+<li><strong>Output:</strong> one of four classes - <strong>Plastic, Algae, Sea_Foam, Water</strong> - and a confidence from softmax: <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/inference_engine.py:45" title="python_engine/ml/inference_engine.py:45">predict</a> and <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/batch_classifier.py:22" title="python_engine/ml/batch_classifier.py:22">_detection</a>.</li>
+<li><strong>Two confidence bars, do not mix them up:</strong> <code>status = CONFIRMED</code> at confidence &gt;= 0.85 (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/confidence_filter.py:10" title="python_engine/ml/confidence_filter.py:10">AUTO_CONFIRM</a>) is the analyst-facing label. <code>high_confidence</code> at &gt;= 0.648 (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/config.py:63" title="python_engine/config.py:63">plastic_high_conf</a>) was calibrated on held-out data to about <strong>90% precision</strong> and is the bar for creating hotspots.</li>
+<li><strong>Fallback:</strong> if the ONNX file is missing the engine uses hand-written rules and says <code>heuristic</code> on the card. <code>REQUIRE_MODEL=1</code> makes a missing model a hard failure instead (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/model_loader.py:54" title="python_engine/ml/model_loader.py:54">_strict</a>); the rules themselves are in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/inference_engine.py:90" title="python_engine/ml/inference_engine.py:90">classify</a>.</li>
+<li><strong>Naming to be ready for:</strong> the card is labelled <em>"Classify (MLP)"</em> but its code is <code>CNN</code>. That is a historical stage name; the shipped model is a per-pixel MLP. A patch-based CNN exists but scored worse (macro-F1 0.55), so it is not shipped (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:42" title="frontend/src/pages/MapExplorer.tsx:42">the code comment</a>).</li>
+</ul>
+<h3 id="stage-4-cluster-dbscan-turn-pixels-into-hotspots">Stage 4 - Cluster (<code>DBSCAN</code>): turn pixels into hotspots</h3>
+<ul>
+<li>Only <strong>high-confidence Plastic</strong> pixels are clustered - a crew is never sent because of a low-confidence guess: <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:107" title="python_engine/main_pipeline.py:107">_make_hotspots</a>.</li>
+<li><strong>DBSCAN</strong> (written from scratch, no library): pixels within <strong>0.09 degrees (~10 km)</strong> of each other, at least <strong>3</strong> in a group, form a cluster - <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/hotspot/dbscan_clusterer.py:22" title="python_engine/hotspot/dbscan_clusterer.py:22">dbscan</a>, parameters <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/config.py:67" title="python_engine/config.py:67">dbscan_eps_deg</a>.</li>
+<li><strong>Severity by size:</strong> 10+ = HIGH, 5+ = MEDIUM, otherwise LOW - <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/hotspot/severity_scorer.py:12" title="python_engine/hotspot/severity_scorer.py:12">severity_for</a>.</li>
+</ul>
+<h3 id="stage-5-clay-verify-clay-a-second-independent-opinion">Stage 5 - Clay verify (<code>CLAY</code>): a second, independent opinion</h3>
+<ul>
+<li><strong>Clay</strong> is a large pre-trained satellite "foundation model". <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/clay_live.py:109" title="python_engine/ml/clay_live.py:109">enrich_hotspots</a> cuts a small image around each hotspot, sends it to the GPU sidecar (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/clay_service.py:1" title="python_engine/clay_service.py:1">clay_service.py</a>), and combines Clay's view with the MLP's (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/confidence_fusion.py:1" title="python_engine/ml/confidence_fusion.py:1">confidence_fusion.py</a>) into <strong>CONFIRMED</strong> or <strong>POSSIBLE</strong>.</li>
+<li>Calibrated so CONFIRMED plastic is about <strong>92% precise (70% recall)</strong> on held-out MARIDA+MADOS: <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/models/fusion_thresholds.json:9" title="python_engine/models/fusion_thresholds.json:9">fusion_thresholds.json</a>.</li>
+<li><strong>Best-effort:</strong> if the sidecar is off, the card says <em>Clay OFFLINE - MLP-only</em> and the scan still works (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:191" title="python_engine/main_pipeline.py:191">_clay_stage</a>).</li>
+</ul>
+<h3 id="stage-6-drift-where-does-it-go-in-72-hours">Stage 6 - Drift: where does it go in 72 hours?</h3>
+<ul>
+<li><strong>Physics:</strong> a floating parcel moves with the <strong>ocean current plus a small fraction of the wind</strong> ("windage", 1.5-3%). <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/trajectory/lagrangian_model.py:41" title="python_engine/trajectory/lagrangian_model.py:41">_velocity_deg</a> adds them; <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/trajectory/lagrangian_model.py:63" title="python_engine/trajectory/lagrangian_model.py:63">integrate_members</a> steps forward one hour at a time with <strong>Runge-Kutta 4</strong>.</li>
+<li><strong>Ensemble and cone:</strong> one track per windage value (0.015, 0.02, 0.025, 0.03) - <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/trajectory/ensemble_model.py:10" title="python_engine/trajectory/ensemble_model.py:10">DEFAULT_WINDAGE</a>. The average is the path; the min/max envelope is the <strong>uncertainty cone</strong>.</li>
+<li><strong>Forcing data:</strong> real hourly currents and wind from Open-Meteo (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/trajectory/data_interpolator.py:45" title="python_engine/trajectory/data_interpolator.py:45">fetch_forcing</a>); if unreachable, a smooth synthetic field, labelled <code>synthetic</code>.</li>
+<li><strong>Landfall and ETA:</strong> the path is cut where it enters a land polygon (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/trajectory/polygon_landfall.py:50" title="python_engine/trajectory/polygon_landfall.py:50">clamp_path</a>) and the hour it happens becomes the coast ETA. Orchestrated in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:140" title="python_engine/main_pipeline.py:140">_drift_stage</a>. Only the top 2 hotspots get a full track.</li>
+<li><strong>How good is it? We measured it</strong> against real NOAA drifter buoys (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/validate_drift_gdp.py:1" title="python_engine/ml/validate_drift_gdp.py:1">validate_drift_gdp.py</a>, results in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/validation/drift_gdp_results.json:104" title="python_engine/validation/drift_gdp_results.json:104">drift_gdp_results.json</a>). For the <strong>25 undrogued surface drifters</strong> (the closest stand-in for floating plastic; Indian Ocean, 2024-25), the median position error was about <strong>12 km after 24 h, 22-26 km after 48 h and 29-33 km after 72 h</strong>. Assuming "it does not move" gives 23, 34 and 57 km, so the model roughly <strong>halves the error</strong>.</li>
+<li><strong>Two honest caveats to volunteer:</strong> (1) it is a <em>hindcast</em> (uses analysed currents and winds, not forecasts), so true forecast skill is lower; (2) the <strong>uncertainty cone is too narrow</strong>: it contains the buoy's real position only about <strong>0% of the time at 24 h and 8% at 48-72 h</strong>, because it reflects wind-drag spread only, not the real error. Say "forecast with an uncertainty that is optimistic", never "prediction".</li>
+</ul>
+<h3 id="stage-7-alerts">Stage 7 - Alerts</h3>
+<p><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/main_pipeline.py:209" title="python_engine/main_pipeline.py:209">_alert_stage</a> counts HIGH and MEDIUM hotspots. The backend then creates the real alert rows in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/services/pipelinePersist.service.ts:173" title="backend/src/services/pipelinePersist.service.ts:173">persistRun</a>: the same hotspot does not alert twice within 24 hours, and an alert is <code>COAST_PROXIMITY</code> if the coast ETA is 48 h or less.</p>
+<h3 id="the-numbers-to-quote-from-the-models-own-files">The numbers to quote (from the model's own files)</h3>
+<p>Source: <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/models/metrics.json:22" title="python_engine/models/metrics.json:22">metrics.json</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Measure (held-out MARIDA + MADOS test pixels)</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Macro-F1 (fair average over 4 classes)</td>
+<td><strong>0.8175</strong></td>
+</tr>
+<tr>
+<td>Plastic precision / recall / F1</td>
+<td>0.776 / 0.824 / 0.799</td>
+</tr>
+<tr>
+<td>Accuracy</td>
+<td>0.99 - <strong>but inflated</strong>, because most pixels are water; always lead with macro-F1</td>
+</tr>
+<tr>
+<td>HIGH-confidence plastic tier (confidence &gt;= 0.648)</td>
+<td>about 90% precision, 57% recall</td>
+</tr>
+<tr>
+<td>Water share of the 2.1 million labelled pixels we hold</td>
+<td>about 98% (plastic is only about 0.5%)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-why-the-folders-are-named-10-20-and-60">5. Why the folders are named 10, 20 and 60</h2>
+<p><strong>Short answer:</strong> the number is the <strong>ground pixel size in metres</strong> of the images inside that folder.</p>
+<p>Sentinel-2's camera records 13 colours ("bands"), but not all with the same sharpness. That is a sensor design trade-off (data volume and light available per band):</p>
+<table>
+<thead>
+<tr>
+<th>Folder</th>
+<th>Pixel size</th>
+<th>Bands inside (MADOS, wavelength in nm)</th>
+<th>Sentinel-2 names</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>10</code></td>
+<td>10 m</td>
+<td>492, 559, 665, 833</td>
+<td>B02 blue, B03 green, <strong>B04 red</strong>, <strong>B08 NIR</strong></td>
+</tr>
+<tr>
+<td><code>20</code></td>
+<td>20 m</td>
+<td>704, 739, 780, 864, 1610, 2186</td>
+<td>B05, <strong>B06</strong>, B07 red-edge, <strong>B8A</strong>, <strong>B11</strong>, B12 SWIR</td>
+</tr>
+<tr>
+<td><code>60</code></td>
+<td>60 m</td>
+<td>442</td>
+<td>B01 coastal aerosol</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Checked on <code>data/MADOS/Scene_0</code>: 4 + 6 + 1 = 11 bands. The 10 m folder also holds the label masks <code>cl</code>, <code>conf</code>, <code>rep</code> and the RGB previews, because the annotators drew on the 10 m grid.)</em></p>
+<p><strong>Every crop covers the same 2.4 km x 2.4 km</strong>, so the images are different sizes: 240 x 240 pixels at 10 m, 120 x 120 at 20 m, 40 x 40 at 60 m.</p>
+<p><strong>Why it matters for us.</strong> Our detector needs five bands: B04 and B08 (10 m folder) and B06, B8A, B11 (20 m folder). To give every pixel all five values, the training loader stretches the coarser images onto the 10 m grid - <code>factor = folder // 10</code>, so 20 m is repeated 2x2 and 60 m 6x6 (nearest neighbour): <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/datasets/mados.py:72" title="python_engine/ml/datasets/mados.py:72">_crop_bands in mados.py</a>. The general helper is <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/band_resampler.py:11" title="python_engine/satellite/band_resampler.py:11">band_resampler.py</a>, whose docstring says exactly this.</p>
+<p><strong>In the live app</strong> we do not touch these folders. Sentinel Hub delivers all requested bands already resampled to one grid (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/band_loader.py:82" title="python_engine/satellite/band_loader.py:82">_grid_for</a>). One honest consequence: FDI uses B06 and B11 (20 m) with B08 (10 m), so its true detail is closer to 20 m; we count one candidate pixel as a single 10 m cell (0.0001 km2).</p>
+<h2 id="6-where-the-training-data-and-the-model-come-from">6. Where the training data and the model come from</h2>
+<table>
+<thead>
+<tr>
+<th>Dataset</th>
+<th>What it is</th>
+<th>Code that reads it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MARIDA</strong></td>
+<td>Hand-labelled Sentinel-2 marine debris benchmark (Kikaki et al. 2022)</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/datasets/marida.py:31" title="python_engine/ml/datasets/marida.py:31">marida.py</a></td>
+</tr>
+<tr>
+<td><strong>MADOS</strong></td>
+<td>Larger successor: 174 scenes, 15 classes (Kikaki et al. 2024)</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/datasets/mados.py:43" title="python_engine/ml/datasets/mados.py:43">mados.py</a></td>
+</tr>
+<tr>
+<td><strong>RefinedFloatingObjects (RFO)</strong></td>
+<td>6 extra coastal scenes, two held out as unseen seas</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/datasets/rfo.py:30" title="python_engine/ml/datasets/rfo.py:30">rfo.py</a></td>
+</tr>
+<tr>
+<td><strong>Plastic Litter Project (PLP)</strong></td>
+<td>Real plastic targets floated off the Greek coast on known dates</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/datasets/plp.py:33" title="python_engine/ml/datasets/plp.py:33">plp.py</a></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Class mapping:</strong> the datasets have 15 classes; we merge them into our 4 (e.g. all water types -&gt; Water). The exact map is <code>CLASS_MAP</code> in each file.</li>
+<li><strong>Training script:</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/train_perpixel_gpu.py:80" title="python_engine/ml/train_perpixel_gpu.py:80">PerPixelNet</a> with focal loss (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/train_perpixel_gpu.py:106" title="python_engine/ml/train_perpixel_gpu.py:106">FocalLoss</a>) and class-balanced weights (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/train_perpixel_gpu.py:127" title="python_engine/ml/train_perpixel_gpu.py:127">cb_weights</a>) so the rare plastic class is not ignored, then a bias-calibration step (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/train_perpixel_gpu.py:136" title="python_engine/ml/train_perpixel_gpu.py:136">calibrate_bias</a>) and ONNX export (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/train_perpixel_gpu.py:299" title="python_engine/ml/train_perpixel_gpu.py:299">export_onnx</a>).</li>
+<li><strong>See it in the app:</strong> AI Lab shows these scores live (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/ModelHealth.tsx:16" title="frontend/src/pages/ModelHealth.tsx:16">ModelHealth</a>).</li>
+<li><strong>Browse the datasets as tables (MySQL):</strong> <code>database/mysql/load_datasets.py</code> puts all four datasets, the 2.1 M labelled pixels and the model scores into the MySQL database <code>mpt_datasets</code>, with ready-made views such as <code>v_class_balance</code>, <code>v_spectral_signature</code> and <code>v_confusion_matrix</code>. Open them in MySQL Workbench, or open the chart page from <code>build_dashboard.py</code>. Setup steps are in <code>database/mysql/README.md</code>.</li>
+</ul>
+<h2 id="7-every-other-page-route-code-data">7. Every other page: route -&gt; code -&gt; data</h2>
+<table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Page file</th>
+<th>What it shows</th>
+<th>Data hooks</th>
+<th>Backend endpoint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/app</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/CommandCenter.tsx:58" title="frontend/src/pages/CommandCenter.tsx:58">CommandCenter</a></td>
+<td>Situation score, live alert inbox, coast-bound hotspots, service health, live event feed</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/hooks/useApi.ts:13" title="frontend/src/hooks/useApi.ts:13">useOverview</a>, <code>useAlerts</code>, <code>useHotspots</code>, <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/hooks/useLiveFeed.ts:21" title="frontend/src/hooks/useLiveFeed.ts:21">useLiveFeed</a></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/stats.routes.ts:10" title="backend/src/routes/stats.routes.ts:10">/api/stats/overview</a>, <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/alerts.routes.ts:10" title="backend/src/routes/alerts.routes.ts:10">/api/alerts</a></td>
+</tr>
+<tr>
+<td><code>/app/map</code></td>
+<td><code>MapExplorer.tsx</code> (this whole tour)</td>
+<td>Draw a box, run the pipeline</td>
+<td><code>useAoiAnalysis</code>, <code>useScenesByBbox</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/pipeline.routes.ts:115" title="backend/src/routes/pipeline.routes.ts:115">POST /api/pipeline/run</a></td>
+</tr>
+<tr>
+<td><code>/app/areas</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/Areas.tsx:122" title="frontend/src/pages/Areas.tsx:122">Areas</a></td>
+<td>Saved areas, 72-hour drift forecasts kept as history</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/hooks/useApi.ts:120" title="frontend/src/hooks/useApi.ts:120">useAreas</a>, <code>useForecastArea</code>, <code>useRescanArea</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/areas.routes.ts:264" title="backend/src/routes/areas.routes.ts:264">/api/areas</a></td>
+</tr>
+<tr>
+<td><code>/app/records</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/Records.tsx:24" title="frontend/src/pages/Records.tsx:24">Records</a></td>
+<td>Raw detections <strong>or</strong> clustered hotspots (toggle) + severity-vs-ETA scatter. Embeds <code>Detections.tsx</code> and <code>Hotspots.tsx</code> as tabs</td>
+<td><code>useDetections</code>, <code>useHotspots</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/detections.routes.ts:29" title="backend/src/routes/detections.routes.ts:29">/api/detections</a>, <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/hotspots.routes.ts:9" title="backend/src/routes/hotspots.routes.ts:9">/api/hotspots</a></td>
+</tr>
+<tr>
+<td><code>/app/ai-lab</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/AILab.tsx:18" title="frontend/src/pages/AILab.tsx:18">AILab</a></td>
+<td>Model report card, confusion matrix, Clay similarity search. Embeds <code>ModelHealth.tsx</code> and <code>Intelligence.tsx</code></td>
+<td><code>usePipelineStatus</code>, <code>useSimilarityInfo</code>, <code>useModelEval</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/features.routes.ts:51" title="backend/src/routes/features.routes.ts:51">/api/engine/model/evaluate</a></td>
+</tr>
+<tr>
+<td><code>/app/operations</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/Operations.tsx:21" title="frontend/src/pages/Operations.tsx:21">Operations</a></td>
+<td>Field operations: from "plastic detected" to "crew sent" to "report filed"</td>
+<td><code>useOperations</code>, <code>useUpdateOperationStatus</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/operations.routes.ts:70" title="backend/src/routes/operations.routes.ts:70">/api/operations</a></td>
+</tr>
+<tr>
+<td><code>/app/analytics</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/AnalyticsReports.tsx:17" title="frontend/src/pages/AnalyticsReports.tsx:17">AnalyticsReports</a></td>
+<td>Trends and exports (CSV, GeoJSON, PDF). Embeds <code>Analytics.tsx</code> and <code>Reports.tsx</code></td>
+<td><code>useTrend</code>, <code>useByClass</code>, <code>useByRegion</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/export.routes.ts:24" title="backend/src/routes/export.routes.ts:24">/api/export</a></td>
+</tr>
+<tr>
+<td><code>/app/settings</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/Settings.tsx:10" title="frontend/src/pages/Settings.tsx:10">Settings</a></td>
+<td>Profile and two-factor authentication</td>
+<td>auth store</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/auth.routes.ts:120" title="backend/src/routes/auth.routes.ts:120">/api/auth/2fa</a></td>
+</tr>
+<tr>
+<td><code>/app/admin</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/AdminPanel.tsx:7" title="frontend/src/pages/AdminPanel.tsx:7">AdminPanel</a></td>
+<td>Users, engine and service status (ADMIN only)</td>
+<td><code>useAdminUsers</code>, <code>useServices</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/system.routes.ts:26" title="backend/src/routes/system.routes.ts:26">/api/system/services</a></td>
+</tr>
+<tr>
+<td><code>/app/detections/:id</code>, <code>/app/hotspots/:id</code></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/DetectionDetail.tsx:19" title="frontend/src/pages/DetectionDetail.tsx:19">DetectionDetail</a>, <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/HotspotDetail.tsx:13" title="frontend/src/pages/HotspotDetail.tsx:13">HotspotDetail</a></td>
+<td>One item in depth: evidence, drift forecast, analyst actions</td>
+<td><code>useDetection</code>, <code>useHotspot</code></td>
+<td><code>/api/detections/:id</code>, <code>/api/hotspots/:id</code></td>
+</tr>
+<tr>
+<td><code>/</code>, <code>/about</code>, <code>/docs</code>, <code>/faq</code>, <code>/compliance</code> ...</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/Landing.tsx:41" title="frontend/src/pages/Landing.tsx:41">Landing</a> and siblings</td>
+<td>Public marketing and information pages</td>
+<td>none</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cross-cutting pieces:</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/App.tsx:134" title="frontend/src/App.tsx:134">route table with role gates</a> (which routes need which role), <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/stores/authStore.ts:66" title="frontend/src/stores/authStore.ts:66">authStore</a> (login state), and the browser's HTTP client in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/lib/api.ts:173" title="frontend/src/lib/api.ts:173">api.ts</a>.</p>
+<h2 id="8-the-backend-in-order-of-how-a-request-travels">8. The backend, in order of how a request travels</h2>
+<ul>
+<li><strong>Startup and safety:</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/index.ts:28" title="backend/src/index.ts:28">helmet</a> (secure headers), CORS, <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/index.ts:52" title="backend/src/index.ts:52">rate limiting</a>, JSON parser, then all routes under <code>/api</code> (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/index.ts:67" title="backend/src/routes/index.ts:67">routes/index.ts</a>).</li>
+<li><strong>Login and roles:</strong> JWT access token (15 minutes) plus a refresh token (7 days) - <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/lib/env.ts:191" title="backend/src/lib/env.ts:191">env.ts</a>. Three roles: FIELD (1), COASTGUARD (2), ADMIN (3) - <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/types/auth.ts:7" title="backend/src/types/auth.ts:7">ROLE_LEVEL</a>. <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/middleware/auth.ts:26" title="backend/src/middleware/auth.ts:26">requireMinLevel</a> enforces them on the server, so hiding a button is never the only protection. Passwords are checked with bcrypt in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/services/auth.service.ts:80" title="backend/src/services/auth.service.ts:80">validateCredentials</a>, tokens are created in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/services/auth.service.ts:126" title="backend/src/services/auth.service.ts:126">issueTokens</a>, and two-factor (TOTP) is set up in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/services/auth.service.ts:175" title="backend/src/services/auth.service.ts:175">setupTotp</a>.</li>
+<li><strong>Engine proxy:</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/features.routes.ts:21" title="backend/src/routes/features.routes.ts:21">proxy</a> forwards <code>/api/engine/*</code> (forecast, change detection, similarity, model evaluation) to the Python engine.</li>
+<li><strong>Saving results:</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/services/pipelinePersist.service.ts:59" title="backend/src/services/pipelinePersist.service.ts:59">persistRun</a> (section 2, step 7). The database tables are defined in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/prisma/schema.prisma:164" title="backend/prisma/schema.prisma:164">schema.prisma</a> (also <code>Hotspot</code>, <code>Alert</code>, <code>Trajectory</code>, <code>Region</code>, <code>User</code>, <code>Operation</code>, <code>SavedArea</code>, <code>AreaForecast</code>). These live in <strong>PostgreSQL</strong>; <code>python database\mysql\sync_app.py</code> copies them into the MySQL database <code>mpt_app</code> for reporting (section 1).</li>
+<li><strong>Job queue and schedule:</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/lib/queue.ts:99" title="backend/src/lib/queue.ts:99">startWorker</a> (BullMQ on Redis) runs scans in the background; <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/pipeline.routes.ts:251" title="backend/src/routes/pipeline.routes.ts:251">/scheduled-run</a> lets a scheduler trigger scans of every monitored region. Everything falls back to a direct call if Redis is down.</li>
+<li><strong>Live updates:</strong> <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/lib/live.ts:29" title="backend/src/lib/live.ts:29">attachLiveSocket</a> pushes events to the browser over a WebSocket; the browser side is <code>useLiveFeed</code>.</li>
+</ul>
+<h2 id="9-the-engine-folder-by-folder">9. The engine, folder by folder</h2>
+<table>
+<thead>
+<tr>
+<th>Folder</th>
+<th>Contains</th>
+<th>Key files</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>python_engine/api/</code></td>
+<td>The HTTP routes</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/api/predict_route.py:42" title="python_engine/api/predict_route.py:42">predict_route.py</a>, <code>forecast_route.py</code>, <code>similarity_route.py</code>, <code>model_route.py</code></td>
+</tr>
+<tr>
+<td><code>python_engine/satellite/</code></td>
+<td>Get and clean pixels, compute FDI, land/cloud masks</td>
+<td><code>band_loader.py</code>, <code>download.py</code>, <code>fdi_calculator.py</code>, <code>cloud_masker.py</code>, <code>landmask.py</code></td>
+</tr>
+<tr>
+<td><code>python_engine/ml/</code></td>
+<td>Classifier, Clay fusion, training, dataset readers</td>
+<td><code>inference_engine.py</code>, <code>batch_classifier.py</code>, <code>clay_live.py</code>, <code>train_perpixel_gpu.py</code>, <code>datasets/</code></td>
+</tr>
+<tr>
+<td><code>python_engine/hotspot/</code></td>
+<td>Clustering and severity</td>
+<td><code>dbscan_clusterer.py</code>, <code>severity_scorer.py</code></td>
+</tr>
+<tr>
+<td><code>python_engine/trajectory/</code></td>
+<td>Drift, back-tracking, landfall, ocean and wind data</td>
+<td><code>lagrangian_model.py</code>, <code>back_tracker.py</code>, <code>polygon_landfall.py</code>, <code>data_interpolator.py</code></td>
+</tr>
+<tr>
+<td><code>python_engine/models/</code></td>
+<td>The trained model files and their measured scores</td>
+<td><code>marinenet.onnx</code>, <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/models/metrics.json:2" title="python_engine/models/metrics.json:2">metrics.json</a></td>
+</tr>
+<tr>
+<td><code>data/</code></td>
+<td>Datasets and the coastline file</td>
+<td><code>marida/</code>, <code>MADOS/</code>, <code>plp/</code>, <code>refinedfloatingobjects/</code>, <code>coastline/</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="10-questions-the-panel-is-likely-to-ask">10. Questions the panel is likely to ask</h2>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Short answer</th>
+<th>Show</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Why FDI and not just a photo?</td>
+<td>Plastic is often smaller than a pixel and grey/brown like the sea; in visible light it is invisible, but in near-infrared floating solids stand out.</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/fdi_calculator.py:19" title="python_engine/satellite/fdi_calculator.py:19">floating_debris_index</a></td>
+</tr>
+<tr>
+<td>If FDI is enough, why a neural network?</td>
+<td>FDI also fires on seaweed, foam and turbid water. The network uses 11 spectral clues learned from thousands of labelled pixels to separate them.</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/inference_engine.py:27" title="python_engine/ml/inference_engine.py:27">_features</a></td>
+</tr>
+<tr>
+<td>How do you handle clouds and land?</td>
+<td>Real cloud/land map (SCL) is fetched with every image; only water pixels can be candidates; coverage and cloud % are shown on screen; inland candidates are removed.</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/satellite/cloud_masker.py:58" title="python_engine/satellite/cloud_masker.py:58">surface_from_scl</a></td>
+</tr>
+<tr>
+<td>How accurate is it?</td>
+<td>Macro-F1 0.82 on held-out labelled pixels; plastic precision 0.78, recall 0.82; the high-confidence tier is about 90% precise. Accuracy 0.99 is misleading because water dominates.</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/models/metrics.json:22" title="python_engine/models/metrics.json:22">metrics.json</a></td>
+</tr>
+<tr>
+<td>Is the drift forecast validated?</td>
+<td>Yes, against 51 real NOAA drifter tracks: for surface drifters the median error is ~12 km at 24 h and ~30 km at 72 h, about half the error of assuming no movement. It is a hindcast, and the drawn cone is narrower than the real error.</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/validation/drift_gdp_results.json:104" title="python_engine/validation/drift_gdp_results.json:104">drift_gdp_results.json</a></td>
+</tr>
+<tr>
+<td>What is real and what is simulated?</td>
+<td>Pixels, cloud map, currents and wind are real when credentials are set. If a download fails the scan is labelled synthetic; the drift can fall back to a synthetic field, also labelled. <strong>Also: on the Areas page a synthetic "demo plastic" cluster is added when the live scan found none, and it is flagged amber.</strong></td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/MapExplorer.tsx:311" title="frontend/src/pages/MapExplorer.tsx:311">SurfaceReadout</a>, <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/areas.routes.ts:83" title="backend/src/routes/areas.routes.ts:83">withDemoPlastic</a></td>
+</tr>
+<tr>
+<td>What if the engine or internet is down?</td>
+<td>The UI shows an honest "engine unreachable" message; nothing is invented.</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/pipeline.routes.ts:85" title="backend/src/routes/pipeline.routes.ts:85">offlineAoiResult</a></td>
+</tr>
+<tr>
+<td>Who can do what?</td>
+<td>Three roles enforced on the server, not just hidden in the UI.</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/types/auth.ts:7" title="backend/src/types/auth.ts:7">ROLE_LEVEL</a></td>
+</tr>
+<tr>
+<td>Where do results go?</td>
+<td>PostgreSQL through Prisma: detections, hotspots, alerts, trajectories, one log row per stage.</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/services/pipelinePersist.service.ts:59" title="backend/src/services/pipelinePersist.service.ts:59">persistRun</a></td>
+</tr>
+<tr>
+<td>Why do you have both PostgreSQL and MySQL?</td>
+<td>PostgreSQL is the live app database. MySQL is a read-only copy of the datasets and the app tables, made so they can be browsed and charted in standard tools. The backend never reads MySQL.</td>
+<td><a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/database/mysql/sync_app.py:164" title="database/mysql/sync_app.py:164">sync_app.py</a></td>
+</tr>
+<tr>
+<td>Why 10 / 20 / 60?</td>
+<td>Pixel size in metres of the Sentinel-2 bands stored in each folder.</td>
+<td>Section 5</td>
+</tr>
+</tbody>
+</table>
+<h2 id="11-weak-points-and-how-to-say-them-honestly">11. Weak points, and how to say them honestly</h2>
+<p>Panels respect a team that knows its limits. These are all measured, not guessed.</p>
+<ul>
+<li><strong>Independent test on real deployed plastic (PLP 2021).</strong> A ~28 m HDPE mesh was anchored at a known spot and imaged on 21 Sentinel-2 passes (zero overlap with training data). At the surveyed position, in a 3x3-pixel window: the model called something <strong>Plastic on 33% of passes</strong>; the FDI screen alone fired on <strong>76%</strong>; a <strong>wood</strong> control raft was also called Plastic on <strong>80%</strong> of passes; but <strong>false alarms on all the other water were 0%</strong> (median). Read it as: <em>few false alarms, but a small target is often missed, and wood cannot be told apart from plastic in these bands.</em> Why: the target is only 2-3 pixels wide, so each pixel is part plastic, part water; and wood and plastic reflect similarly. Definitions: <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/ml/validate_plp.py:13" title="python_engine/ml/validate_plp.py:13">validate_plp.py</a>; numbers: <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/python_engine/models/plp_validation.json:4" title="python_engine/models/plp_validation.json:4">plp_validation.json</a>. The Clay second opinion is our attempt to improve this.</li>
+<li><strong>Plastic is very rare in the training data (about 0.5%)</strong>, so plastic scores are lower than water scores. This is why we report macro-F1 and a high-confidence tier instead of raw accuracy.</li>
+<li><strong>A satellite sees aggregated floating matter, not single bottles.</strong> "Plastic" here means <em>floating debris that spectrally behaves like plastic</em>.</li>
+<li><strong>Revisit time is about 5 days, and clouds leave gaps</strong> - the <em>44% observed</em> figure on screen is that limitation made visible.</li>
+<li><strong>New seas may behave differently.</strong> Only two scenes from seas outside the training data (RFO Durban and Marmara) were used as a check; that is thin evidence, so do not claim it works everywhere.</li>
+<li><strong>Drift error is real and the cone under-states it</strong> (about 12 km at 24 h, ~30 km at 72 h; cone holds the truth only 0-8% of the time; hindcast, not forecast) - see section 4, stage 6.</li>
+</ul>
+<h2 id="12-before-you-present-a-6-point-checklist">12. Before you present: a 6-point checklist</h2>
+<ol>
+<li><strong>Start everything</strong> with <code>start-all.cmd</code> and wait for all windows (engine :8000, Clay :8010, backend :3001, frontend :5173). Without the Clay window the <em>Clay verify</em> card says OFFLINE.</li>
+<li><strong>Map Explorer -&gt; Advanced tools -&gt; Min confidence must be 0%.</strong> If it is high, the <em>Classify</em> card can read "0 plastic of 0 classified" even though the <em>FDI</em> card found hundreds of candidates.</li>
+<li><strong>If you see the orange "RESTORED - NOT RE-SCANNED" badge, press Rescan</strong> so the cards show a fresh run (a real scan takes about a minute; the download is the slow part).</li>
+<li><strong>Draw over open sea for the demo.</strong> A box on land or cloud is <em>supposed</em> to show the amber warning and no markers. <strong>0 plastic on a clean sea is a correct result</strong>, not a fault - say so.</li>
+<li><strong>Know the demo plastic.</strong> On the <strong>Areas</strong> page, if a saved scan has no plastic, the backend adds a <em>synthetic</em> cluster so the drift forecast has something to release (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/routes/areas.routes.ts:83" title="backend/src/routes/areas.routes.ts:83">withDemoPlastic</a>, switch <code>DEMO_PLASTIC</code> in <a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/backend/src/lib/env.ts:152" title="backend/src/lib/env.ts:152">env.ts</a>). The page labels it with an amber "Demo plastic" banner (<a href="vscode://file/E:/Final%20Year%20Project/marine-plastic-tracker/frontend/src/pages/Areas.tsx:795" title="frontend/src/pages/Areas.tsx:795">Areas.tsx</a>). Tell the panel first; set <code>DEMO_PLASTIC=false</code> in <code>.env</code> and restart the backend if you would rather not show it.</li>
+<li><strong>Test one link now.</strong> Open <code>docs/CODE_TOUR.html</code>, click a <code>file:line</code> link, allow the "Open Visual Studio Code?" prompt. Then run <code>python docs\code-tour\build_code_tour.py --check</code> to confirm every link still lands after any last-minute edits (if you changed code, rebuild with <code>C:\Anaconda\python.exe docs\code-tour\build_code_tour.py</code>).</li>
+</ol>
+<h2 id="13-files-that-look-important-but-are-not-used">13. Files that look important but are not used</h2>
+<p>Inside <code>frontend/src/pages/</code> three files are no longer used by any route: <code>Alerts.tsx</code>, <code>Dashboard.tsx</code> and <code>OpsBoard.tsx</code>. Their content was merged into <strong>Command Center</strong>. Do not open them in the viva. The other "old-looking" pages (<code>Detections</code>, <code>Hotspots</code>, <code>ModelHealth</code>, <code>Intelligence</code>, <code>Analytics</code>, <code>Reports</code>) are <strong>still live</strong>: they are the tabs inside Records, AI Lab and Analytics &amp; Reports.</p>
+</main>
+</div>
+</body>
+</html>

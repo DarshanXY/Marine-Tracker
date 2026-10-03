@@ -1,0 +1,381 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 8 /Kids [ 6 0 R 8 0 R 10 0 R 12 0 R 14 0 R 16 0 R 18 0 R 20 0 R ] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Length 2990 >>
+stream
+BT /F2 24 Tf 1 0 0 1 50 790.00 Tm (Marine Plastic Tracker: Model, Data, and Training Explainer) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 743.92 Tm (Prepared from the current codebase on Thursday, July 30, 2026.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 719.30 Tm (This note is written in simple words so we can explain the project clearly to) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 703.68 Tm (the panel.) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 673.06 Tm (1. What the project does) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 639.50 Tm (Our project takes free Sentinel-2 satellite images of the sea, finds pixels that) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 623.88 Tm (may contain floating material, uses AI to decide whether that material is) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 608.26 Tm (plastic or not, groups nearby plastic pixels into hotspots, and predicts where) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 592.64 Tm (those hotspots may drift over the next 72 hours.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 568.02 Tm (Simple one-line answer:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 543.40 Tm ("We built a system that looks at satellite images, finds possible floating) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 527.78 Tm (waste, checks whether it is plastic, and shows where it may move next.") Tj ET
+BT /F2 18 Tf 1 0 0 1 50 497.16 Tm (2. Which model is used?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 463.60 Tm (The main deployed model is `marinenet.onnx`.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 438.98 Tm (It is a per-pixel neural network model. In simple words, it looks at one) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 423.36 Tm (candidate pixel at a time and classifies it into one of 4 classes:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 398.74 Tm (- Plastic) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 382.12 Tm (- Algae) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 365.50 Tm (- Sea_Foam) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 348.88 Tm (- Water) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 326.26 Tm (The current shipped model is a 3-seed ensemble of per-pixel MLPs. That means we) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 310.64 Tm (trained the same kind of network multiple times and combined their outputs to) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 295.02 Tm (make the result more stable.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 270.40 Tm (There is also a second model called Clay. Clay is not the main detector. It is) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 254.78 Tm (used as a second opinion verifier for hotspots after the main model has already) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 239.16 Tm (detected possible plastic.) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 208.54 Tm (3. What is the model trained on?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 174.98 Tm (The final deployed main model is trained on 2 real public benchmark datasets:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 150.36 Tm (- MARIDA) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 133.74 Tm (- MADOS) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 111.12 Tm (These are real Sentinel-2 marine remote-sensing datasets with scientist-provided) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 95.50 Tm (labels.) Tj ET
+BT /F1 9 Tf 1 0 0 1 50 28 Tm (Marine Plastic Tracker panel explainer) Tj ET
+BT /F1 9 Tf 1 0 0 1 505 28 Tm (Page 1) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 2725 >>
+stream
+BT /F1 11 Tf 1 0 0 1 50 790.00 Tm (Important panel answer:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 765.38 Tm ("Our final deployed model is trained on two real labeled satellite datasets:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 749.76 Tm (MARIDA and MADOS.") Tj ET
+BT /F2 18 Tf 1 0 0 1 50 719.14 Tm (4. How many datasets are we working on?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 685.58 Tm (There are 2 main datasets used for training the final model, and 2 more used for) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 669.96 Tm (validation and extra testing.) Tj ET
+BT /F2 13 Tf 1 0 0 1 50 645.34 Tm (Main training datasets) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 618.88 Tm (- MARIDA) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 602.26 Tm (- MADOS) Tj ET
+BT /F2 13 Tf 1 0 0 1 50 579.64 Tm (Extra validation / generalization datasets) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 553.18 Tm (- PLP 2021 / 2022) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 536.56 Tm (- RefinedFloatingObjects \(RFO\)) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 513.94 Tm (So the clean answer is:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 489.32 Tm (- 2 datasets for final model training) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 472.70 Tm (- 4 datasets in the wider research and validation workflow) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 444.08 Tm (5. Where did the datasets come from?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 410.52 Tm (- MARIDA: Kikaki et al. 2022 marine debris benchmark) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 393.90 Tm (- MADOS: Kikaki, Kakogeorgiou et al. 2024 marine debris and oil-spill) Tj ET
+BT /F1 11 Tf 1 0 0 1 62 378.28 Tm (benchmark) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 361.66 Tm (- PLP: Plastic Litter Project, University of the Aegean) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 345.04 Tm (- RFO: RefinedFloatingObjects dataset by Russwurm et al. 2023) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 316.42 Tm (6. Where did we keep the datasets in the project?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 282.86 Tm (We stored the downloaded raw datasets inside the `data/` folder:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 258.24 Tm (- `data/marida`) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 241.62 Tm (- `data/MADOS`) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 225.00 Tm (- `data/plp/PLP`) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 208.38 Tm (- `data/refinedfloatingobjects/refinedfloatingobjects`) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 185.76 Tm (After cleaning and preprocessing, we saved compact training caches inside) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 170.14 Tm (`python_engine/models/`, such as:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 145.52 Tm (- `marida_train.npz`) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 128.90 Tm (- `mados_train.npz`) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 112.28 Tm (- `marida_test.npz`) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 95.66 Tm (- `mados_test.npz`) Tj ET
+BT /F1 9 Tf 1 0 0 1 50 28 Tm (Marine Plastic Tracker panel explainer) Tj ET
+BT /F1 9 Tf 1 0 0 1 505 28 Tm (Page 2) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 7 0 R >>
+endobj
+9 0 obj
+<< /Length 2922 >>
+stream
+BT /F1 11 Tf 1 0 0 1 50 790.00 Tm (Simple panel answer:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 765.38 Tm ("We kept the raw datasets in the project's data folder, then converted them into) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 749.76 Tm (clean numpy cache files that the training scripts could use directly.") Tj ET
+BT /F2 18 Tf 1 0 0 1 50 719.14 Tm (7. How much data trained the final model?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 685.58 Tm (From the current cache files:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 660.96 Tm (- MARIDA train: 347,204 labeled pixels) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 644.34 Tm (- MADOS train: 734,411 labeled pixels) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 621.72 Tm (Total training data for the final main model:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 597.10 Tm (- 1,081,615 labeled pixels) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 574.48 Tm (Held-out test data:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 549.86 Tm (- MARIDA test: 153,762 pixels) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 533.24 Tm (- MADOS test: 346,145 pixels) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 510.62 Tm (Important panel answer:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 486.00 Tm ("Our final main model was trained on 1,081,615 labeled pixels from MARIDA and) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 470.38 Tm (MADOS.") Tj ET
+BT /F2 18 Tf 1 0 0 1 50 439.76 Tm (8. How did data preprocessing work?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 406.20 Tm (We did not feed raw dataset files directly into the model. We first cleaned and) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 390.58 Tm (converted them into the exact format needed by our project.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 365.96 Tm (The preprocessing pipeline worked like this:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 341.34 Tm (- Download the raw datasets and place them in the `data/` folder.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 324.72 Tm (- Read the official train, validation, and test split files provided by each) Tj ET
+BT /F1 11 Tf 1 0 0 1 62 309.10 Tm (dataset.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 292.48 Tm (- Open the satellite GeoTIFF bands and label masks using our own Python) Tj ET
+BT /F1 11 Tf 1 0 0 1 62 276.86 Tm (loaders.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 260.24 Tm (- Select the Sentinel-2 bands that match our live pipeline.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 243.62 Tm (- Compute extra spectral features such as FDI and NDVI.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 227.00 Tm (- Convert the original dataset labels into our 4 project classes.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 210.38 Tm (- Remove invalid, excluded, or non-finite rows.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 193.76 Tm (- Save the clean result as `.npz` cache files.) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 165.14 Tm (9. What features were given to the model?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 131.58 Tm (The current shipped model uses 11 features.) Tj ET
+BT /F2 13 Tf 1 0 0 1 50 106.96 Tm (Raw bands) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 80.50 Tm (- B04) Tj ET
+BT /F1 9 Tf 1 0 0 1 50 28 Tm (Marine Plastic Tracker panel explainer) Tj ET
+BT /F1 9 Tf 1 0 0 1 505 28 Tm (Page 3) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 9 0 R >>
+endobj
+11 0 obj
+<< /Length 2595 >>
+stream
+BT /F1 11 Tf 1 0 0 1 50 790.00 Tm (- B06) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 773.38 Tm (- B08) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 756.76 Tm (- B8A) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 740.14 Tm (- B11) Tj ET
+BT /F2 13 Tf 1 0 0 1 50 717.52 Tm (Derived features) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 691.06 Tm (- FDI) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 674.44 Tm (- NDVI) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 657.82 Tm (- PI) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 641.20 Tm (- MNDWI) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 624.58 Tm (- NDVI_RE) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 607.96 Tm (- BRIGHT) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 585.34 Tm (These extra features are calculated from the same 5 satellite bands, so they) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 569.72 Tm (improve the model without needing extra external data.) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 539.10 Tm (10. How did we manually implement preprocessing) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 513.54 Tm (by ourselves?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 479.98 Tm (We wrote our own dataset adapters and preprocessing code.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 455.36 Tm (What we implemented manually:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 430.74 Tm (- A loader for MARIDA) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 414.12 Tm (- A loader for MADOS) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 397.50 Tm (- A loader for PLP) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 380.88 Tm (- A loader for RFO) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 364.26 Tm (- Class mapping from original dataset labels to our 4 project classes) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 347.64 Tm (- Spectral feature calculation) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 331.02 Tm (- MADOS band upsampling to a common 10 m grid) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 314.40 Tm (- Cleaning and caching into `.npz` files) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 291.78 Tm (Simple panel answer:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 267.16 Tm ("We did not just use a ready-made training pipeline. We wrote our own loaders,) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 251.54 Tm (feature engineering, label mapping, cleaning, and dataset caching.") Tj ET
+BT /F2 18 Tf 1 0 0 1 50 220.92 Tm (11. Which model did we train, and what does it) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 195.36 Tm (do?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 161.80 Tm (The most important trained model is `marinenet.onnx`.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 137.18 Tm (What it does:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 112.56 Tm (- It takes the feature values of a candidate pixel.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 95.94 Tm (- It predicts whether that pixel is Plastic, Algae, Sea_Foam, or Water.) Tj ET
+BT /F1 9 Tf 1 0 0 1 50 28 Tm (Marine Plastic Tracker panel explainer) Tj ET
+BT /F1 9 Tf 1 0 0 1 505 28 Tm (Page 4) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 11 0 R >>
+endobj
+13 0 obj
+<< /Length 3139 >>
+stream
+BT /F1 11 Tf 1 0 0 1 50 790.00 Tm (There is also:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 765.38 Tm (- `clay_head.pt`: used for second-stage hotspot verification) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 748.76 Tm (- `marinenet_patch.onnx`: an experimental patch CNN that we tested but did not) Tj ET
+BT /F1 11 Tf 1 0 0 1 62 733.14 Tm (keep as default) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 704.52 Tm (12. Full training process of the main model) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 670.96 Tm (This is the full training workflow in simple words:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 646.34 Tm (- Load MARIDA and MADOS using our custom Python dataset loaders.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 629.72 Tm (- Convert each labeled pixel into the model's feature vector.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 613.10 Tm (- Merge both datasets into one clean training set.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 596.48 Tm (- Train the per-pixel MLP model on GPU.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 579.86 Tm (- Check performance on held-out test data that the model never saw during) Tj ET
+BT /F1 11 Tf 1 0 0 1 62 564.24 Tm (training.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 547.62 Tm (- Export the trained model to ONNX as `marinenet.onnx`.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 531.00 Tm (- Load that ONNX model into the live Python engine.) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 502.38 Tm (13. How does the model take data from the) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 476.82 Tm (datasets?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 443.26 Tm (There are 2 different stages to understand:) Tj ET
+BT /F2 13 Tf 1 0 0 1 50 418.64 Tm (A. During training) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 392.18 Tm (- The loaders read the raw datasets from the `data/` folder.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 375.56 Tm (- The preprocessing code converts them into clean feature arrays.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 358.94 Tm (- The training script uses those clean arrays to train the model.) Tj ET
+BT /F2 13 Tf 1 0 0 1 50 336.32 Tm (B. During live use) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 309.86 Tm (- The model does not go back to the old training datasets.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 293.24 Tm (- Instead, the project downloads a new Sentinel-2 image.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 276.62 Tm (- The pipeline computes the same kind of features from the new image.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 260.00 Tm (- Then the trained ONNX model predicts the class of each candidate pixel.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 237.38 Tm (This is an important panel point:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 212.76 Tm ("The datasets are used to teach the model during training. During live use, the) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 197.14 Tm (trained model works on new satellite images.") Tj ET
+BT /F2 18 Tf 1 0 0 1 50 166.52 Tm (14. Full live pipeline after training) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 132.96 Tm (Once the model is trained and loaded, the project works like this:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 108.34 Tm (- Download a real Sentinel-2 scene for the selected sea area.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 91.72 Tm (- Mask land and cloud using the SCL layer.) Tj ET
+BT /F1 9 Tf 1 0 0 1 50 28 Tm (Marine Plastic Tracker panel explainer) Tj ET
+BT /F1 9 Tf 1 0 0 1 505 28 Tm (Page 5) Tj ET
+endstream
+endobj
+14 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 13 0 R >>
+endobj
+15 0 obj
+<< /Length 2911 >>
+stream
+BT /F1 11 Tf 1 0 0 1 50 790.00 Tm (- Compute FDI to find possible floating material.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 773.38 Tm (- Build the same feature vector used during training.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 756.76 Tm (- Run `marinenet.onnx` to classify each candidate.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 740.14 Tm (- Keep the plastic detections.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 723.52 Tm (- Group nearby plastic detections into hotspots using DBSCAN.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 706.90 Tm (- Send hotspots to Clay for a second opinion.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 690.28 Tm (- Run drift forecasting for 72 hours.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 673.66 Tm (- Show the final result on the map and raise alerts if needed.) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 645.04 Tm (15. Results and accuracy) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 611.48 Tm (Current shipped main model results from `python_engine/models/metrics.json`:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 586.86 Tm (- Held-out accuracy: 98.99%) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 570.24 Tm (- Macro-F1: 0.8175) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 553.62 Tm (- Plastic precision: 0.7761) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 537.00 Tm (- Plastic recall: 0.8242) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 520.38 Tm (- Plastic F1: 0.7994) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 497.76 Tm (Per-dataset results:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 473.14 Tm (- MARIDA held-out test: accuracy 0.9981, macro-F1 0.9047) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 456.52 Tm (- MADOS held-out test: accuracy 0.9862, macro-F1 0.7843) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 433.90 Tm (Important panel answer:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 409.28 Tm ("The shipped main model reached 98.99% held-out accuracy and 0.8175 Macro-F1 on) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 393.66 Tm (combined MARIDA and MADOS test data.") Tj ET
+BT /F2 18 Tf 1 0 0 1 50 363.04 Tm (16. What about the other models?) Tj ET
+BT /F2 13 Tf 1 0 0 1 50 329.48 Tm (Patch CNN) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 303.02 Tm (We also trained a patch CNN \(`marinenet_patch.onnx`\), but it performed worse:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 278.40 Tm (- Test accuracy: 0.6236) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 261.78 Tm (- Macro-F1: 0.5548) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 239.16 Tm (So we did not keep it as the default model.) Tj ET
+BT /F2 13 Tf 1 0 0 1 50 214.54 Tm (Clay verifier) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 188.08 Tm (Clay is used as a second-stage verifier, not the main detector.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 163.46 Tm (Important current numbers:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 138.84 Tm (- Clay held-out chip accuracy: 0.7624) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 122.22 Tm (- Clay Macro-F1: 0.7109) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 105.60 Tm (- Confirmed tier precision after fusion: 0.9219) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 88.98 Tm (- Confirmed tier recall after fusion: 0.7037) Tj ET
+BT /F1 9 Tf 1 0 0 1 50 28 Tm (Marine Plastic Tracker panel explainer) Tj ET
+BT /F1 9 Tf 1 0 0 1 505 28 Tm (Page 6) Tj ET
+endstream
+endobj
+16 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 15 0 R >>
+endobj
+17 0 obj
+<< /Length 2453 >>
+stream
+BT /F2 18 Tf 1 0 0 1 50 790.00 Tm (17. Independent validation results) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 756.44 Tm (We also checked the system using independent data outside the main training) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 740.82 Tm (workflow.) Tj ET
+BT /F2 13 Tf 1 0 0 1 50 716.20 Tm (PLP validation) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 689.74 Tm (Current saved validation result:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 665.12 Tm (- 21 dates checked) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 648.50 Tm (- HDPE hit rate: 0.333) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 631.88 Tm (- FDI gate rate: 0.762) Tj ET
+BT /F2 13 Tf 1 0 0 1 50 609.26 Tm (RFO holdout) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 582.80 Tm (This checks generalization on new seas:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 558.18 Tm (- Clay debris recall: 0.5422) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 541.56 Tm (- Main per-pixel baseline on same holdout: 0.2222) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 518.94 Tm (This shows Clay is useful as a second opinion when the system sees new) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 503.32 Tm (environments.) Tj ET
+BT /F2 18 Tf 1 0 0 1 50 472.70 Tm (18. What did we manually implement by our own?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 439.14 Tm (We manually implemented:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 414.52 Tm (- Dataset integration) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 397.90 Tm (- Data preprocessing) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 381.28 Tm (- Feature engineering) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 364.66 Tm (- Label mapping) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 348.04 Tm (- Training scripts) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 331.42 Tm (- ONNX export) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 314.80 Tm (- ONNX model loading) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 298.18 Tm (- Live inference pipeline) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 281.56 Tm (- Hotspot clustering) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 264.94 Tm (- Clay second-stage verification) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 248.32 Tm (- Drift forecasting connection) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 225.70 Tm (Simple panel answer:) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 201.08 Tm ("We did not just download a ready-made model. We built the full pipeline) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 185.46 Tm (ourselves: data loading, preprocessing, training, model export, and live) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 169.84 Tm (integration.") Tj ET
+BT /F2 18 Tf 1 0 0 1 50 139.22 Tm (19. Final 1-minute script for the panel) Tj ET
+BT /F1 9 Tf 1 0 0 1 50 28 Tm (Marine Plastic Tracker panel explainer) Tj ET
+BT /F1 9 Tf 1 0 0 1 505 28 Tm (Page 7) Tj ET
+endstream
+endobj
+18 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 17 0 R >>
+endobj
+19 0 obj
+<< /Length 2717 >>
+stream
+BT /F1 11 Tf 1 0 0 1 50 790.00 Tm ("Our project uses a main AI model called `marinenet.onnx`. It is a per-pixel) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 774.38 Tm (neural network that classifies candidate satellite pixels into Plastic, Algae,) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 758.76 Tm (Sea_Foam, or Water.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 734.14 Tm (We trained the final model on two real labeled benchmark datasets: MARIDA and) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 718.52 Tm (MADOS. Together they gave us 1,081,615 labeled training pixels. We stored the) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 702.90 Tm (raw datasets in the project's data folder, wrote our own Python loaders, cleaned) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 687.28 Tm (the data, mapped the original labels into our 4 project classes, calculated the) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 671.66 Tm (spectral features, and saved clean cache files for training.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 647.04 Tm (Then we trained the model on GPU, tested it on held-out data it had never seen) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 631.42 Tm (before, and exported it to ONNX for live use in the project. The current shipped) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 615.80 Tm (model got 98.99% accuracy and 0.8175 Macro-F1 on the combined held-out test.) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 591.18 Tm (In the live system, we download a Sentinel-2 image, compute FDI, run the trained) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 575.56 Tm (model, group detections into hotspots, verify them with Clay, and finally) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 559.94 Tm (forecast drift.") Tj ET
+BT /F2 18 Tf 1 0 0 1 50 529.32 Tm (20. Very short answers to common questions) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 495.76 Tm (Which model is used?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 471.14 Tm (- `marinenet.onnx`) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 448.52 Tm (What is it trained on?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 423.90 Tm (- MARIDA and MADOS) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 401.28 Tm (How many datasets are involved?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 376.66 Tm (- 2 for final training, 4 in the wider workflow) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 354.04 Tm (How was preprocessing done?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 329.42 Tm (- Band selection, feature engineering, label mapping, cleaning, and `.npz`) Tj ET
+BT /F1 11 Tf 1 0 0 1 62 313.80 Tm (caching) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 291.18 Tm (What were the final results?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 266.56 Tm (- Accuracy 98.99%, Macro-F1 0.8175, Plastic F1 0.7994) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 243.94 Tm (What does Clay do?) Tj ET
+BT /F1 11 Tf 1 0 0 1 50 219.32 Tm (- It gives a second opinion on hotspots) Tj ET
+BT /F1 9 Tf 1 0 0 1 50 28 Tm (Marine Plastic Tracker panel explainer) Tj ET
+BT /F1 9 Tf 1 0 0 1 505 28 Tm (Page 8) Tj ET
+endstream
+endobj
+20 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 19 0 R >>
+endobj
+xref
+0 21
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000171 00000 n 
+0000000241 00000 n 
+0000000316 00000 n 
+0000003358 00000 n 
+0000003494 00000 n 
+0000006271 00000 n 
+0000006407 00000 n 
+0000009381 00000 n 
+0000009518 00000 n 
+0000012166 00000 n 
+0000012304 00000 n 
+0000015496 00000 n 
+0000015634 00000 n 
+0000018598 00000 n 
+0000018736 00000 n 
+0000021242 00000 n 
+0000021380 00000 n 
+0000024150 00000 n 
+trailer
+<< /Size 21 /Root 1 0 R >>
+startxref
+24288
+%%EOF

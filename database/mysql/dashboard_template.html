@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marine Plastic Tracker - Datasets in MySQL</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #F6FEFC;
+  --surface: #FFFFFF;
+  --border: #D6EDE9;
+  --ink: #0F172A;
+  --ink-2: #475569;
+  --muted: #64748B;
+  --grid: #E4F1EE;
+  --axis: #CBD5E1;
+  --accent: #0D9488;
+  --accent-wash: #F0FDFA;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --warning: #fab219;
+}
+* { box-sizing: border-box; }
+html { background: var(--page); }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1200px; margin: 0 auto; padding: 32px 16px 64px; }
+header h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; font-weight: 650; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--ink-2); max-width: 78ch; }
+.meta { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.meta code, .sub code, p code { background: var(--accent-wash); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; font-size: 12px; }
+nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0 8px; }
+nav a { color: var(--ink-2); text-decoration: none; font-size: 13px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); }
+nav a:hover, nav a:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+section.block { margin-top: 36px; }
+section.block > h2 { font-size: 18px; margin: 0 0 4px; font-weight: 650; }
+section.block > p.blurb { margin: 0 0 14px; color: var(--ink-2); max-width: 86ch; }
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-top: 22px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.tile .k { font-size: 12px; color: var(--muted); }
+.tile .v { font-size: 30px; font-weight: 650; line-height: 1.15; margin-top: 2px; letter-spacing: -0.01em; }
+.tile .n { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+.tile .ok { color: var(--good-text); font-weight: 600; }
+.card { grid-column: span 6; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 16px 12px; min-width: 0; }
+.card.wide { grid-column: span 12; }
+.card-h { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+.card-h h3 { font-size: 15px; margin: 0; font-weight: 650; }
+.card-h .sub { margin: 2px 0 0; font-size: 12px; color: var(--muted); max-width: 70ch; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex: none; }
+.seg button { font: inherit; font-size: 12px; padding: 3px 10px; border: 0; background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent-wash); color: var(--accent); font-weight: 600; }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 8px; font-size: 12px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.chart svg { display: block; max-width: 100%; overflow: visible; }
+.chart svg text { font-family: inherit; }
+.hit:focus { outline: none; }
+.hit:focus-visible rect:first-child { stroke: var(--accent); stroke-width: 1.5; }
+.tbl { overflow: auto; max-height: 640px; border: 1px solid var(--border); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+td.desc { white-space: normal; min-width: 240px; color: var(--ink-2); }
+th { position: sticky; top: 0; background: var(--accent-wash); font-weight: 600; font-size: 12px; color: var(--ink-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr:last-child td { border-bottom: 0; }
+.empty { color: var(--muted); padding: 24px 0; text-align: center; }
+.note { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.tip { position: fixed; display: none; z-index: 10; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px rgba(15,23,42,.12); padding: 8px 10px; font-size: 12px; max-width: 280px; }
+.tip-t { font-weight: 600; margin-bottom: 4px; color: var(--ink); }
+.tip-r { display: flex; align-items: center; gap: 8px; }
+.tip-r strong { font-weight: 650; font-variant-numeric: tabular-nums; }
+.tip-r .lbl { color: var(--ink-2); }
+.tip-r .key { width: 12px; height: 3px; border-radius: 2px; flex: none; }
+footer { margin-top: 48px; font-size: 12px; color: var(--muted); }
+@media (max-width: 860px) { .card, .card.wide { grid-column: span 12; } .wrap { padding-top: 20px; } }
+@media (forced-colors: active) { .card, .tile { border: 1px solid CanvasText; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Datasets in MySQL</h1>
+    <p>Every dataset the project trains and validates on, as tables you can query. The charts below are drawn from
+    the MySQL <em>views</em> in Workbench (<code>Schemas &rarr; mpt_datasets &rarr; Views</code>) - each chart has a
+    <strong>Table</strong> button that shows the same rows.</p>
+    <div class="meta" id="meta"></div>
+  </header>
+  <nav id="nav" aria-label="Sections"></nav>
+  <div class="tiles" id="tiles"></div>
+  <main id="app"></main>
+  <footer>Generated by <code>database/mysql/build_dashboard.py</code>. Re-run it after reloading the data.</footer>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script id="data" type="application/json">/*__DATA__*/null</script>
+<script>
+(function () {
+'use strict';
+const D = JSON.parse(document.getElementById('data').textContent);
+const NS = 'http://www.w3.org/2000/svg';
+// Order chosen with the palette validator so no two ADJACENT classes are too close: Sea_Foam (sky) and
+// Water (slate) must not touch (worst adjacent dE 18.5 in this order vs 11.6 in the app's own order).
+const CLASS_ORDER = ['Plastic', 'Sea_Foam', 'Algae', 'Water'];
+const CLASS_COLOR = { Plastic: '#0D9488', Algae: '#84CC16', Sea_Foam: '#38BDF8', Water: '#94A3B8' };
+const UNUSED = '#D5DDE3';
+const RUN_COLOR = { per_pixel: '#2a78d6', patch_cnn: '#eb6834', clay_head: '#1baf7a' };
+const RUN_NAME = { per_pixel: 'Per-pixel MLP ensemble (shipped)', patch_cnn: 'Patch CNN', clay_head: 'Clay head' };
+const SEV_COLOR = { HIGH: '#d03b3b', MEDIUM: '#ec835a', LOW: '#fab219' };
+const INK = '#0F172A', INK2 = '#475569', MUTED = '#64748B', GRID = '#E4F1EE', AXIS = '#CBD5E1', SURFACE = '#FFFFFF';
+const RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b'];
+
+// ---------- helpers ----------
+const num = (v) => (v == null || v === '' ? 0 : Number(v));
+const fmtInt = (n) => Math.round(num(n)).toLocaleString('en-US');
+function fmt(n) {
+  n = num(n);
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 1 : 2) + 'M';
+  if (n >= 1e4) return (n / 1e3).toFixed(0) + 'K';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(Math.round(n * 100) / 100);
+}
+const pct = (n, d = 1) => (num(n)).toFixed(d) + '%';
+const f2 = (n) => (n == null ? '-' : num(n).toFixed(2));
+const f3 = (n) => (n == null ? '-' : num(n).toFixed(3));
+
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else e.setAttribute(k, v);
+  }
+  for (const kid of kids) { if (kid == null) continue; e.append(kid.nodeType ? kid : document.createTextNode(String(kid))); }
+  return e;
+}
+function s(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) { if (k === 'text') e.textContent = v; else e.setAttribute(k, v); }
+  if (parent) parent.append(e);
+  return e;
+}
+function lum(hex) {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+const onFill = (hex) => (lum(hex) > 0.28 ? INK : '#FFFFFF');
+function ramp(t) {
+  t = Math.max(0, Math.min(1, t)); const p = t * (RAMP.length - 1), i = Math.min(RAMP.length - 2, Math.floor(p)), f = p - i;
+  const a = RAMP[i], b = RAMP[i + 1];
+  const mix = [1, 3, 5].map((k) => Math.round(parseInt(a.slice(k, k + 2), 16) * (1 - f) + parseInt(b.slice(k, k + 2), 16) * f));
+  return '#' + mix.map((v) => v.toString(16).padStart(2, '0')).join('');
+}
+function niceMax(v) {
+  if (v <= 0) return 1; const e = Math.pow(10, Math.floor(Math.log10(v))), m = v / e;
+  return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * e;
+}
+
+// ---------- tooltip (labels are untrusted data -> textContent only) ----------
+const tip = document.getElementById('tip');
+function moveTip(ev) {
+  const pad = 14; let x = ev.clientX + pad, y = ev.clientY + pad; const r = tip.getBoundingClientRect();
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - pad;
+  tip.style.left = Math.max(4, x) + 'px'; tip.style.top = Math.max(4, y) + 'px';
+}
+function showTip(ev, title, rows) {
+  tip.replaceChildren(h('div', { class: 'tip-t', text: title }));
+  for (const r of rows) {
+    const line = h('div', { class: 'tip-r' });
+    if (r.color) { const k = h('span', { class: 'key' }); k.style.background = r.color; line.append(k); }
+    line.append(h('strong', { text: r.value }), h('span', { class: 'lbl', text: r.label }));
+    tip.append(line);
+  }
+  tip.style.display = 'block'; moveTip(ev);
+}
+const hideTip = () => { tip.style.display = 'none'; };
+function bindTip(node, title, rows) {
+  node.addEventListener('pointerenter', (ev) => showTip(ev, title, rows));
+  node.addEventListener('pointermove', moveTip);
+  node.addEventListener('pointerleave', hideTip);
+  node.addEventListener('focus', () => { const b = node.getBoundingClientRect(); showTip({ clientX: b.left + Math.min(b.width, 160), clientY: b.top }, title, rows); });
+  node.addEventListener('blur', hideTip);
+}
+
+// ---------- marks ----------
+const barPath = (x, y, w, hh, r) => { r = Math.min(r, w, hh / 2); return `M${x},${y}H${x + w - r}A${r},${r} 0 0 1 ${x + w},${y + r}V${y + hh - r}A${r},${r} 0 0 1 ${x + w - r},${y + hh}H${x}Z`; };
+const colPath = (x, y, w, hh, r) => { r = Math.min(r, w / 2, hh); return `M${x},${y + hh}V${y + r}A${r},${r} 0 0 1 ${x + r},${y}H${x + w - r}A${r},${r} 0 0 1 ${x + w},${y + r}V${y + hh}Z`; };
+const mkSvg = (w, H, aria) => s('svg', { viewBox: `0 0 ${w} ${H}`, width: w, height: H, role: 'img', 'aria-label': aria });
+function legend(items) {
+  const d = h('div', { class: 'legend' });
+  for (const it of items) { const i = h('i'); i.style.background = it.color; d.append(h('span', {}, i, it.label)); }
+  return d;
+}
+
+// horizontal bars, one series (colour comes from the entity)
+function hbar(host, w, rows, o) {
+  const labelW = o.labelW || 176, rowH = 30, bh = 20, padR = 78, top = 4, H = rows.length * rowH + top + 6;
+  const svg = mkSvg(w, H, o.aria);
+  const max = Math.max(...rows.map(o.value), 1), plotW = Math.max(60, w - labelW - padR);
+  s('line', { x1: labelW, x2: labelW, y1: 0, y2: H, stroke: AXIS, 'stroke-width': 1 }, svg);
+  rows.forEach((r, i) => {
+    const y = top + i * rowH, v = o.value(r), bw = v > 0 ? Math.max(2, (v / max) * plotW) : 0;
+    const g = s('g', { tabindex: 0, class: 'hit' }, svg);
+    s('rect', { x: 0, y: y - 4, width: w, height: rowH, fill: 'transparent' }, g);
+    s('text', { x: labelW - 10, y: y + bh / 2 + 4, 'text-anchor': 'end', fill: INK2, 'font-size': 12, text: o.label(r) }, g);
+    if (bw) s('path', { d: barPath(labelW, y, bw, bh, 4), fill: o.color(r) }, g);
+    s('text', { x: labelW + bw + 8, y: y + bh / 2 + 4, fill: INK, 'font-size': 12, 'font-weight': 600, text: (o.valueFmt || fmt)(v) }, g);
+    bindTip(g, o.label(r), o.tip ? o.tip(r) : [{ value: fmtInt(v), label: o.valueName || 'count' }]);
+  });
+  host.replaceChildren(...(o.legend ? [legend(o.legend)] : []), svg);
+}
+
+// 100% stacked bars: composition of each row, 2px surface gaps between segments
+function shareStack(host, w, rows, o) {
+  const labelW = 96, rowH = 38, bh = 22, padR = 74, top = 4, H = rows.length * rowH + top + 6;
+  const colOf = (k) => (o.colors || CLASS_COLOR)[k], nameOf = (k) => (o.names || {})[k] || k;
+  const svg = mkSvg(w, H, o.aria), plotW = Math.max(80, w - labelW - padR);
+  rows.forEach((r, i) => {
+    const y = top + i * rowH, g = s('g', { tabindex: 0, class: 'hit' }, svg);
+    s('rect', { x: 0, y: y - 6, width: w, height: rowH, fill: 'transparent' }, g);
+    s('text', { x: labelW - 10, y: y + bh / 2 + 4, 'text-anchor': 'end', fill: INK2, 'font-size': 12, text: r.name }, g);
+    let x = labelW;
+    const tipRows = [];
+    for (const k of o.keys) {
+      const v = num(r.parts[k]), frac = r.total ? v / r.total : 0, sw = frac * plotW, col = colOf(k);
+      tipRows.push({ color: col, value: fmtInt(v), label: `${nameOf(k)} (${pct(frac * 100)})` });
+      if (sw > 0) {
+        s('rect', { x, y, width: Math.max(1.5, sw - 2), height: bh, fill: col }, g);
+        if (sw >= 50) s('text', { x: x + sw / 2 - 1, y: y + bh / 2 + 4, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 600, fill: onFill(col), text: pct(frac * 100, frac < 0.1 ? 1 : 0) }, g);
+      }
+      x += sw;
+    }
+    s('text', { x: labelW + plotW + 8, y: y + bh / 2 + 4, fill: MUTED, 'font-size': 12, text: fmt(r.total) }, g);
+    bindTip(g, `${r.name} - ${fmtInt(r.total)} labelled pixels`, tipRows);
+  });
+  host.replaceChildren(legend(o.keys.map((k) => ({ label: nameOf(k), color: colOf(k) }))), svg);
+}
+
+// multi-series line chart on a category axis; legend + de-collided end labels + crosshair tooltip
+function lineCat(host, w, xs, series, o) {
+  const m = { l: 54, r: w < 520 ? 84 : 112, t: 12, b: 34 }, H = o.h || 260, plotW = Math.max(80, w - m.l - m.r), plotH = H - m.t - m.b;
+  const ymax = niceMax(Math.max(...series.flatMap((se) => se.values.filter((v) => v != null)), 0));
+  const X = (i) => m.l + (xs.length === 1 ? plotW / 2 : (i * plotW) / (xs.length - 1)), Y = (v) => m.t + plotH - (v / ymax) * plotH;
+  const svg = mkSvg(w, H, o.aria);
+  for (let k = 0; k <= 4; k++) {
+    const v = (ymax * k) / 4, y = Y(v);
+    s('line', { x1: m.l, x2: m.l + plotW, y1: y, y2: y, stroke: k === 0 ? AXIS : GRID, 'stroke-width': 1 }, svg);
+    s('text', { x: m.l - 8, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: MUTED, text: (o.yFmt || fmt)(v) }, svg);
+  }
+  // x labels: thin by the widest label so neighbours never collide; keep the last one only if it has room
+  const perLabel = Math.max(...xs.map((x) => x.length)) * 6.4 + 12, every = Math.max(1, Math.ceil(xs.length / Math.max(2, Math.floor(plotW / perLabel))));
+  const shown = []; for (let i = 0; i < xs.length; i += every) shown.push(i);
+  if (shown[shown.length - 1] !== xs.length - 1 && xs.length - 1 - shown[shown.length - 1] >= every * 0.75) shown.push(xs.length - 1);
+  for (const i of shown) s('text', { x: X(i), y: H - 12, 'text-anchor': 'middle', 'font-size': 11, fill: MUTED, text: xs[i] }, svg);
+  for (const se of series) {
+    const pts = se.values.map((v, i) => (v == null ? null : [X(i), Y(v)])).filter(Boolean);
+    if (pts.length > 1) s('path', { d: 'M' + pts.map((p) => p.join(',')).join('L'), fill: 'none', stroke: se.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
+    if (xs.length <= 12) for (const p of pts) { s('circle', { cx: p[0], cy: p[1], r: 6, fill: SURFACE }, svg); s('circle', { cx: p[0], cy: p[1], r: 4, fill: se.color }, svg); }
+  }
+  // end labels, nudged apart with a leader line when displaced
+  const ends = series.map((se) => { const i = se.values.length - 1 - [...se.values].reverse().findIndex((v) => v != null); return { se, y: Y(se.values[i]), x: X(i) }; }).sort((a, b) => a.y - b.y);
+  for (let i = 1; i < ends.length; i++) ends[i].ly = Math.max(ends[i].y, (ends[i - 1].ly ?? ends[i - 1].y) + 14);
+  if (ends.length) ends[0].ly = ends[0].y;
+  for (const e of ends) {
+    if (Math.abs(e.ly - e.y) > 2) s('line', { x1: e.x + 6, y1: e.y, x2: m.l + plotW + 8, y2: e.ly, stroke: AXIS, 'stroke-width': 1 }, svg);
+    s('text', { x: m.l + plotW + 12, y: e.ly + 4, 'font-size': 12, fill: INK2, text: e.se.name }, svg);
+  }
+  const cross = s('line', { y1: m.t, y2: m.t + plotH, stroke: AXIS, 'stroke-width': 1, visibility: 'hidden' }, svg);
+  const hw = xs.length === 1 ? plotW : plotW / (xs.length - 1);
+  xs.forEach((x, i) => {
+    // keyboard stops only for short axes (a long daily axis would be 90 tab stops - the Table view is its accessible twin)
+    const r = s('rect', { x: X(i) - hw / 2, y: m.t, width: hw, height: plotH, fill: 'transparent', ...(xs.length <= 40 ? { tabindex: 0 } : {}), class: 'hit' }, svg);
+    const rows = series.map((se) => ({ color: se.color, value: se.values[i] == null ? '-' : (o.tipFmt || o.yFmt || fmt)(se.values[i]), label: se.name }));
+    const on = (ev) => { cross.setAttribute('x1', X(i)); cross.setAttribute('x2', X(i)); cross.setAttribute('visibility', 'visible'); showTip(ev, o.tipTitle ? o.tipTitle(x) : x, rows); };
+    r.addEventListener('pointerenter', on); r.addEventListener('pointermove', moveTip);
+    r.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); hideTip(); });
+    r.addEventListener('focus', () => { const b = r.getBoundingClientRect(); on({ clientX: b.left + b.width / 2, clientY: b.top }); });
+    r.addEventListener('blur', () => { cross.setAttribute('visibility', 'hidden'); hideTip(); });
+  });
+  host.replaceChildren(legend(series.map((se) => ({ label: se.name, color: se.color }))), svg);
+}
+
+// grouped columns (categories x series), values 0..1
+function groupCols(host, w, cats, series, o) {
+  const m = { l: 42, r: 8, t: 20, b: 40 }, H = 270, plotW = Math.max(120, w - m.l - m.r), plotH = H - m.t - m.b, gw = plotW / cats.length;
+  const colW = Math.max(6, Math.min(24, (gw * 0.78) / series.length - 2)), Y = (v) => m.t + plotH - v * plotH;
+  const svg = mkSvg(w, H, o.aria);
+  for (let k = 0; k <= 4; k++) {
+    const y = Y(k / 4);
+    s('line', { x1: m.l, x2: m.l + plotW, y1: y, y2: y, stroke: k === 0 ? AXIS : GRID, 'stroke-width': 1 }, svg);
+    s('text', { x: m.l - 8, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: MUTED, text: (k / 4).toFixed(2) }, svg);
+  }
+  cats.forEach((c, ci) => {
+    const gx = m.l + ci * gw, total = series.length * (colW + 2) - 2, x0 = gx + (gw - total) / 2;
+    s('text', { x: gx + gw / 2, y: H - 16, 'text-anchor': 'middle', 'font-size': 12, fill: INK2, text: c }, svg);
+    series.forEach((se, si) => {
+      const v = se.values[ci]; if (v == null) return;
+      const x = x0 + si * (colW + 2), g = s('g', { tabindex: 0, class: 'hit' }, svg);
+      s('rect', { x: x - 1, y: m.t, width: colW + 2, height: plotH, fill: 'transparent' }, g);
+      s('path', { d: colPath(x, Y(v), colW, Math.max(1, plotH - (Y(v) - m.t)), 4), fill: se.color }, g);
+      if (se.label) s('text', { x: x + colW / 2, y: Y(v) - 5, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 600, fill: INK, text: v.toFixed(2) }, g);
+      bindTip(g, c, [{ color: se.color, value: v.toFixed(4), label: se.name }]);
+    });
+  });
+  host.replaceChildren(legend(series.map((se) => ({ label: se.name, color: se.color }))), svg);
+}
+
+// confusion-matrix heat map (sequential single hue), cell text chosen by fill luminance
+function heat(host, w, labels, cell, o) {
+  const left = 118, top = 52, cw = Math.max(54, Math.min(120, (w - left - 8) / labels.length)), ch = 54, H = top + labels.length * ch + 8;
+  const svg = mkSvg(w, H, o.aria);
+  s('text', { x: left + (cw * labels.length) / 2, y: 14, 'text-anchor': 'middle', 'font-size': 12, fill: INK2, 'font-weight': 600, text: 'Predicted class' }, svg);
+  labels.forEach((l, j) => s('text', { x: left + j * cw + cw / 2, y: 40, 'text-anchor': 'middle', 'font-size': 12, fill: INK2, text: l }, svg));
+  labels.forEach((a, i) => {
+    s('text', { x: left - 10, y: top + i * ch + ch / 2 + 4, 'text-anchor': 'end', 'font-size': 12, fill: INK2, text: 'Actual ' + a }, svg);
+    labels.forEach((p, j) => {
+      const c = cell(a, p) || { pct: 0, n: 0 }, t = num(c.pct) / 100, fill = c.n ? ramp(t) : '#F1F6FC';
+      const g = s('g', { tabindex: 0, class: 'hit' }, svg);
+      s('rect', { x: left + j * cw + 1, y: top + i * ch + 1, width: cw - 2, height: ch - 2, rx: 4, fill }, g);
+      s('text', { x: left + j * cw + cw / 2, y: top + i * ch + ch / 2 + 4, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 600, fill: t > 0.42 ? '#FFFFFF' : INK, text: pct(c.pct) }, g);
+      bindTip(g, `Actual ${a} -> predicted ${p}`, [{ value: fmtInt(c.n), label: 'pixels' }, { value: pct(c.pct, 2), label: `of all actual ${a}` }]);
+    });
+  });
+  host.replaceChildren(svg);
+}
+
+// ---------- tables ----------
+function table(cols, rows) {
+  const t = h('table'), head = h('tr');
+  for (const c of cols) head.append(h('th', { class: c.num ? 'num' : '', text: c.label }));
+  t.append(h('thead', {}, head));
+  const body = h('tbody');
+  for (const r of rows) {
+    const tr = h('tr');
+    for (const c of cols) tr.append(h('td', { class: (c.num ? 'num' : '') + (c.desc ? ' desc' : ''), text: c.fmt ? c.fmt(r[c.key], r) : (r[c.key] == null ? '' : String(r[c.key])) }));
+    body.append(tr);
+  }
+  t.append(body);
+  return h('div', { class: 'tbl' }, t);
+}
+
+// ---------- layout ----------
+const app = document.getElementById('app'), redraw = [];
+function block(id, title, blurb) {
+  const sec = h('section', { class: 'block', id }, h('h2', { text: title }), blurb ? h('p', { class: 'blurb', text: blurb }) : null);
+  const grid = h('div', { class: 'grid' }); sec.append(grid); app.append(sec);
+  document.getElementById('nav').append(h('a', { href: '#' + id, text: title }));
+  return grid;
+}
+function card(grid, o) {
+  const hasChart = !!o.render, rows = o.rows || [];
+  const c = h('section', { class: 'card' + (o.wide ? ' wide' : '') });
+  const chart = h('div', { class: 'chart' }), tbl = table(o.cols || [], rows); tbl.hidden = hasChart;
+  let showTable = !hasChart;
+  const bChart = h('button', { type: 'button', 'aria-pressed': String(!showTable), text: 'Chart' }), bTable = h('button', { type: 'button', 'aria-pressed': String(showTable), text: 'Table' });
+  const head = h('div', { class: 'card-h' }, h('div', {}, h('h3', { text: o.title }), o.sub ? h('p', { class: 'sub', text: o.sub }) : null));
+  if (hasChart && rows.length) head.append(h('div', { class: 'seg', role: 'group', 'aria-label': 'View' }, bChart, bTable));
+  c.append(head);
+  if (!rows.length) { c.append(h('div', { class: 'empty', text: o.empty || 'No rows - load the data first (see README).' })); grid.append(c); return c; }
+  const draw = () => { if (hasChart && !showTable) o.render(chart, Math.max(280, Math.floor(chart.clientWidth || c.clientWidth - 32))); };
+  const setView = (t) => { showTable = t; tbl.hidden = !t; chart.hidden = t; bChart.setAttribute('aria-pressed', String(!t)); bTable.setAttribute('aria-pressed', String(t)); hideTip(); draw(); };
+  bChart.onclick = () => setView(false); bTable.onclick = () => setView(true);
+  c.append(chart, tbl); if (o.note) c.append(h('p', { class: 'note', text: o.note }));
+  grid.append(c); chart.hidden = showTable;
+  if (hasChart) redraw.push(draw);
+  return c;
+}
+let rt; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => redraw.forEach((f) => f()), 120); }).observe(document.body);
+
+// ---------- data shaping ----------
+const q = (k) => (D[k] || []);
+const cb = q('classBalance'), totalPx = cb.reduce((a, r) => a + num(r.pixels), 0);
+const plasticPct = (cb.find((r) => r.class_name === 'Plastic') || {}).pct_of_all_pixels;
+const trainDs = q('overview').filter((r) => num(r.n_pixel_samples) > 0);
+const rawGb = q('overview').reduce((a, r) => a + num(r.raw_size_gb), 0);
+document.getElementById('meta').textContent = `Snapshot ${D.meta.generated} - MySQL ${D.meta.host}:${D.meta.port} - databases ${D.meta.datasets_db}${D.meta.has_app ? ' + ' + D.meta.app_db : ''}`;
+
+// KPI tiles
+const tiles = document.getElementById('tiles');
+const tile = (k, v, n, cls) => tiles.append(h('div', { class: 'tile' }, h('div', { class: 'k', text: k }), h('div', { class: 'v', text: v }), h('div', { class: 'n' + (cls ? ' ' + cls : ''), text: n })));
+tile('Labelled training pixels', fmt(totalPx), fmtInt(totalPx) + ' rows in training_pixels');
+tile('Training datasets', String(trainDs.length), trainDs.map((r) => r.name).join(', '));
+tile('Plastic share of pixels', plasticPct == null ? '-' : pct(plasticPct, 2), 'the class imbalance the model has to overcome');
+tile('Raw imagery on disk', rawGb.toFixed(1) + ' GB', 'stays as GeoTIFF files; tables hold its catalogue');
+tile('Load checks', `${D.meta.audit.ok} / ${D.meta.audit.total}`, D.meta.audit.ok === D.meta.audit.total ? 'OK - every count matched an independent source' : 'see v_load_problems', D.meta.audit.ok === D.meta.audit.total ? 'ok' : '');
+
+// ---------- 1. catalogue ----------
+let g = block('datasets', 'Datasets', 'One row per dataset: where it came from, what it is used for, and how much of it landed in MySQL.');
+card(g, {
+  wide: true, title: 'Dataset catalogue', sub: 'mpt_datasets.datasets (view v_dataset_overview)', rows: q('overview'),
+  cols: [
+    { key: 'name', label: 'Dataset' }, { key: 'kind', label: 'Kind' }, { key: 'sensor', label: 'Sensor' },
+    { key: 'n_scenes', label: 'Scenes', num: true, fmt: (v) => (v == null ? '' : fmtInt(v)) },
+    { key: 'n_patches', label: 'Patches / crops', num: true, fmt: (v) => (v == null ? '' : fmtInt(v)) },
+    { key: 'n_pixel_samples', label: 'Training pixels', num: true, fmt: (v) => (v == null ? '' : fmtInt(v)) },
+    { key: 'raw_size_gb', label: 'Raw size (GB)', num: true, fmt: (v) => (v == null ? '' : num(v).toFixed(2)) },
+    { key: 'in_mysql', label: 'Stored in MySQL', desc: true },
+  ],
+});
+
+// ---------- 2. pixels ----------
+g = block('pixels', 'Training pixels', 'The exact labelled pixels the model learns from (7 features per pixel: B04, B06, B08, B8A, B11, FDI, NDVI).');
+card(g, {
+  title: 'Class balance', sub: 'Share of all labelled training pixels, by class', rows: cb,
+  render: (host, w) => hbar(host, w, CLASS_ORDER.map((k) => cb.find((r) => r.class_name === k)).filter(Boolean), {
+    aria: 'Bar chart of training pixels per class', label: (r) => r.class_name, value: (r) => num(r.pixels), color: (r) => CLASS_COLOR[r.class_name], labelW: 90,
+    valueFmt: (v) => fmt(v), tip: (r) => [{ value: fmtInt(r.pixels), label: 'pixels' }, { value: pct(r.pct_of_all_pixels, 2), label: 'of all labelled pixels' }],
+  }),
+  cols: [{ key: 'class_name', label: 'Class' }, { key: 'pixels', label: 'Pixels', num: true, fmt: fmtInt }, { key: 'pct_of_all_pixels', label: '% of all', num: true, fmt: (v) => pct(v, 3) }],
+  note: 'Water dominates because open sea is mostly water; plastic is rare. Accuracy alone is therefore misleading, so the model is judged on macro-F1.',
+});
+const byDs = {};
+for (const r of q('pixelsByDs')) { (byDs[r.dataset_id] ||= { name: r.dataset_id.toUpperCase(), total: 0, parts: {} }); byDs[r.dataset_id].total += num(r.pixels); byDs[r.dataset_id].parts[r.class_name] = (byDs[r.dataset_id].parts[r.class_name] || 0) + num(r.pixels); }
+const dsRows = ['marida', 'mados', 'rfo', 'plp'].map((k) => byDs[k]).filter(Boolean);
+card(g, {
+  title: 'Class mix per dataset', sub: 'Each bar = 100% of that dataset\'s labelled pixels', rows: dsRows,
+  render: (host, w) => shareStack(host, w, dsRows, { keys: CLASS_ORDER, aria: 'Stacked share bars: class composition of each dataset' }),
+  cols: [{ key: 'name', label: 'Dataset' }, ...CLASS_ORDER.map((k) => ({ key: k, label: k, num: true, fmt: fmtInt })), { key: 'total', label: 'Total', num: true, fmt: fmtInt }],
+  note: 'Plastic share of each dataset\'s pixels - ' + dsRows.map((r) => { const p = (100 * num(r.parts.Plastic)) / (r.total || 1); return `${r.name} ${pct(p, p < 1 ? 2 : 0)}`; }).join(', ') + '. RFO and PLP are small, plastic-enriched validation sets; MARIDA and MADOS are almost all water.',
+});
+// spectral signature: pixel-weighted mean across datasets
+const spec = {};
+for (const r of q('spectral')) { const a = (spec[r.class_name] ||= { n: 0, b: [0, 0, 0, 0, 0], fdi: 0, ndvi: 0 }); const n = num(r.n); a.n += n; a.b[0] += n * num(r.mean_b04_red); a.b[1] += n * num(r.mean_b06_rededge); a.b[2] += n * num(r.mean_b08_nir); a.b[3] += n * num(r.mean_b8a_nir); a.b[4] += n * num(r.mean_b11_swir); a.fdi += n * num(r.mean_fdi); a.ndvi += n * num(r.mean_ndvi); }
+const specRows = CLASS_ORDER.filter((k) => spec[k]).map((k) => ({ class_name: k, n: spec[k].n, b04: spec[k].b[0] / spec[k].n, b06: spec[k].b[1] / spec[k].n, b08: spec[k].b[2] / spec[k].n, b8a: spec[k].b[3] / spec[k].n, b11: spec[k].b[4] / spec[k].n, fdi: spec[k].fdi / spec[k].n, ndvi: spec[k].ndvi / spec[k].n }));
+card(g, {
+  wide: true, title: 'Spectral signature per class', sub: 'Mean surface reflectance in the five bands the model uses (pixel-weighted across all datasets)', rows: specRows,
+  render: (host, w) => lineCat(host, w, ['B04 665 nm', 'B06 740 nm', 'B08 842 nm', 'B8A 865 nm', 'B11 1610 nm'],
+    specRows.map((r) => ({ name: r.class_name, color: CLASS_COLOR[r.class_name], values: [r.b04, r.b06, r.b08, r.b8a, r.b11] })),
+    { aria: 'Line chart of mean reflectance per band for each class', yFmt: (v) => v.toFixed(2), tipFmt: (v) => v.toFixed(4), tipTitle: (x) => 'Band ' + x }),
+  cols: [{ key: 'class_name', label: 'Class' }, { key: 'n', label: 'Pixels', num: true, fmt: fmtInt }, ...['b04', 'b06', 'b08', 'b8a', 'b11', 'fdi', 'ndvi'].map((k) => ({ key: k, label: 'mean ' + k.toUpperCase(), num: true, fmt: f3 }))],
+  note: 'Bands are drawn in wavelength order, evenly spaced (not to scale). FDI = Floating Debris Index; NDVI separates algae from plastic.',
+});
+
+// ---------- 3. native classes ----------
+g = block('classes', 'Native class distributions', 'MARIDA and MADOS label 15 native classes each; the model collapses them to 4. Grey bars are classes deliberately left out of training.');
+const classBars = (rows, aria) => (host, w) => hbar(host, w, rows, {
+  aria, label: (r) => r.class_name, value: (r) => num(r.labelled_pixels), color: (r) => (r.unified_class ? CLASS_COLOR[r.unified_class] : UNUSED), labelW: 176,
+  legend: [...CLASS_ORDER.map((k) => ({ label: k, color: CLASS_COLOR[k] })), { label: 'Not used in training', color: UNUSED }],
+  tip: (r) => [{ value: fmtInt(r.labelled_pixels), label: 'labelled pixels' }, { value: pct(r.pct_of_labelled, 2), label: 'of all labelled' }, { value: r.unified_class || 'not used', label: 'maps to' }],
+});
+const classCols = (unit) => [{ key: 'class_id', label: 'ID', num: true }, { key: 'class_name', label: 'Native class' }, { key: 'unified_class', label: 'Maps to', fmt: (v) => v || 'not used' }, { key: unit, label: unit === 'patches_containing' ? 'Patches with class' : 'Crops with class', num: true, fmt: fmtInt }, { key: 'labelled_pixels', label: 'Labelled pixels', num: true, fmt: fmtInt }, { key: 'pct_of_labelled', label: '% of labelled', num: true, fmt: (v) => pct(v, 3) }];
+card(g, { title: 'MARIDA - 15 native classes', sub: 'Labelled pixels per class (counted from the _cl.tif masks)', rows: q('maridaClasses'), render: classBars(q('maridaClasses'), 'MARIDA class distribution'), cols: classCols('patches_containing') });
+card(g, { title: 'MADOS - 15 native classes', sub: 'Labelled pixels per class (counted from the L2R_cl masks)', rows: q('madosClasses'), render: classBars(q('madosClasses'), 'MADOS class distribution'), cols: classCols('crops_containing') });
+card(g, {
+  title: 'MARIDA - official splits', sub: 'Patches, scenes and labelled pixels per split', rows: q('maridaSplits'),
+  cols: [{ key: 'split', label: 'Split' }, { key: 'patches', label: 'Patches', num: true, fmt: fmtInt }, { key: 'scenes', label: 'Scenes', num: true, fmt: fmtInt }, { key: 'labelled_pixels', label: 'Labelled pixels', num: true, fmt: fmtInt }, { key: 'patches_with_debris', label: 'Patches with debris', num: true, fmt: fmtInt }],
+});
+card(g, {
+  title: 'MADOS - official splits', sub: 'Crops, scenes and labelled pixels per split', rows: q('madosSplits'),
+  cols: [{ key: 'split', label: 'Split' }, { key: 'crops', label: 'Crops', num: true, fmt: fmtInt }, { key: 'scenes', label: 'Scenes', num: true, fmt: fmtInt }, { key: 'labelled_pixels', label: 'Labelled pixels', num: true, fmt: fmtInt }],
+});
+card(g, {
+  wide: true, title: 'MARIDA scenes with the most marine-debris pixels', sub: 'Top 12 of 63 scenes (view v_marida_scene_overview) with acquisition date and location', rows: q('maridaScenes'),
+  cols: [{ key: 'scene_id', label: 'Scene' }, { key: 'acquisition_date', label: 'Date' }, { key: 'mgrs_tile', label: 'MGRS tile' }, { key: 'center_lat', label: 'Lat', num: true, fmt: f2 }, { key: 'center_lon', label: 'Lon', num: true, fmt: f2 }, { key: 'n_patches', label: 'Patches', num: true, fmt: fmtInt }, { key: 'debris_pixels', label: 'Debris pixels', num: true, fmt: fmtInt }, { key: 'n_annotations', label: 'Annotation polygons', num: true, fmt: fmtInt }],
+});
+
+// ---------- 4. validation sets ----------
+g = block('validation', 'External validation sets', 'Two independent sources of real floating-object labels used to test the model on scenes it never trained on.');
+const rfo = q('rfo');
+card(g, {
+  title: 'RefinedFloatingObjects - labelled points per site', sub: 'Debris vs water/other labels; TEST sites are the two held-out seas', rows: rfo,
+  render: (host, w) => shareStack(host, w, rfo.map((r) => ({ name: `${r.site_name}${r.split === 'test' ? ' (test)' : ''}`, total: num(r.n_points), parts: { Plastic: num(r.n_debris), Water: num(r.n_water) } })), { keys: ['Plastic', 'Water'], colors: { Plastic: '#0D9488', Water: '#B8C4D0' }, names: { Plastic: 'Debris (trained as Plastic)', Water: 'Water / other' }, aria: 'Debris versus water labels per RFO site' }),
+  cols: [{ key: 'site_name', label: 'Site' }, { key: 'scene_date', label: 'Scene date' }, { key: 'split', label: 'Split' }, { key: 'n_points', label: 'Points', num: true, fmt: fmtInt }, { key: 'n_debris', label: 'Debris', num: true, fmt: fmtInt }, { key: 'n_water', label: 'Water/other', num: true, fmt: fmtInt }, { key: 'pct_debris', label: '% debris', num: true, fmt: (v) => pct(v) }],
+  note: 'Teal = debris label (trained as Plastic), grey = water/other. Debris points can include wood or sargassum, so labels are noisy.',
+});
+const plp = q('plp');
+card(g, {
+  title: 'Plastic Litter Project - target observations', sub: 'Artificial plastic targets held at a fixed spot in the Aegean; one observation = one target on one Sentinel-2 date', rows: plp,
+  render: (host, w) => hbar(host, w, plp.map((r) => ({ ...r, lbl: `${r.campaign_year} ${r.material}` })), { aria: 'PLP target observations by year and material', label: (r) => r.lbl, value: (r) => num(r.observations), color: () => RUN_COLOR.per_pixel, labelW: 120, tip: (r) => [{ value: fmtInt(r.observations), label: 'observations (target x date)' }, { value: fmtInt(r.targets), label: 'physical target(s)' }, { value: `${r.first_observed} to ${r.last_observed}`, label: 'observed' }] }),
+  cols: [{ key: 'campaign_year', label: 'Year' }, { key: 'material', label: 'Material' }, { key: 'targets', label: 'Physical targets', num: true, fmt: fmtInt }, { key: 'observations', label: 'Observations', num: true, fmt: fmtInt }, { key: 'avg_radius_m', label: 'Avg radius (m)', num: true, fmt: f2 }, { key: 'first_observed', label: 'First seen' }, { key: 'last_observed', label: 'Last seen' }],
+  note: 'Targets are 3.5-14 m across inside a 10 m pixel, so each pixel is a plastic/water mix - a deliberately hard test.',
+});
+
+// ---------- 5. model ----------
+g = block('model', 'Model results', 'Held-out test scores from python_engine/models/metrics.json, stored as tables so they can be queried and compared.');
+const runs = q('models'), runKeys = ['per_pixel', 'patch_cnn', 'clay_head'].filter((k) => runs.some((r) => r.run_key === k));
+card(g, {
+  wide: true, title: 'Model comparison', sub: 'Each model is scored on its own held-out set (different sample counts), so read this as indicative, not a strict head-to-head', rows: runs,
+  render: (host, w) => groupCols(host, w, ['Macro-F1', 'Accuracy', 'Plastic precision', 'Plastic recall', 'Plastic F1'],
+    runKeys.map((k) => { const r = runs.find((x) => x.run_key === k); return { name: RUN_NAME[k] || k, color: RUN_COLOR[k] || '#2a78d6', label: k === 'per_pixel', values: [r.macro_f1, r.test_accuracy, r.plastic_precision, r.plastic_recall, r.plastic_f1].map((v) => (v == null ? null : num(v))) }; }),
+    { aria: 'Grouped columns comparing the model variants' }),
+  cols: [{ key: 'run_key', label: 'Run' }, { key: 'model_file', label: 'Model' }, { key: 'macro_f1', label: 'Macro-F1', num: true, fmt: f3 }, { key: 'test_accuracy', label: 'Accuracy', num: true, fmt: f3 }, { key: 'plastic_precision', label: 'Plastic P', num: true, fmt: f3 }, { key: 'plastic_recall', label: 'Plastic R', num: true, fmt: f3 }, { key: 'plastic_f1', label: 'Plastic F1', num: true, fmt: f3 }, { key: 'train_samples', label: 'Train samples', num: true, fmt: (v) => (v == null ? '' : fmtInt(v)) }],
+  note: 'Accuracy is inflated by the Water majority class - lead with macro-F1 and the plastic scores.',
+});
+const conf = q('confusion').filter((r) => r.run_key === 'per_pixel');
+const cell = (a, p) => conf.find((r) => r.actual_class === a && r.predicted_class === p);
+card(g, {
+  title: 'Confusion matrix - shipped model', sub: 'Rows = what the pixel really is; shade = share of that class', rows: conf,
+  render: (host, w) => heat(host, w, CLASS_ORDER, (a, p) => { const c = cell(a, p); return c ? { pct: c.pct_of_actual_class, n: c.n } : null; }, { aria: 'Confusion matrix heat map' }),
+  cols: [{ key: 'actual_class', label: 'Actual' }, { key: 'predicted_class', label: 'Predicted' }, { key: 'n', label: 'Pixels', num: true, fmt: fmtInt }, { key: 'pct_of_actual_class', label: '% of actual', num: true, fmt: (v) => pct(v, 2) }],
+});
+const cs = q('classScores').filter((r) => r.run_key === 'per_pixel');
+card(g, {
+  title: 'Per-class scores - shipped model', sub: 'Precision, recall and F1 on the held-out test set', rows: cs,
+  render: (host, w) => groupCols(host, w, CLASS_ORDER, [
+    { name: 'Precision', color: '#2a78d6', values: CLASS_ORDER.map((k) => { const r = cs.find((x) => x.class_name === k); return r ? num(r.precision_score) : null; }) },
+    { name: 'Recall', color: '#eb6834', values: CLASS_ORDER.map((k) => { const r = cs.find((x) => x.class_name === k); return r ? num(r.recall_score) : null; }) },
+    { name: 'F1', color: '#1baf7a', values: CLASS_ORDER.map((k) => { const r = cs.find((x) => x.class_name === k); return r ? num(r.f1_score) : null; }) },
+  ], { aria: 'Precision, recall and F1 per class' }),
+  cols: [{ key: 'class_name', label: 'Class' }, { key: 'precision_score', label: 'Precision', num: true, fmt: f3 }, { key: 'recall_score', label: 'Recall', num: true, fmt: f3 }, { key: 'f1_score', label: 'F1', num: true, fmt: f3 }],
+});
+
+// ---------- 6. app snapshot ----------
+if (D.meta.has_app) {
+  const A = D.app || {};
+  g = block('app', 'Live app data (snapshot)', 'A copy of the running app\'s PostgreSQL tables in the mpt_app database - refresh with sync_app.py.');
+  const ab = (A.byClass || []);
+  card(g, {
+    title: 'Detections by class', sub: 'All detections stored by the pipeline', rows: ab,
+    render: (host, w) => hbar(host, w, CLASS_ORDER.map((k) => ab.find((r) => r.classification === k)).filter(Boolean), { aria: 'Detections by class', label: (r) => r.classification, value: (r) => num(r.detections), color: (r) => CLASS_COLOR[r.classification] || UNUSED, labelW: 90, tip: (r) => [{ value: fmtInt(r.detections), label: 'detections' }, { value: f3(r.avg_confidence), label: 'mean confidence' }, { value: num(r.total_area_sq_km).toFixed(2), label: 'sq km (summed)' }] }),
+    cols: [{ key: 'classification', label: 'Class' }, { key: 'detections', label: 'Detections', num: true, fmt: fmtInt }, { key: 'avg_confidence', label: 'Mean confidence', num: true, fmt: f3 }, { key: 'avg_fdi', label: 'Mean FDI', num: true, fmt: (v) => num(v).toFixed(4) }, { key: 'total_area_sq_km', label: 'Area (sq km)', num: true, fmt: f2 }],
+  });
+  const hs = ['HIGH', 'MEDIUM', 'LOW'].map((k) => (A.hotspots || []).find((r) => r.severity === k)).filter(Boolean);
+  card(g, {
+    title: 'Hotspots by severity', sub: 'DBSCAN clusters of plastic detections (HIGH needs 10+ detections)', rows: hs,
+    render: (host, w) => hbar(host, w, hs, { aria: 'Hotspots by severity', label: (r) => r.severity, value: (r) => num(r.hotspots), color: (r) => SEV_COLOR[r.severity], labelW: 90, valueName: 'hotspots', tip: (r) => [{ value: fmtInt(r.hotspots), label: 'hotspots' }, { value: fmtInt(r.active_hotspots), label: 'active' }, { value: r.avg_eta_hours == null ? 'open ocean' : r.avg_eta_hours + ' h', label: 'mean coast ETA' }] }),
+    cols: [{ key: 'severity', label: 'Severity' }, { key: 'hotspots', label: 'Hotspots', num: true, fmt: fmtInt }, { key: 'active_hotspots', label: 'Active', num: true, fmt: fmtInt }, { key: 'avg_detections', label: 'Avg detections', num: true, fmt: (v) => num(v).toFixed(1) }, { key: 'avg_confidence', label: 'Avg confidence', num: true, fmt: f3 }, { key: 'avg_eta_hours', label: 'Avg ETA (h)', num: true, fmt: (v) => (v == null ? '' : num(v).toFixed(1)) }],
+  });
+  // continuous calendar axis: a day with no scan is a real zero, and gaps must not be squeezed out of the time axis
+  const seen = [...new Set((A.perDay || []).map((r) => String(r.day).slice(0, 10)))].sort();
+  const days = [];
+  if (seen.length) for (let d = new Date(seen[0] + 'T00:00:00Z'), end = new Date(seen[seen.length - 1] + 'T00:00:00Z'); d <= end; d = new Date(d.getTime() + 864e5)) days.push(d.toISOString().slice(0, 10));
+  const dayVal = (k) => days.map((d) => { const r = (A.perDay || []).find((x) => String(x.day).slice(0, 10) === d && x.classification === k); return r ? num(r.detections) : 0; });
+  card(g, {
+    wide: true, title: 'Detections per day', sub: 'Pipeline output by scan date and class', rows: (A.perDay || []).map((r) => ({ ...r, day: String(r.day).slice(0, 10) })),
+    render: (host, w) => lineCat(host, w, days.map((d) => d.slice(5)), CLASS_ORDER.map((k) => ({ name: k, color: CLASS_COLOR[k], values: dayVal(k) })), { aria: 'Detections per day by class', tipTitle: (x) => 'Day ' + x }),
+    cols: [{ key: 'day', label: 'Day' }, { key: 'classification', label: 'Class' }, { key: 'detections', label: 'Detections', num: true, fmt: fmtInt }],
+    note: 'Calendar days with no pipeline scan are drawn as 0. The Table view lists only the days that have data.',
+  });
+  card(g, {
+    wide: true, title: 'Tables in mpt_app', sub: 'View v_app_table_inventory', rows: A.inventory || [],
+    cols: [{ key: 'table_name', label: 'Table' }, { key: 'approx_rows', label: 'Rows (approx.)', num: true, fmt: fmtInt }, { key: 'size_mb', label: 'Size (MB)', num: true, fmt: f2 }],
+  });
+}
+
+// ---------- 7. inventory ----------
+g = block('tables', 'Every table in mpt_datasets', 'The complete list, with a plain-English description. Row counts for InnoDB are estimates; the exact counts are in load_audit.');
+card(g, {
+  wide: true, title: 'Table inventory', sub: 'view v_table_inventory', rows: q('inventory'),
+  cols: [{ key: 'table_name', label: 'Table' }, { key: 'approx_rows', label: 'Rows (approx.)', num: true, fmt: fmtInt }, { key: 'size_mb', label: 'Size (MB)', num: true, fmt: f2 }, { key: 'description', label: 'What it holds', desc: true }],
+});
+card(g, {
+  wide: true, title: 'Load audit', sub: 'Every step, with the independent count it was checked against', rows: q('audit'),
+  cols: [{ key: 'step', label: 'Step' }, { key: 'table_name', label: 'Table / check' }, { key: 'rows_loaded', label: 'Loaded', num: true, fmt: fmtInt }, { key: 'rows_expected', label: 'Expected', num: true, fmt: (v) => (v == null ? '' : fmtInt(v)) }, { key: 'ok', label: 'Match', fmt: (v) => (num(v) ? 'OK' : 'MISMATCH') }, { key: 'note', label: 'Note', desc: true }],
+});
+
+redraw.forEach((f) => f());
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,550 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="1700" viewBox="0 0 2600 1700">
+<defs>
+<marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#334155"/></marker>
+<marker id="ads" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#334155"/></marker>
+<marker id="am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#db2777"/></marker>
+<style>
+.t{font:700 18px "Segoe UI",Arial;fill:#0f172a}
+.s{font:italic 400 13.5px "Segoe UI",Arial;fill:#475569}
+.b{font:400 14.5px "Segoe UI",Arial;fill:#1e293b}
+.g{font:700 13.5px "Segoe UI",Arial;fill:#334155;text-transform:uppercase;letter-spacing:.4px}
+.h{font:700 21px "Segoe UI",Arial;letter-spacing:.6px}
+.n{font:400 15px "Segoe UI",Arial;fill:#475569}
+.l{font-family:"Segoe UI",Arial;font-weight:600;paint-order:stroke;stroke:#ffffff;stroke-width:5px;stroke-linejoin:round}
+</style>
+</defs>
+<rect width="2600" height="1700" fill="#ffffff"/>
+<text x="1300.0" y="52" text-anchor="middle" style="font:700 36px Segoe UI,Arial;fill:#0f172a">Marine Plastic Tracker — System Architecture</text>
+<text x="1300.0" y="84" text-anchor="middle" style="font:400 18px Segoe UI,Arial;fill:#475569">Sentinel-2 floating-plastic detection, hotspot verification and 72-hour drift forecasting · end-to-end data flow</text>
+<rect x="40" y="108" width="2520" height="428" rx="18" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.6" stroke-dasharray="10 6"/>
+<circle cx="74" cy="136" r="16" fill="#7c3aed"/>
+<text x="74" y="142" text-anchor="middle" style="font:700 17px Segoe UI,Arial;fill:#fff">1</text>
+<text x="100" y="143" class="h" style="fill:#7c3aed">OFFLINE TRAINING PIPELINE</text>
+<text x="2540" y="143" text-anchor="end" class="n">GPU workstation (RTX 4050) · conda env mpt-train · PyTorch · NumPy · rasterio</text>
+<rect x="70" y="160" width="340" height="196" rx="12" fill="#ffffff" stroke="#d97706" stroke-width="2"/>
+<path d="M70 172 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#fef3c7"/>
+<line x1="70" y1="218" x2="410" y2="218" stroke="#d97706" stroke-width="1"/>
+<text x="84" y="185" class="t">Training Datasets</text>
+<text x="84" y="206" class="s">Sentinel-2 L2A reflectance · data/</text>
+<circle cx="88.0" cy="237" r="2.6" fill="#d97706"/>
+<text x="98.0" y="242" class="b">MARIDA (2022): 11-band patches</text>
+<circle cx="88.0" cy="258" r="2.6" fill="#d97706"/>
+<text x="98.0" y="263" class="b">MADOS (2024): 174 scenes</text>
+<circle cx="88.0" cy="279" r="2.6" fill="#d97706"/>
+<text x="98.0" y="284" class="b">RefinedFloatingObjects: 6 scenes</text>
+<circle cx="88.0" cy="300" r="2.6" fill="#d97706"/>
+<text x="98.0" y="305" class="b">Plastic Litter Project (in-situ)</text>
+<circle cx="88.0" cy="321" r="2.6" fill="#d97706"/>
+<text x="98.0" y="326" class="b">GeoTIFF + pixel label masks</text>
+<circle cx="88.0" cy="342" r="2.6" fill="#d97706"/>
+<text x="98.0" y="347" class="b">Official train / val / test splits</text>
+<rect x="488" y="160" width="340" height="196" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+<path d="M488 172 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#ede9fe"/>
+<line x1="488" y1="218" x2="828" y2="218" stroke="#7c3aed" stroke-width="1"/>
+<text x="502" y="185" class="t">Preprocessing / Adapters</text>
+<text x="502" y="206" class="s">ml/datasets/ · rasterio · NumPy</text>
+<circle cx="506.0" cy="237" r="2.6" fill="#7c3aed"/>
+<text x="516.0" y="242" class="b">Band selection: B04 B06 B08 B8A B11</text>
+<circle cx="506.0" cy="258" r="2.6" fill="#7c3aed"/>
+<text x="516.0" y="263" class="b">20 / 60 m bands resampled to 10 m</text>
+<circle cx="506.0" cy="279" r="2.6" fill="#7c3aed"/>
+<text x="516.0" y="284" class="b">FDI + NDVI computed per pixel</text>
+<circle cx="506.0" cy="300" r="2.6" fill="#7c3aed"/>
+<text x="516.0" y="305" class="b">15 classes mapped to 4 classes</text>
+<circle cx="506.0" cy="321" r="2.6" fill="#7c3aed"/>
+<text x="516.0" y="326" class="b">Plastic·Algae·Sea_Foam·Water</text>
+<circle cx="506.0" cy="342" r="2.6" fill="#7c3aed"/>
+<text x="516.0" y="347" class="b">Clouds, ships, wakes excluded</text>
+<rect x="906" y="160" width="340" height="196" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+<path d="M906 172 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#ede9fe"/>
+<line x1="906" y1="218" x2="1246" y2="218" stroke="#7c3aed" stroke-width="1"/>
+<text x="920" y="185" class="t">Feature Caches</text>
+<text x="920" y="206" class="s">python_engine/models/*.npz</text>
+<circle cx="924.0" cy="237" r="2.6" fill="#7c3aed"/>
+<text x="934.0" y="242" class="b">Per-pixel table x[N, 7] + labels y</text>
+<circle cx="924.0" cy="258" r="2.6" fill="#7c3aed"/>
+<text x="934.0" y="263" class="b">64×64×6 image chips (float16)</text>
+<circle cx="924.0" cy="279" r="2.6" fill="#7c3aed"/>
+<text x="934.0" y="284" class="b">1.08 M train / 0.50 M test pixels</text>
+<circle cx="924.0" cy="300" r="2.6" fill="#7c3aed"/>
+<text x="934.0" y="305" class="b">Water ≈ 98 % → class imbalance</text>
+<rect x="1324" y="160" width="340" height="196" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+<path d="M1324 172 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#ede9fe"/>
+<line x1="1324" y1="218" x2="1664" y2="218" stroke="#7c3aed" stroke-width="1"/>
+<text x="1338" y="185" class="t">MLP Training</text>
+<text x="1338" y="206" class="s">train_perpixel_gpu.py · PyTorch CUDA</text>
+<circle cx="1342.0" cy="237" r="2.6" fill="#7c3aed"/>
+<text x="1352.0" y="242" class="b">augment11: +PI, MNDWI, NDVI_RE, BRIGHT</text>
+<circle cx="1342.0" cy="258" r="2.6" fill="#7c3aed"/>
+<text x="1352.0" y="263" class="b">z-score normalisation (in model)</text>
+<circle cx="1342.0" cy="279" r="2.6" fill="#7c3aed"/>
+<text x="1352.0" y="284" class="b">MLP 11→256→128→64→32→4</text>
+<circle cx="1342.0" cy="300" r="2.6" fill="#7c3aed"/>
+<text x="1352.0" y="305" class="b">Focal loss + class-balanced weights</text>
+<circle cx="1342.0" cy="321" r="2.6" fill="#7c3aed"/>
+<text x="1352.0" y="326" class="b">AdamW · cosine LR · batch 8192</text>
+<circle cx="1342.0" cy="342" r="2.6" fill="#7c3aed"/>
+<text x="1352.0" y="347" class="b">3 random seeds → ensemble</text>
+<rect x="1742" y="160" width="340" height="196" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+<path d="M1742 172 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#ede9fe"/>
+<line x1="1742" y1="218" x2="2082" y2="218" stroke="#7c3aed" stroke-width="1"/>
+<text x="1756" y="185" class="t">Validation &amp; Testing</text>
+<text x="1756" y="206" class="s">held-out splits · validate_*.py</text>
+<circle cx="1760.0" cy="237" r="2.6" fill="#7c3aed"/>
+<text x="1770.0" y="242" class="b">Best epoch by validation macro-F1</text>
+<circle cx="1760.0" cy="258" r="2.6" fill="#7c3aed"/>
+<text x="1770.0" y="263" class="b">Per-class bias calibration</text>
+<circle cx="1760.0" cy="279" r="2.6" fill="#7c3aed"/>
+<text x="1770.0" y="284" class="b">Test macro-F1 = 0.8175</text>
+<circle cx="1760.0" cy="300" r="2.6" fill="#7c3aed"/>
+<text x="1770.0" y="305" class="b">Plastic F1 0.799 (P .776 · R .824)</text>
+<circle cx="1760.0" cy="321" r="2.6" fill="#7c3aed"/>
+<text x="1770.0" y="326" class="b">ONNX parity check = 1.0</text>
+<circle cx="1760.0" cy="342" r="2.6" fill="#7c3aed"/>
+<text x="1770.0" y="347" class="b">PLP in-situ + drift validation</text>
+<rect x="2160" y="160" width="340" height="360" rx="12" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+<path d="M2160 172 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#e2e8f0"/>
+<line x1="2160" y1="218" x2="2500" y2="218" stroke="#475569" stroke-width="1"/>
+<text x="2174" y="185" class="t">Model Registry</text>
+<text x="2174" y="206" class="s">python_engine/models/</text>
+<circle cx="2178.0" cy="237" r="2.6" fill="#475569"/>
+<text x="2188.0" y="242" class="b">marinenet.onnx — live MLP ensemble</text>
+<circle cx="2178.0" cy="258" r="2.6" fill="#475569"/>
+<text x="2188.0" y="263" class="b">metrics.json — test scores</text>
+<circle cx="2178.0" cy="279" r="2.6" fill="#475569"/>
+<text x="2188.0" y="284" class="b">clay_index.npz — k-NN library</text>
+<circle cx="2178.0" cy="300" r="2.6" fill="#475569"/>
+<text x="2188.0" y="305" class="b">clay_head.pt — Clay classifier head</text>
+<circle cx="2178.0" cy="321" r="2.6" fill="#475569"/>
+<text x="2188.0" y="326" class="b">fusion_thresholds.json</text>
+<circle cx="2178.0" cy="342" r="2.6" fill="#475569"/>
+<text x="2188.0" y="347" class="b">clay_threshold.json</text>
+<circle cx="2178.0" cy="363" r="2.6" fill="#475569"/>
+<text x="2188.0" y="368" class="b">Older versions kept as backup</text>
+<circle cx="2178.0" cy="384" r="2.6" fill="#475569"/>
+<text x="2188.0" y="389" class="b">Promotion = manual review</text>
+<text x="2174.0" y="410" class="g">Read live by the engine</text>
+<rect x="1324" y="392" width="758" height="124" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+<path d="M1324 404 a12 12 0 0 1 12 -12 h734 a12 12 0 0 1 12 12 v46 h-758 z" fill="#ede9fe"/>
+<line x1="1324" y1="450" x2="2082" y2="450" stroke="#7c3aed" stroke-width="1"/>
+<text x="1338" y="417" class="t">Clay Foundation-Model Preparation</text>
+<text x="1338" y="438" class="s">Clay v1.5 · train_clay_head.py · tune_clay_threshold.py · tune_fusion.py</text>
+<circle cx="1342.0" cy="469" r="2.6" fill="#7c3aed"/>
+<text x="1352.0" y="474" class="b">Image chips → 1024-d Clay embeddings → k-NN reference index</text>
+<circle cx="1342.0" cy="490" r="2.6" fill="#7c3aed"/>
+<text x="1352.0" y="495" class="b">Clay head trained · MLP + Clay fusion tuned (CONFIRMED ≈ 0.92 precision)</text>
+<path d="M414 272 H482" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="449" y="246" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">GeoTIFF</text>
+<text x="449" y="262" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">+ masks</text>
+<path d="M832 272 H900" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="867" y="246" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">features</text>
+<text x="867" y="262" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">+ labels</text>
+<path d="M1250 272 H1318" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1285" y="246" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">x[N,7], y</text>
+<path d="M1668 272 H1736" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1703" y="246" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">trained</text>
+<text x="1703" y="262" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">models</text>
+<path d="M2086 272 H2154" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="2121" y="246" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">promote</text>
+<text x="2121" y="262" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">best</text>
+<path d="M1076.0 358 V454 H1318" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1146.0" y="444" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">64×64×6 chips</text>
+<path d="M2086 454 H2154" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="2121" y="430" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">Clay</text>
+<text x="2121" y="446" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">artefacts</text>
+<rect x="40" y="568" width="2520" height="560" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="1.6" stroke-dasharray="10 6"/>
+<circle cx="74" cy="596" r="16" fill="#2563eb"/>
+<text x="74" y="602" text-anchor="middle" style="font:700 17px Segoe UI,Arial;fill:#fff">2</text>
+<text x="100" y="603" class="h" style="fill:#2563eb">ONLINE DETECTION ENGINE  —  Python FastAPI :8000</text>
+<text x="2540" y="603" text-anchor="end" class="n">torch-free: NumPy · onnxruntime · tifffile · Pydantic</text>
+<rect x="70" y="620" width="340" height="476" rx="12" fill="#ffffff" stroke="#d97706" stroke-width="2"/>
+<path d="M70 632 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#fef3c7"/>
+<line x1="70" y1="678" x2="410" y2="678" stroke="#d97706" stroke-width="1"/>
+<text x="84" y="645" class="t">Live Data Sources</text>
+<text x="84" y="666" class="s">external services (internet)</text>
+<text x="84.0" y="702" class="g">Satellite imagery</text>
+<circle cx="88.0" cy="718" r="2.6" fill="#d97706"/>
+<text x="98.0" y="723" class="b">Copernicus Data Space</text>
+<text x="98.0" y="744" class="b">Sentinel Hub Process API · OAuth2</text>
+<circle cx="88.0" cy="760" r="2.6" fill="#d97706"/>
+<text x="98.0" y="765" class="b">AWS Earth Search STAC</text>
+<text x="98.0" y="786" class="b">scene search (keyless)</text>
+<text x="84.0" y="807" class="g">Ocean &amp; weather forcing</text>
+<circle cx="88.0" cy="823" r="2.6" fill="#d97706"/>
+<text x="98.0" y="828" class="b">CMEMS hourly surface currents</text>
+<text x="98.0" y="849" class="b">copernicusmarine toolbox</text>
+<circle cx="88.0" cy="865" r="2.6" fill="#d97706"/>
+<text x="98.0" y="870" class="b">Open-Meteo marine + 10 m wind</text>
+<text x="84.0" y="891" class="g">Geography</text>
+<circle cx="88.0" cy="907" r="2.6" fill="#d97706"/>
+<text x="98.0" y="912" class="b">Country / coastline GeoJSON</text>
+<circle cx="88.0" cy="928" r="2.6" fill="#d97706"/>
+<text x="98.0" y="933" class="b">Open-Meteo terrain elevation</text>
+<text x="84.0" y="954" class="g">User input (via backend)</text>
+<circle cx="88.0" cy="970" r="2.6" fill="#d97706"/>
+<text x="98.0" y="975" class="b">AOI bounding box from map</text>
+<rect x="488" y="620" width="340" height="212" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<path d="M488 632 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#dbeafe"/>
+<line x1="488" y1="678" x2="828" y2="678" stroke="#2563eb" stroke-width="1"/>
+<text x="502" y="645" class="t">Satellite Ingest</text>
+<text x="502" y="666" class="s">satellite/download.py · band_loader.py</text>
+<circle cx="506.0" cy="697" r="2.6" fill="#2563eb"/>
+<text x="516.0" y="702" class="b">Adaptive grid ≈ 20 m/px, ≤ 9 tiles</text>
+<circle cx="506.0" cy="718" r="2.6" fill="#2563eb"/>
+<text x="516.0" y="723" class="b">leastCC mosaic · max cloud 50 %</text>
+<circle cx="506.0" cy="739" r="2.6" fill="#2563eb"/>
+<text x="516.0" y="744" class="b">45-day window (180 if sparse)</text>
+<circle cx="506.0" cy="760" r="2.6" fill="#2563eb"/>
+<text x="516.0" y="765" class="b">6-ch float32 GeoTIFF (tifffile)</text>
+<text x="516.0" y="786" class="b">B04 B06 B08 B8A B11 + SCL</text>
+<circle cx="506.0" cy="802" r="2.6" fill="#2563eb"/>
+<text x="516.0" y="807" class="b">Retry + bandwidth budget</text>
+<rect x="906" y="620" width="340" height="212" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<path d="M906 632 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#dbeafe"/>
+<line x1="906" y1="678" x2="1246" y2="678" stroke="#2563eb" stroke-width="1"/>
+<text x="920" y="645" class="t">Preprocessing</text>
+<text x="920" y="666" class="s">cloud_masker · band_normalizer · landmask</text>
+<circle cx="924.0" cy="697" r="2.6" fill="#2563eb"/>
+<text x="934.0" y="702" class="b">SCL cloud / land / nodata masking</text>
+<circle cx="924.0" cy="718" r="2.6" fill="#2563eb"/>
+<text x="934.0" y="723" class="b">Coverage % + reliability grade</text>
+<circle cx="924.0" cy="739" r="2.6" fill="#2563eb"/>
+<text x="934.0" y="744" class="b">NaN/inf removal · clip [0, 1.6]</text>
+<circle cx="924.0" cy="760" r="2.6" fill="#2563eb"/>
+<text x="934.0" y="765" class="b">Land-polygon &amp; inland filter</text>
+<circle cx="924.0" cy="781" r="2.6" fill="#2563eb"/>
+<text x="934.0" y="786" class="b">Unusable scene → markers hidden</text>
+<rect x="1324" y="620" width="340" height="212" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<path d="M1324 632 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#dbeafe"/>
+<line x1="1324" y1="678" x2="1664" y2="678" stroke="#2563eb" stroke-width="1"/>
+<text x="1338" y="645" class="t">Candidate Generation</text>
+<text x="1338" y="666" class="s">fdi_calculator · threshold_applier</text>
+<circle cx="1342.0" cy="697" r="2.6" fill="#2563eb"/>
+<text x="1352.0" y="702" class="b">FDI = B08 − baseline(B06, B11)</text>
+<circle cx="1342.0" cy="718" r="2.6" fill="#2563eb"/>
+<text x="1352.0" y="723" class="b">Keep pixels with FDI &gt; 0.02</text>
+<circle cx="1342.0" cy="739" r="2.6" fill="#2563eb"/>
+<text x="1352.0" y="744" class="b">SCL ∈ {water, unclassified}</text>
+<circle cx="1342.0" cy="760" r="2.6" fill="#2563eb"/>
+<text x="1352.0" y="765" class="b">≤ 500 candidates (even stride)</text>
+<text x="1338.0" y="786" class="g">Floating Debris Index (Biermann 2020)</text>
+<rect x="1742" y="620" width="340" height="212" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<path d="M1742 632 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#dbeafe"/>
+<line x1="1742" y1="678" x2="2082" y2="678" stroke="#2563eb" stroke-width="1"/>
+<text x="1756" y="645" class="t">Pixel Classification (MLP)</text>
+<text x="1756" y="666" class="s">batch_classifier · inference_engine</text>
+<circle cx="1760.0" cy="697" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="702" class="b">11-feature vector per candidate</text>
+<circle cx="1760.0" cy="718" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="723" class="b">ONNX MLP ensemble · onnxruntime</text>
+<circle cx="1760.0" cy="739" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="744" class="b">CUDA provider, CPU fallback</text>
+<circle cx="1760.0" cy="760" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="765" class="b">Plastic / Algae / Sea_Foam / Water</text>
+<circle cx="1760.0" cy="781" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="786" class="b">HIGH tier: P(plastic) ≥ 0.648</text>
+<circle cx="1760.0" cy="802" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="807" class="b">Spectral heuristic if no model</text>
+<rect x="2160" y="620" width="340" height="212" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<path d="M2160 632 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#dbeafe"/>
+<line x1="2160" y1="678" x2="2500" y2="678" stroke="#2563eb" stroke-width="1"/>
+<text x="2174" y="645" class="t">Hotspot Clustering</text>
+<text x="2174" y="666" class="s">hotspot/dbscan_clusterer · severity</text>
+<circle cx="2178.0" cy="697" r="2.6" fill="#2563eb"/>
+<text x="2188.0" y="702" class="b">DBSCAN (NumPy, from scratch)</text>
+<circle cx="2178.0" cy="718" r="2.6" fill="#2563eb"/>
+<text x="2188.0" y="723" class="b">eps = 0.09°, min_samples = 3</text>
+<circle cx="2178.0" cy="739" r="2.6" fill="#2563eb"/>
+<text x="2188.0" y="744" class="b">HIGH-confidence plastic only</text>
+<circle cx="2178.0" cy="760" r="2.6" fill="#2563eb"/>
+<text x="2188.0" y="765" class="b">Severity: HIGH ≥ 10 · MED ≥ 5</text>
+<text x="2188.0" y="786" class="b">LOW ≥ 3 detections</text>
+<rect x="2160" y="884" width="340" height="212" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<path d="M2160 896 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#dbeafe"/>
+<line x1="2160" y1="942" x2="2500" y2="942" stroke="#2563eb" stroke-width="1"/>
+<text x="2174" y="909" class="t">Clay Verification</text>
+<text x="2174" y="930" class="s">clay_service.py :8010 · PyTorch GPU</text>
+<circle cx="2178.0" cy="961" r="2.6" fill="#2563eb"/>
+<text x="2188.0" y="966" class="b">64×64×5 chip per hotspot</text>
+<circle cx="2178.0" cy="982" r="2.6" fill="#2563eb"/>
+<text x="2188.0" y="987" class="b">Clay v1.5 → 1024-d embedding</text>
+<circle cx="2178.0" cy="1003" r="2.6" fill="#2563eb"/>
+<text x="2188.0" y="1008" class="b">k-NN plastic affinity + novelty</text>
+<circle cx="2178.0" cy="1024" r="2.6" fill="#2563eb"/>
+<text x="2188.0" y="1029" class="b">Fusion → CONFIRMED / POSSIBLE</text>
+<circle cx="2178.0" cy="1045" r="2.6" fill="#2563eb"/>
+<text x="2188.0" y="1050" class="b">Sidecar down → MLP-only (logged)</text>
+<rect x="1742" y="884" width="340" height="212" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<path d="M1742 896 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#dbeafe"/>
+<line x1="1742" y1="942" x2="2082" y2="942" stroke="#2563eb" stroke-width="1"/>
+<text x="1756" y="909" class="t">Drift Forecasting</text>
+<text x="1756" y="930" class="s">trajectory/ · Lagrangian model</text>
+<circle cx="1760.0" cy="961" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="966" class="b">Forcing: CMEMS → Open-Meteo → synth.</text>
+<circle cx="1760.0" cy="982" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="987" class="b">RK4 integration · 1 h step · 72 h</text>
+<circle cx="1760.0" cy="1003" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="1008" class="b">Windage ensemble 1.5 – 3 %</text>
+<circle cx="1760.0" cy="1024" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="1029" class="b">Mean path + uncertainty cone</text>
+<circle cx="1760.0" cy="1045" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="1050" class="b">Landfall probability · coast ETA</text>
+<circle cx="1760.0" cy="1066" r="2.6" fill="#2563eb"/>
+<text x="1770.0" y="1071" class="b">Back-tracking to likely source</text>
+<rect x="1324" y="884" width="340" height="212" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<path d="M1324 896 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#dbeafe"/>
+<line x1="1324" y1="942" x2="1664" y2="942" stroke="#2563eb" stroke-width="1"/>
+<text x="1338" y="909" class="t">Alert Generation</text>
+<text x="1338" y="930" class="s">hotspot/alert_trigger.py</text>
+<circle cx="1342.0" cy="961" r="2.6" fill="#2563eb"/>
+<text x="1352.0" y="966" class="b">From HIGH / MEDIUM hotspots</text>
+<circle cx="1342.0" cy="982" r="2.6" fill="#2563eb"/>
+<text x="1352.0" y="987" class="b">COAST_PROXIMITY if ETA ≤ 48 h</text>
+<circle cx="1342.0" cy="1003" r="2.6" fill="#2563eb"/>
+<text x="1352.0" y="1008" class="b">otherwise HOTSPOT alert</text>
+<text x="1338.0" y="1029" class="g">delivery + dedupe in backend</text>
+<rect x="906" y="884" width="340" height="212" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<path d="M906 896 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#dbeafe"/>
+<line x1="906" y1="942" x2="1246" y2="942" stroke="#2563eb" stroke-width="1"/>
+<text x="920" y="909" class="t">Engine REST API</text>
+<text x="920" y="930" class="s">FastAPI · Uvicorn · Pydantic schemas</text>
+<circle cx="924.0" cy="961" r="2.6" fill="#2563eb"/>
+<text x="934.0" y="966" class="b">/pipeline/run · /pipeline/stream</text>
+<circle cx="924.0" cy="982" r="2.6" fill="#2563eb"/>
+<text x="934.0" y="987" class="b">/forecast/trajectory · /backtrack</text>
+<circle cx="924.0" cy="1003" r="2.6" fill="#2563eb"/>
+<text x="934.0" y="1008" class="b">/similarity/* · /compute/*</text>
+<circle cx="924.0" cy="1024" r="2.6" fill="#2563eb"/>
+<text x="934.0" y="1029" class="b">/model/* · /export/geotiff</text>
+<circle cx="924.0" cy="1045" r="2.6" fill="#2563eb"/>
+<text x="934.0" y="1050" class="b">/health · /capabilities · /metrics</text>
+<rect x="488" y="884" width="340" height="212" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<path d="M488 896 a12 12 0 0 1 12 -12 h316 a12 12 0 0 1 12 12 v46 h-340 z" fill="#dbeafe"/>
+<line x1="488" y1="942" x2="828" y2="942" stroke="#2563eb" stroke-width="1"/>
+<text x="502" y="909" class="t">Intelligence Analytics</text>
+<text x="502" y="930" class="s">similarity_service · site_change</text>
+<circle cx="506.0" cy="961" r="2.6" fill="#2563eb"/>
+<text x="516.0" y="966" class="b">Find similar sites (Clay index)</text>
+<circle cx="506.0" cy="982" r="2.6" fill="#2563eb"/>
+<text x="516.0" y="987" class="b">Novelty / anomaly score</text>
+<circle cx="506.0" cy="1003" r="2.6" fill="#2563eb"/>
+<text x="516.0" y="1008" class="b">Site change over time</text>
+<circle cx="506.0" cy="1024" r="2.6" fill="#2563eb"/>
+<text x="516.0" y="1029" class="b">Spectral indices · change detection</text>
+<path d="M414 720 H482" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="449" y="694" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">S2 bands</text>
+<text x="449" y="710" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">+ SCL</text>
+<path d="M832 720 H900" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="867" y="694" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">raw</text>
+<text x="867" y="710" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">scene</text>
+<path d="M1250 720 H1318" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1285" y="694" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">clean</text>
+<text x="1285" y="710" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">bands</text>
+<path d="M1668 720 H1736" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1703" y="694" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">candidate</text>
+<text x="1703" y="710" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">pixels</text>
+<path d="M2086 720 H2154" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="2121" y="694" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">classified</text>
+<text x="2121" y="710" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">pixels</text>
+<path d="M2156 984 H2088" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="2121" y="958" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">verified</text>
+<text x="2121" y="974" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">hotspots</text>
+<path d="M1738 984 H1670" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1703" y="958" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">forecasts</text>
+<path d="M1320 984 H1252" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1285" y="958" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">alerts +</text>
+<text x="1285" y="974" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">results</text>
+<path d="M832 984 H900" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="867" y="958" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">on</text>
+<text x="867" y="974" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">demand</text>
+<path d="M2330.0 834 V878" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="2342.0" y="866" text-anchor="start" class="l" style="font-size:13.5px;fill:#334155">hotspot centroids</text>
+<path d="M414 858 H1912.0 V878" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1180" y="850" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">ocean currents + 10 m wind (forcing data)</text>
+<path d="M2250.0 522 V552 H1912.0 V614" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="2080" y="558" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">marinenet.onnx → onnxruntime</text>
+<path d="M2502 480 H2540 V1024 H2506" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="2553" y="760" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155" transform="rotate(-90 2553 760)">Clay index + fusion thresholds</text>
+<rect x="40" y="1168" width="2520" height="464" rx="18" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.6" stroke-dasharray="10 6"/>
+<circle cx="74" cy="1196" r="16" fill="#16a34a"/>
+<text x="74" y="1202" text-anchor="middle" style="font:700 17px Segoe UI,Arial;fill:#fff">3</text>
+<text x="100" y="1203" class="h" style="fill:#16a34a">APPLICATION, STORAGE &amp; PRESENTATION LAYER</text>
+<text x="2540" y="1203" text-anchor="end" class="n"></text>
+<rect x="70" y="1222" width="350" height="380" rx="12" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+<path d="M70 1234 a12 12 0 0 1 12 -12 h326 a12 12 0 0 1 12 12 v46 h-350 z" fill="#e2e8f0"/>
+<line x1="70" y1="1280" x2="420" y2="1280" stroke="#475569" stroke-width="1"/>
+<text x="84" y="1247" class="t">Data Storage</text>
+<text x="84" y="1268" class="s">system of record + caches</text>
+<text x="84.0" y="1304" class="g">PostgreSQL :5432 (Prisma, 18 tables)</text>
+<circle cx="88.0" cy="1320" r="2.6" fill="#475569"/>
+<text x="98.0" y="1325" class="b">detections · hotspots</text>
+<circle cx="88.0" cy="1341" r="2.6" fill="#475569"/>
+<text x="98.0" y="1346" class="b">trajectories · alerts</text>
+<circle cx="88.0" cy="1362" r="2.6" fill="#475569"/>
+<text x="98.0" y="1367" class="b">satellite_images · pipeline_logs</text>
+<circle cx="88.0" cy="1383" r="2.6" fill="#475569"/>
+<text x="98.0" y="1388" class="b">users · operations</text>
+<circle cx="88.0" cy="1404" r="2.6" fill="#475569"/>
+<text x="98.0" y="1409" class="b">saved_areas · area_forecasts</text>
+<text x="84.0" y="1430" class="g">Redis :6379</text>
+<circle cx="88.0" cy="1446" r="2.6" fill="#475569"/>
+<text x="98.0" y="1451" class="b">BullMQ job queue</text>
+<text x="84.0" y="1472" class="g">Other</text>
+<circle cx="88.0" cy="1488" r="2.6" fill="#475569"/>
+<text x="98.0" y="1493" class="b">In-memory demo store (fallback)</text>
+<circle cx="88.0" cy="1509" r="2.6" fill="#475569"/>
+<text x="98.0" y="1514" class="b">MySQL dataset browser (copy)</text>
+<circle cx="88.0" cy="1530" r="2.6" fill="#475569"/>
+<text x="98.0" y="1535" class="b">Files: data/ GeoTIFF · models/</text>
+<circle cx="88.0" cy="1551" r="2.6" fill="#475569"/>
+<text x="98.0" y="1556" class="b">Browser localStorage (session)</text>
+<rect x="530" y="1222" width="720" height="380" rx="12" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<path d="M530 1234 a12 12 0 0 1 12 -12 h696 a12 12 0 0 1 12 12 v46 h-720 z" fill="#dcfce7"/>
+<line x1="530" y1="1280" x2="1250" y2="1280" stroke="#16a34a" stroke-width="1"/>
+<text x="544" y="1247" class="t">Backend API — Node.js / Express :3001</text>
+<text x="544" y="1268" class="s">TypeScript · Prisma ORM · zod · helmet · cors</text>
+<text x="544.0" y="1304" class="g">REST API</text>
+<circle cx="548.0" cy="1320" r="2.6" fill="#16a34a"/>
+<text x="558.0" y="1325" class="b">13 routers under /api</text>
+<circle cx="548.0" cy="1341" r="2.6" fill="#16a34a"/>
+<text x="558.0" y="1346" class="b">detections · hotspots · alerts</text>
+<circle cx="548.0" cy="1362" r="2.6" fill="#16a34a"/>
+<text x="558.0" y="1367" class="b">pipeline · areas · operations</text>
+<text x="544.0" y="1388" class="g">Security</text>
+<circle cx="548.0" cy="1404" r="2.6" fill="#16a34a"/>
+<text x="558.0" y="1409" class="b">JWT access + refresh tokens</text>
+<circle cx="548.0" cy="1425" r="2.6" fill="#16a34a"/>
+<text x="558.0" y="1430" class="b">bcrypt passwords · TOTP 2FA</text>
+<circle cx="548.0" cy="1446" r="2.6" fill="#16a34a"/>
+<text x="558.0" y="1451" class="b">RBAC: FIELD · COASTGUARD · ADMIN</text>
+<text x="890.0" y="1304" class="g">Data pipeline</text>
+<circle cx="894.0" cy="1320" r="2.6" fill="#16a34a"/>
+<text x="904.0" y="1325" class="b">persistRun(): engine JSON → rows</text>
+<circle cx="894.0" cy="1341" r="2.6" fill="#16a34a"/>
+<text x="904.0" y="1346" class="b">BullMQ queued + scheduled scans</text>
+<circle cx="894.0" cy="1362" r="2.6" fill="#16a34a"/>
+<text x="904.0" y="1367" class="b">Repositories with demo fallback</text>
+<text x="890.0" y="1388" class="g">Real-time &amp; reports</text>
+<circle cx="894.0" cy="1404" r="2.6" fill="#16a34a"/>
+<text x="904.0" y="1409" class="b">WebSocket /ws/live push</text>
+<circle cx="894.0" cy="1425" r="2.6" fill="#16a34a"/>
+<text x="904.0" y="1430" class="b">CSV + PDF reports (pdfkit)</text>
+<circle cx="894.0" cy="1446" r="2.6" fill="#16a34a"/>
+<text x="904.0" y="1451" class="b">X-Data-Source live/demo header</text>
+<rect x="1360" y="1222" width="400" height="380" rx="12" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<path d="M1360 1234 a12 12 0 0 1 12 -12 h376 a12 12 0 0 1 12 12 v46 h-400 z" fill="#dcfce7"/>
+<line x1="1360" y1="1280" x2="1760" y2="1280" stroke="#16a34a" stroke-width="1"/>
+<text x="1374" y="1247" class="t">Web Frontend — React 18 :5173</text>
+<text x="1374" y="1268" class="s">Vite · TypeScript · Tailwind CSS</text>
+<text x="1374.0" y="1304" class="g">Pages</text>
+<circle cx="1378.0" cy="1320" r="2.6" fill="#16a34a"/>
+<text x="1388.0" y="1325" class="b">Command Center · Map Explorer</text>
+<circle cx="1378.0" cy="1341" r="2.6" fill="#16a34a"/>
+<text x="1388.0" y="1346" class="b">Areas · Records · Field Ops</text>
+<circle cx="1378.0" cy="1362" r="2.6" fill="#16a34a"/>
+<text x="1388.0" y="1367" class="b">AI Lab · Analytics · Admin</text>
+<text x="1374.0" y="1388" class="g">Libraries</text>
+<circle cx="1378.0" cy="1404" r="2.6" fill="#16a34a"/>
+<text x="1388.0" y="1409" class="b">Leaflet / react-leaflet maps</text>
+<circle cx="1378.0" cy="1425" r="2.6" fill="#16a34a"/>
+<text x="1388.0" y="1430" class="b">Recharts charts</text>
+<circle cx="1378.0" cy="1446" r="2.6" fill="#16a34a"/>
+<text x="1388.0" y="1451" class="b">React Query (server state)</text>
+<circle cx="1378.0" cy="1467" r="2.6" fill="#16a34a"/>
+<text x="1388.0" y="1472" class="b">Zustand (auth + map state)</text>
+<circle cx="1378.0" cy="1488" r="2.6" fill="#16a34a"/>
+<text x="1388.0" y="1493" class="b">axios + auto token refresh</text>
+<text x="1374.0" y="1514" class="g">Users</text>
+<circle cx="1378.0" cy="1530" r="2.6" fill="#16a34a"/>
+<text x="1388.0" y="1535" class="b">Field officer · Coast guard · Admin</text>
+<circle cx="1378.0" cy="1551" r="2.6" fill="#16a34a"/>
+<text x="1388.0" y="1556" class="b">Role-gated routes &amp; menus</text>
+<rect x="1850" y="1222" width="320" height="380" rx="12" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<path d="M1850 1234 a12 12 0 0 1 12 -12 h296 a12 12 0 0 1 12 12 v46 h-320 z" fill="#dcfce7"/>
+<line x1="1850" y1="1280" x2="2170" y2="1280" stroke="#16a34a" stroke-width="1"/>
+<text x="1864" y="1247" class="t">Outputs &amp; Visualization</text>
+<text x="1864" y="1268" class="s">what the analyst sees</text>
+<circle cx="1868.0" cy="1299" r="2.6" fill="#16a34a"/>
+<text x="1878.0" y="1304" class="b">Detection map by class</text>
+<circle cx="1868.0" cy="1320" r="2.6" fill="#16a34a"/>
+<text x="1878.0" y="1325" class="b">Hotspots + severity</text>
+<circle cx="1868.0" cy="1341" r="2.6" fill="#16a34a"/>
+<text x="1878.0" y="1346" class="b">72 h drift path + cone</text>
+<circle cx="1868.0" cy="1362" r="2.6" fill="#16a34a"/>
+<text x="1878.0" y="1367" class="b">Landfall probability · ETA</text>
+<circle cx="1868.0" cy="1383" r="2.6" fill="#16a34a"/>
+<text x="1878.0" y="1388" class="b">Alerts feed</text>
+<circle cx="1868.0" cy="1404" r="2.6" fill="#16a34a"/>
+<text x="1878.0" y="1409" class="b">Saved areas &amp; forecasts</text>
+<circle cx="1868.0" cy="1425" r="2.6" fill="#16a34a"/>
+<text x="1878.0" y="1430" class="b">AI Lab: model metrics</text>
+<circle cx="1868.0" cy="1446" r="2.6" fill="#16a34a"/>
+<text x="1878.0" y="1451" class="b">Similar-site search</text>
+<circle cx="1868.0" cy="1467" r="2.6" fill="#16a34a"/>
+<text x="1878.0" y="1472" class="b">Field missions + reports</text>
+<text x="1864.0" y="1493" class="g">Exports</text>
+<circle cx="1868.0" cy="1509" r="2.6" fill="#16a34a"/>
+<text x="1878.0" y="1514" class="b">CSV · PDF · GeoTIFF</text>
+<rect x="2210" y="1222" width="320" height="380" rx="12" fill="#ffffff" stroke="#db2777" stroke-width="2"/>
+<path d="M2210 1234 a12 12 0 0 1 12 -12 h296 a12 12 0 0 1 12 12 v46 h-320 z" fill="#fce7f3"/>
+<line x1="2210" y1="1280" x2="2530" y2="1280" stroke="#db2777" stroke-width="1"/>
+<text x="2224" y="1247" class="t">Monitoring &amp; Tracking</text>
+<text x="2224" y="1268" class="s">health · logs · provenance</text>
+<circle cx="2228.0" cy="1299" r="2.6" fill="#db2777"/>
+<text x="2238.0" y="1304" class="b">watchdog.ps1 · keep-alive</text>
+<circle cx="2228.0" cy="1320" r="2.6" fill="#db2777"/>
+<text x="2238.0" y="1325" class="b">start-all.cmd launcher</text>
+<circle cx="2228.0" cy="1341" r="2.6" fill="#db2777"/>
+<text x="2238.0" y="1346" class="b">/health HTTP probes</text>
+<circle cx="2228.0" cy="1362" r="2.6" fill="#db2777"/>
+<text x="2238.0" y="1367" class="b">/metrics counters</text>
+<circle cx="2228.0" cy="1383" r="2.6" fill="#db2777"/>
+<text x="2238.0" y="1388" class="b">Per-stage pipeline_logs</text>
+<circle cx="2228.0" cy="1404" r="2.6" fill="#db2777"/>
+<text x="2238.0" y="1409" class="b">Audit log (append-only)</text>
+<circle cx="2228.0" cy="1425" r="2.6" fill="#db2777"/>
+<text x="2238.0" y="1430" class="b">Live/demo data-source tag</text>
+<circle cx="2228.0" cy="1446" r="2.6" fill="#db2777"/>
+<text x="2238.0" y="1451" class="b">Model card + /capabilities</text>
+<circle cx="2228.0" cy="1467" r="2.6" fill="#db2777"/>
+<text x="2238.0" y="1472" class="b">Scan reliability grade</text>
+<text x="2224.0" y="1493" class="g">Admin page shows status</text>
+<path d="M1000 1218 V1102" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="990" y="1138" text-anchor="end" class="l" style="font-size:13.5px;fill:#334155">scan / forecast</text>
+<text x="990" y="1154" text-anchor="end" class="l" style="font-size:13.5px;fill:#334155">request (HTTP)</text>
+<path d="M1150 1098 V1216" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1162" y="1146" text-anchor="start" class="l" style="font-size:13.5px;fill:#334155">result JSON</text>
+<path d="M526 1342 H426" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)" marker-start="url(#ads)"/>
+<text x="475" y="1320" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">Prisma</text>
+<text x="475" y="1336" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">ORM</text>
+<path d="M526 1472 H426" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)" marker-start="url(#ads)"/>
+<text x="475" y="1450" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">BullMQ</text>
+<text x="475" y="1466" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">jobs</text>
+<path d="M1356 1352 H1256" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1305" y="1314" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">REST</text>
+<text x="1305" y="1330" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">+ JWT</text>
+<path d="M1254 1472 H1354" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1305" y="1434" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">JSON +</text>
+<text x="1305" y="1450" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">WS push</text>
+<path d="M1764 1412 H1844" fill="none" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="1805" y="1390" text-anchor="middle" class="l" style="font-size:13.5px;fill:#334155">renders</text>
+<path d="M2330.0 1218 V1102" fill="none" stroke="#db2777" stroke-width="2.4" stroke-dasharray="8 6" marker-end="url(#am)"/>
+<text x="2342.0" y="1138" text-anchor="start" class="l" style="font-size:13.5px;fill:#be185d">health probes</text>
+<text x="2342.0" y="1154" text-anchor="start" class="l" style="font-size:13.5px;fill:#be185d">/health · /metrics</text>
+<line x1="70" y1="1665" x2="130" y2="1665" stroke="#334155" stroke-width="2.4" marker-end="url(#ad)"/>
+<text x="142" y="1670" class="b">data / control flow</text>
+<line x1="330" y1="1665" x2="390" y2="1665" stroke="#db2777" stroke-width="2.4" stroke-dasharray="8 6" marker-end="url(#am)"/>
+<text x="402" y="1670" class="b">monitoring probe</text>
+<rect x="600" y="1653" width="26" height="18" rx="4" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="636" y="1670" class="b">data sources</text>
+<rect x="830" y="1653" width="26" height="18" rx="4" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="866" y="1670" class="b">offline training</text>
+<rect x="1060" y="1653" width="26" height="18" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<text x="1096" y="1670" class="b">detection engine</text>
+<rect x="1290" y="1653" width="26" height="18" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="1326" y="1670" class="b">application layer</text>
+<rect x="1520" y="1653" width="26" height="18" rx="4" fill="#e2e8f0" stroke="#475569" stroke-width="2"/>
+<text x="1556" y="1670" class="b">storage / artefacts</text>
+<rect x="1750" y="1653" width="26" height="18" rx="4" fill="#fce7f3" stroke="#db2777" stroke-width="2"/>
+<text x="1786" y="1670" class="b">monitoring</text>
+</svg>

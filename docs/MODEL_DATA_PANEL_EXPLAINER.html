@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Marine Plastic Tracker - Model, Data, and Training Explainer</title>
+  <style>
+    :root {
+      --ink: #14313c;
+      --muted: #51707b;
+      --line: #d7e6e8;
+      --teal: #0f8b7d;
+      --teal-soft: #e8f7f5;
+      --blue-soft: #eef7fb;
+      --gold-soft: #fff7e9;
+      --card: #ffffff;
+      --bg: #f8fcfc;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+    }
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+    .cover {
+      min-height: 100vh;
+      background: linear-gradient(155deg, #dff3ef 0%, #eef9f7 45%, #ffffff 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 56px;
+      page-break-after: always;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(15, 139, 125, 0.12);
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 14px 0 12px;
+      font-size: 44px;
+      line-height: 1.05;
+      letter-spacing: -1px;
+    }
+    h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: -0.5px;
+    }
+    h3 {
+      margin: 22px 0 8px;
+      font-size: 18px;
+    }
+    p {
+      margin: 10px 0;
+    }
+    .lede {
+      font-size: 18px;
+      color: var(--muted);
+      max-width: 720px;
+    }
+    .meta {
+      margin-top: 22px;
+      max-width: 760px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 22px 24px;
+      margin: 18px 0;
+      page-break-inside: avoid;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fff;
+    }
+    .card .k {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.7px;
+      font-weight: 700;
+    }
+    .card .v {
+      margin-top: 6px;
+      font-size: 28px;
+      line-height: 1.1;
+      font-weight: 800;
+      color: var(--teal);
+    }
+    .card .s {
+      margin-top: 6px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: var(--teal-soft);
+    }
+    .step .n {
+      font-size: 11px;
+      color: var(--teal);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+    }
+    .step .t {
+      margin-top: 3px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .step .d {
+      margin-top: 5px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .callout {
+      border-left: 4px solid var(--teal);
+      background: var(--teal-soft);
+      padding: 12px 14px;
+      border-radius: 0 12px 12px 0;
+      margin: 14px 0;
+    }
+    .callout.warn {
+      border-left-color: #b7791f;
+      background: var(--gold-soft);
+    }
+    .callout.info {
+      border-left-color: #2b6cb0;
+      background: var(--blue-soft);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      padding: 10px 10px;
+    }
+    th {
+      background: #f3fbfa;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 11px;
+    }
+    ul {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    li {
+      margin: 6px 0;
+    }
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .mini {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fff;
+    }
+    .mini h4 {
+      margin: 0 0 6px;
+      font-size: 15px;
+    }
+    .script {
+      font-size: 14px;
+      background: #f4fbff;
+      border: 1px solid #d8e8f5;
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    @page {
+      size: A4;
+      margin: 12mm;
+    }
+    @media print {
+      body { background: #fff; }
+      .page { max-width: none; padding: 0; }
+      .cover { min-height: 0; height: 262mm; padding: 42px; }
+      .cards { grid-template-columns: repeat(3, 1fr); }
+      .flow { grid-template-columns: repeat(4, 1fr); }
+      .section, .card, .step, .mini, .script { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="badge">Panel Explainer</div>
+    <h1>Marine Plastic Tracker<br>Model, Data, and Training Explained</h1>
+    <p class="lede">This document explains, in simple words, which model we use, what data we trained it on, how we cleaned and prepared that data, how the model works inside the project, and what results we got.</p>
+    <div class="meta">
+      <p><strong>Prepared from the current codebase on:</strong> Thursday, July 30, 2026</p>
+      <p><strong>Main files used for these facts:</strong> <code>python_engine/models/metrics.json</code>, <code>python_engine/ml/datasets/*.py</code>, <code>python_engine/ml/train_perpixel_gpu.py</code>, <code>python_engine/ml/inference_engine.py</code>, and <code>python_engine/main_pipeline.py</code>.</p>
+      <p><strong>Important note:</strong> some older repo documents still contain older numbers. This explainer uses the current shipped model files and current validation JSON files.</p>
+    </div>
+  </section>
+
+  <div class="page">
+    <section class="section">
+      <h2>1. Project idea in one line</h2>
+      <p>Our project takes free Sentinel-2 satellite images of the sea, finds pixels that may contain floating material, uses AI to decide whether that material is plastic or not, groups nearby plastic pixels into hotspots, and then predicts where those hotspots may drift over the next 72 hours.</p>
+      <div class="callout">
+        <strong>Simple way to say it to the panel:</strong> "We built a system that looks at satellite images, finds possible floating waste, checks whether it is plastic, and shows where it may move next."
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>2. Which model do we use?</h2>
+      <div class="cards">
+        <div class="card">
+          <div class="k">Main deployed model</div>
+          <div class="v">marinenet.onnx</div>
+          <div class="s">This is the model currently used in the live pipeline.</div>
+        </div>
+        <div class="card">
+          <div class="k">Model type</div>
+          <div class="v">Per-pixel MLP</div>
+          <div class="s">A neural network that classifies one candidate pixel at a time.</div>
+        </div>
+        <div class="card">
+          <div class="k">Output classes</div>
+          <div class="v">4 classes</div>
+          <div class="s">Plastic, Algae, Sea_Foam, and Water.</div>
+        </div>
+      </div>
+      <p>The main model is a <strong>3-seed ensemble of per-pixel MLPs</strong>. In simple words, that means we trained the same type of neural network multiple times and averaged their outputs so the final result is more stable and more reliable.</p>
+      <p>The current shipped model uses <strong>11 input features</strong> made from <strong>5 Sentinel-2 bands</strong> plus derived indices:</p>
+      <ul>
+        <li>Raw bands: <code>B04</code>, <code>B06</code>, <code>B08</code>, <code>B8A</code>, <code>B11</code></li>
+        <li>Derived features: <code>FDI</code>, <code>NDVI</code>, <code>PI</code>, <code>MNDWI</code>, <code>NDVI_RE</code>, <code>BRIGHT</code></li>
+      </ul>
+      <div class="callout info">
+        <strong>What this model does:</strong> it looks at the spectral values of a candidate pixel and decides whether that pixel is more likely to be Plastic, Algae, Sea Foam, or Water.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>3. How many datasets are we working with?</h2>
+      <p>There are <strong>2 main datasets used to train the final deployed model</strong>, and <strong>2 more datasets used for extra validation and generalization checking</strong>.</p>
+      <table>
+        <tr>
+          <th>Dataset</th>
+          <th>Used for</th>
+          <th>Where it came from</th>
+          <th>Where we placed it in the project</th>
+        </tr>
+        <tr>
+          <td><strong>MARIDA</strong></td>
+          <td>Main training and testing</td>
+          <td>Research dataset by Kikaki et al. 2022</td>
+          <td><code>data/marida</code></td>
+        </tr>
+        <tr>
+          <td><strong>MADOS</strong></td>
+          <td>Main training and testing</td>
+          <td>Research dataset by Kikaki, Kakogeorgiou et al. 2024</td>
+          <td><code>data/MADOS</code></td>
+        </tr>
+        <tr>
+          <td><strong>PLP 2021 / 2022</strong></td>
+          <td>Independent real-target validation</td>
+          <td>Plastic Litter Project, University of the Aegean</td>
+          <td><code>data/plp/PLP</code></td>
+        </tr>
+        <tr>
+          <td><strong>RefinedFloatingObjects (RFO)</strong></td>
+          <td>New-seas generalization checking</td>
+          <td>Russwurm et al. 2023</td>
+          <td><code>data/refinedfloatingobjects/refinedfloatingobjects</code></td>
+        </tr>
+      </table>
+      <div class="callout warn">
+        <strong>Most important panel point:</strong> the final deployed model was trained on <strong>MARIDA + MADOS</strong>. PLP and RFO were used to check how well the system behaves on real deployed targets and on completely new scenes.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>4. How much data did we train on?</h2>
+      <table>
+        <tr>
+          <th>Dataset split</th>
+          <th>Samples in cache</th>
+          <th>What it means</th>
+        </tr>
+        <tr>
+          <td>MARIDA train</td>
+          <td>347,204 pixels</td>
+          <td>Labelled training pixels after our preprocessing</td>
+        </tr>
+        <tr>
+          <td>MADOS train</td>
+          <td>734,411 pixels</td>
+          <td>Labelled training pixels after our preprocessing</td>
+        </tr>
+        <tr>
+          <td><strong>Total main-model training data</strong></td>
+          <td><strong>1,081,615 pixels</strong></td>
+          <td><strong>This is what trained the final deployed model</strong></td>
+        </tr>
+        <tr>
+          <td>MARIDA test</td>
+          <td>153,762 pixels</td>
+          <td>Held-out test data never used for training</td>
+        </tr>
+        <tr>
+          <td>MADOS test</td>
+          <td>346,145 pixels</td>
+          <td>Held-out test data never used for training</td>
+        </tr>
+      </table>
+      <p>So if the panel asks, <strong>"How much data trained the model?"</strong>, the clean answer is:</p>
+      <div class="callout">
+        <strong>"Our final main model was trained on 1,081,615 labelled pixels from two real satellite datasets: MARIDA and MADOS."</strong>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>5. How did data preprocessing work?</h2>
+      <p>We did not put raw dataset files directly into the model. We first cleaned and converted them into the exact format our project needs.</p>
+      <div class="flow">
+        <div class="step">
+          <div class="n">Step 1</div>
+          <div class="t">Download raw datasets</div>
+          <div class="d">We stored the original dataset files inside the <code>data/</code> folder.</div>
+        </div>
+        <div class="step">
+          <div class="n">Step 2</div>
+          <div class="t">Read official split files</div>
+          <div class="d">We used each dataset's train, validation, and test lists instead of making random splits by hand.</div>
+        </div>
+        <div class="step">
+          <div class="n">Step 3</div>
+          <div class="t">Pick matching bands</div>
+          <div class="d">We selected the Sentinel-2 bands that the live pipeline also uses.</div>
+        </div>
+        <div class="step">
+          <div class="n">Step 4</div>
+          <div class="t">Compute extra features</div>
+          <div class="d">We calculated FDI, NDVI, PI, MNDWI, NDVI_RE, and BRIGHT from the raw bands.</div>
+        </div>
+        <div class="step">
+          <div class="n">Step 5</div>
+          <div class="t">Map labels</div>
+          <div class="d">We converted the original 15 dataset classes into our 4 project classes.</div>
+        </div>
+        <div class="step">
+          <div class="n">Step 6</div>
+          <div class="t">Remove unusable rows</div>
+          <div class="d">We dropped invalid, excluded, or non-finite pixels.</div>
+        </div>
+        <div class="step">
+          <div class="n">Step 7</div>
+          <div class="t">Cache as .npz</div>
+          <div class="d">We saved clean arrays like <code>marida_train.npz</code> and <code>mados_train.npz</code>.</div>
+        </div>
+        <div class="step">
+          <div class="n">Step 8</div>
+          <div class="t">Train the model</div>
+          <div class="d">Only after preprocessing did we train and export the final ONNX model.</div>
+        </div>
+      </div>
+
+      <h3>Important preprocessing details</h3>
+      <ul>
+        <li><strong>MARIDA:</strong> we read 11-band Sentinel-2 GeoTIFFs and their class masks, then converted MARIDA's 15 classes into our 4 classes.</li>
+        <li><strong>MADOS:</strong> we did the same, but we also manually handled band resolution differences by upsampling 20 m and 60 m bands to the 10 m grid.</li>
+        <li><strong>PLP:</strong> we matched target dates to satellite scenes, reprojected target points into the image coordinate system, read center pixels, and built validation samples.</li>
+        <li><strong>RFO:</strong> we read labeled point locations, cropped 64 x 64 image chips, and also extracted center-pixel features for comparison tests.</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>6. How did we manage to put the dataset into our project?</h2>
+      <div class="two">
+        <div class="mini">
+          <h4>Raw data storage</h4>
+          <p>We kept downloaded benchmark datasets inside the project's <code>data/</code> folder. This made the datasets part of the project workflow, but separate from source code.</p>
+        </div>
+        <div class="mini">
+          <h4>Clean training caches</h4>
+          <p>After preprocessing, we saved compact cache files like <code>python_engine/models/marida_train.npz</code> and <code>mados_train.npz</code> so future training runs could start faster.</p>
+        </div>
+      </div>
+      <p>In simple words, we used a two-stage setup:</p>
+      <ul>
+        <li><strong>Stage 1:</strong> keep the original dataset files in <code>data/</code></li>
+        <li><strong>Stage 2:</strong> convert them into cleaned model-ready arrays in <code>python_engine/models/</code></li>
+      </ul>
+      <div class="callout">
+        <strong>Simple panel answer:</strong> "We downloaded the datasets into our project's data folder, wrote our own Python loaders to read them, cleaned and converted them into numpy cache files, and then used those cache files for training."
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>7. Which model did we train, and what does it do?</h2>
+      <table>
+        <tr>
+          <th>Model</th>
+          <th>Status</th>
+          <th>What it does</th>
+        </tr>
+        <tr>
+          <td><strong>marinenet.onnx</strong></td>
+          <td>Main deployed model</td>
+          <td>Classifies each candidate pixel as Plastic, Algae, Sea_Foam, or Water.</td>
+        </tr>
+        <tr>
+          <td><strong>clay_head.pt</strong></td>
+          <td>Second-stage verifier</td>
+          <td>Looks at the whole hotspot chip and gives a second opinion using Clay embeddings.</td>
+        </tr>
+        <tr>
+          <td><strong>marinenet_patch.onnx</strong></td>
+          <td>Experimental only</td>
+          <td>A patch CNN we trained and evaluated, but did not keep as the default because it performed worse.</td>
+        </tr>
+      </table>
+      <p>The most important trained model is <strong>marinenet.onnx</strong>. It is the one actually used in the project's live scanning pipeline.</p>
+    </section>
+
+    <section class="section">
+      <h2>8. Full training process of the main model</h2>
+      <div class="flow">
+        <div class="step">
+          <div class="n">Stage 1</div>
+          <div class="t">Load MARIDA and MADOS</div>
+          <div class="d">Our custom loaders read the official train, val, and test splits.</div>
+        </div>
+        <div class="step">
+          <div class="n">Stage 2</div>
+          <div class="t">Build feature vectors</div>
+          <div class="d">Each labeled pixel was converted into 7 features first, then 11 for the improved GPU model.</div>
+        </div>
+        <div class="step">
+          <div class="n">Stage 3</div>
+          <div class="t">Combine both datasets</div>
+          <div class="d">We merged the clean MARIDA and MADOS arrays into one training set.</div>
+        </div>
+        <div class="step">
+          <div class="n">Stage 4</div>
+          <div class="t">Train on GPU</div>
+          <div class="d">We trained a deeper per-pixel MLP using the RTX 4050 laptop GPU.</div>
+        </div>
+        <div class="step">
+          <div class="n">Stage 5</div>
+          <div class="t">Evaluate on held-out test data</div>
+          <div class="d">We checked performance only on test pixels the model never saw during training.</div>
+        </div>
+        <div class="step">
+          <div class="n">Stage 6</div>
+          <div class="t">Export to ONNX</div>
+          <div class="d">We exported the final trained model into <code>marinenet.onnx</code>.</div>
+        </div>
+        <div class="step">
+          <div class="n">Stage 7</div>
+          <div class="t">Check ONNX parity</div>
+          <div class="d">We verified that ONNX predictions match the training model output.</div>
+        </div>
+        <div class="step">
+          <div class="n">Stage 8</div>
+          <div class="t">Use it live</div>
+          <div class="d">The Python engine loads the ONNX model at runtime for real scans.</div>
+        </div>
+      </div>
+      <div class="callout info">
+        <strong>Key implementation point:</strong> we trained the model in PyTorch, but we deployed it in ONNX Runtime so the live engine stays lighter and easier to run.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>9. How does the live system use the trained model?</h2>
+      <p>Training time and runtime are different.</p>
+      <div class="two">
+        <div class="mini">
+          <h4>During training</h4>
+          <ul>
+            <li>Read external datasets from <code>data/</code></li>
+            <li>Convert pixels into model features</li>
+            <li>Train the MLP</li>
+            <li>Export <code>marinenet.onnx</code></li>
+          </ul>
+        </div>
+        <div class="mini">
+          <h4>During live detection</h4>
+          <ul>
+            <li>Download a new Sentinel-2 scene</li>
+            <li>Mask clouds and land using SCL</li>
+            <li>Compute FDI to find candidate pixels</li>
+            <li>Build the same 11 features</li>
+            <li>Run <code>marinenet.onnx</code> to classify each candidate</li>
+            <li>Cluster high-confidence plastic into hotspots</li>
+            <li>Ask Clay for a second opinion</li>
+            <li>Run drift forecasting</li>
+          </ul>
+        </div>
+      </div>
+      <p>So the model does <strong>not</strong> directly read raw dataset folders during live use. The dataset folders are for training and validation. In live use, the model reads <strong>new satellite pixels</strong> and applies the same feature logic it learned during training.</p>
+    </section>
+
+    <section class="section">
+      <h2>10. Results and accuracy</h2>
+      <div class="cards">
+        <div class="card">
+          <div class="k">Held-out accuracy</div>
+          <div class="v">98.99%</div>
+          <div class="s">On the current shipped main model.</div>
+        </div>
+        <div class="card">
+          <div class="k">Macro-F1</div>
+          <div class="v">0.8175</div>
+          <div class="s">Better for class-balanced reporting.</div>
+        </div>
+        <div class="card">
+          <div class="k">Plastic F1</div>
+          <div class="v">0.7994</div>
+          <div class="s">Precision 0.7761 and recall 0.8242.</div>
+        </div>
+      </div>
+      <table>
+        <tr>
+          <th>Evaluation target</th>
+          <th>Result</th>
+        </tr>
+        <tr>
+          <td>Main model on combined MARIDA + MADOS held-out test</td>
+          <td>Accuracy 0.9899, Macro-F1 0.8175</td>
+        </tr>
+        <tr>
+          <td>Main model on MARIDA held-out test</td>
+          <td>Accuracy 0.9981, Macro-F1 0.9047</td>
+        </tr>
+        <tr>
+          <td>Main model on MADOS held-out test</td>
+          <td>Accuracy 0.9862, Macro-F1 0.7843</td>
+        </tr>
+        <tr>
+          <td>Patch CNN experiment</td>
+          <td>Accuracy 0.6236, Macro-F1 0.5548, so we did not keep it as the default</td>
+        </tr>
+        <tr>
+          <td>Clay verifier on held-out chip test</td>
+          <td>Accuracy 0.7624, Macro-F1 0.7109, used as second opinion not replacement</td>
+        </tr>
+        <tr>
+          <td>Clay + fusion confirmed tier</td>
+          <td>Confirmed precision 0.9219, confirmed recall 0.7037</td>
+        </tr>
+      </table>
+      <div class="callout warn">
+        <strong>Best way to explain the numbers:</strong> "The main model is very strong overall, but we should mention Macro-F1 and Plastic F1, not only plain accuracy, because the water class is much easier and much more common."
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>11. Independent validation results</h2>
+      <p>We also checked the system using independent data that was not the main training data.</p>
+      <table>
+        <tr>
+          <th>Validation dataset</th>
+          <th>Why we used it</th>
+          <th>Current result saved in repo</th>
+        </tr>
+        <tr>
+          <td>PLP 2021</td>
+          <td>Real plastic target placed in water on known dates</td>
+          <td>21 dates checked, HDPE hit rate 0.333, FDI gate rate 0.762</td>
+        </tr>
+        <tr>
+          <td>RFO holdout (Durban + Marmara)</td>
+          <td>See how the system behaves on new seas</td>
+          <td>Clay recall 0.5422 vs per-pixel baseline 0.2222 on debris points</td>
+        </tr>
+      </table>
+      <p>This shows two different strengths:</p>
+      <ul>
+        <li><strong>The main MLP model</strong> is strong on benchmark pixel classification.</li>
+        <li><strong>Clay</strong> is valuable when we want better generalization on totally new scenes.</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>12. What did we implement manually by ourselves?</h2>
+      <ul>
+        <li>We manually wrote dataset loaders for MARIDA, MADOS, PLP, and RFO.</li>
+        <li>We manually mapped raw dataset labels into our 4 project classes.</li>
+        <li>We manually computed the same spectral features used by the live pipeline.</li>
+        <li>We manually handled MADOS band upsampling to a common 10 m grid.</li>
+        <li>We manually created clean cached training files in <code>.npz</code> format.</li>
+        <li>We manually wrote the training scripts for the combined model and the GPU-improved model.</li>
+        <li>We manually exported the trained model to ONNX and loaded it into the Python engine.</li>
+        <li>We manually connected the model to the live pipeline: satellite download, FDI, classification, clustering, Clay verification, and drift.</li>
+      </ul>
+      <div class="callout">
+        <strong>Simple panel answer:</strong> "We did not just download a ready-made model. We wrote our own data loaders, preprocessing, feature engineering, training scripts, ONNX export, and runtime integration."
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>13. One-minute script for the panel</h2>
+      <div class="script">
+        <p>"Our project uses a main AI model called <strong>marinenet.onnx</strong>. It is a per-pixel neural network that looks at Sentinel-2 spectral values and classifies each candidate as Plastic, Algae, Sea Foam, or Water.</p>
+        <p>We trained the final deployed model on <strong>two real labeled datasets</strong>: <strong>MARIDA</strong> and <strong>MADOS</strong>. Together they gave us <strong>1,081,615 labeled training pixels</strong>. We stored the raw datasets in the project's <code>data</code> folder, wrote our own Python loaders, cleaned the data, mapped the original labels into our 4 project classes, computed the spectral features, and saved clean cache files for training.</p>
+        <p>After that, we trained the model on GPU, evaluated it on held-out test data it had never seen, and exported the final model to ONNX for live use in the project. The current main model got <strong>98.99% accuracy</strong> and <strong>0.8175 Macro-F1</strong> on the combined held-out test. We also use a second model, <strong>Clay</strong>, as a verifier to give hotspots a second opinion and improve confidence.</p>
+        <p>So the full process is: download satellite image, compute FDI, run the trained model, group plastic pixels into hotspots, verify them with Clay, and then forecast drift."</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>14. Final short answers for common panel questions</h2>
+      <table>
+        <tr>
+          <th>Question</th>
+          <th>Short answer</th>
+        </tr>
+        <tr>
+          <td>Which model is used?</td>
+          <td>The live system mainly uses <code>marinenet.onnx</code>, a per-pixel MLP ensemble.</td>
+        </tr>
+        <tr>
+          <td>What is it trained on?</td>
+          <td>It is trained on real Sentinel-2 benchmark data from MARIDA and MADOS.</td>
+        </tr>
+        <tr>
+          <td>How many datasets are used?</td>
+          <td>2 for final training, and 4 total in the wider research and validation workflow.</td>
+        </tr>
+        <tr>
+          <td>How was preprocessing done?</td>
+          <td>We selected bands, computed indices, mapped labels, removed invalid rows, and cached clean numpy arrays.</td>
+        </tr>
+        <tr>
+          <td>How did you add datasets into the project?</td>
+          <td>We stored raw datasets in <code>data/</code> and converted them into clean <code>.npz</code> training caches.</td>
+        </tr>
+        <tr>
+          <td>What are the main results?</td>
+          <td>Accuracy 98.99%, Macro-F1 0.8175, Plastic F1 0.7994 on the shipped main model.</td>
+        </tr>
+        <tr>
+          <td>What does Clay do?</td>
+          <td>Clay is a second-opinion verifier for hotspots; it is not the main detector.</td>
+        </tr>
+      </table>
+      <div class="footer-note">
+        This PDF is based on the current shipped metrics and dataset-processing code in the repository as of Thursday, July 30, 2026.
+      </div>
+    </section>
+  </div>
+</body>
+</html>
