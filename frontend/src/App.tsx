@@ -1,6 +1,7 @@
 import { Component, lazy, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { MotionConfig } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 
 import { queryClient } from '@/lib/queryClient';
@@ -10,6 +11,7 @@ import { ScrollToTop } from '@/components/layout/ScrollToTop';
 import { MarketingLayout } from '@/components/layout/MarketingLayout';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
+import { RequireRole } from '@/components/layout/RequireRole';
 
 // Route pages are lazy-loaded so heavy libs (recharts, leaflet) only ship when
 // their page is visited — keeps the initial bundle small.
@@ -30,10 +32,8 @@ const AILab = lazy(() => import('@/pages/AILab'));                   // merges M
 const AnalyticsReports = lazy(() => import('@/pages/AnalyticsReports')); // merges Analytics + Reports
 const MapExplorer = lazy(() => import('@/pages/MapExplorer'));
 const Areas = lazy(() => import('@/pages/Areas'));           // saved AOIs + 72h drift forecasting
-const Pipeline = lazy(() => import('@/pages/Pipeline'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const Operations = lazy(() => import('@/pages/Operations'));
-const ActiveLearning = lazy(() => import('@/pages/ActiveLearning'));
 const DetectionDetail = lazy(() => import('@/pages/DetectionDetail'));
 const HotspotDetail = lazy(() => import('@/pages/HotspotDetail'));
 const AdminPanel = lazy(() => import('@/pages/AdminPanel'));
@@ -85,6 +85,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      {/* reducedMotion="user" → all opacity/transform motion auto-flattens for
+          visitors who set "prefers-reduced-motion" at the OS level. */}
+      <MotionConfig reducedMotion="user">
       <BrowserRouter>
         {/* Fixed animated ocean background behind everything */}
         <WaveBackground />
@@ -114,23 +117,28 @@ export default function App() {
             {/* Protected app */}
             <Route element={<ProtectedRoute />}>
               <Route path="/app" element={<AppLayout />}>
-                {/* Monitor */}
+                {/* Monitor — FIELD+ (every authenticated role) */}
                 <Route index element={<CommandCenter />} />
                 <Route path="map" element={<MapExplorer />} />
                 <Route path="areas" element={<Areas />} />
                 <Route path="records" element={<Records />} />
                 <Route path="detections/:id" element={<DetectionDetail />} />
                 <Route path="hotspots/:id" element={<HotspotDetail />} />
-                {/* Intelligence */}
-                <Route path="ai-lab" element={<AILab />} />
-                <Route path="active-learning" element={<ActiveLearning />} />
-                <Route path="pipeline" element={<Pipeline />} />
                 {/* Operate */}
                 <Route path="operations" element={<Operations />} />
-                <Route path="analytics" element={<AnalyticsReports />} />
                 {/* System */}
                 <Route path="settings" element={<Settings />} />
-                <Route path="admin" element={<AdminPanel />} />
+
+                {/* COASTGUARD+ only — kept in sync with nav.ts minRole */}
+                <Route element={<RequireRole minRole="COASTGUARD" />}>
+                  <Route path="ai-lab" element={<AILab />} />
+                  <Route path="analytics" element={<AnalyticsReports />} />
+                </Route>
+
+                {/* ADMIN only — user/system administration */}
+                <Route element={<RequireRole minRole="ADMIN" />}>
+                  <Route path="admin" element={<AdminPanel />} />
+                </Route>
 
                 {/* ── Permanent redirects for retired routes (no bookmark 404s) ── */}
                 <Route path="ops" element={<Navigate to="/app" replace />} />
@@ -140,6 +148,10 @@ export default function App() {
                 <Route path="model" element={<Navigate to="/app/ai-lab" replace />} />
                 <Route path="intelligence" element={<Navigate to="/app/ai-lab" replace />} />
                 <Route path="reports" element={<Navigate to="/app/analytics" replace />} />
+                {/* Pipeline module removed — scanning now lives on Map Explorer / Areas */}
+                <Route path="pipeline" element={<Navigate to="/app/map" replace />} />
+                {/* Active Learning module removed — labeling now lives on Records */}
+                <Route path="active-learning" element={<Navigate to="/app/records" replace />} />
               </Route>
             </Route>
 
@@ -167,6 +179,7 @@ export default function App() {
           }}
         />
       </BrowserRouter>
+      </MotionConfig>
     </QueryClientProvider>
   );
 }

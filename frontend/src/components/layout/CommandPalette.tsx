@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Search, CornerDownLeft } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
-import { NAV_SECTIONS } from '@/config/nav';
+import { NAV_SECTIONS, navItemAllowed } from '@/config/nav';
 import { cn } from '@/lib/utils';
 
 interface Command {
@@ -46,7 +46,7 @@ export function CommandPalette() {
   const commands = useMemo<Command[]>(() =>
     NAV_SECTIONS.flatMap((s) =>
       s.items
-        .filter((i) => !i.adminOnly || role === 'ADMIN')
+        .filter((i) => navItemAllowed(i, role))
         .map((i) => ({
           id: i.to, label: i.label, section: s.title, to: i.to, icon: i.icon,
           keywords: `${i.label} ${s.title} ${i.keywords ?? ''}`.toLowerCase(),

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Menu, Wifi, WifiOff, Database, Search } from 'lucide-react';
 import { Logo } from './Logo';
+import { PageTransition } from './PageTransition';
 import { OnboardingTour } from './OnboardingTour';
 import { CommandPalette } from './CommandPalette';
 import { NotificationCenter } from './NotificationCenter';
@@ -12,7 +13,7 @@ import { useSatelliteStatus } from '@/hooks/useApi';
 import { useAlertNotifications } from '@/hooks/useAlertNotifications';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { NAV_SECTIONS } from '@/config/nav';
+import { NAV_SECTIONS, navItemAllowed } from '@/config/nav';
 
 function DataBadge() {
   const { data, isLoading } = useSatelliteStatus();
@@ -55,7 +56,7 @@ export function AppLayout() {
   };
 
   const sections = NAV_SECTIONS
-    .map((s) => ({ ...s, items: s.items.filter((i) => !i.adminOnly || user?.role === 'ADMIN') }))
+    .map((s) => ({ ...s, items: s.items.filter((i) => navItemAllowed(i, user?.role)) }))
     .filter((s) => s.items.length > 0);
 
   const sidebar = (
@@ -178,7 +179,7 @@ export function AppLayout() {
         </header>
 
         <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">
-          <Outlet />
+          <PageTransition />
         </main>
       </div>
 

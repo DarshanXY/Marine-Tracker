@@ -3,7 +3,6 @@
  * drift). If the engine is not running, returns an equivalent result built from
  * the bundled demo dataset so the frontend keeps working (marked engine=offline).
  */
-import { Readable } from 'stream';
 import { Router, type RequestHandler } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate } from '../middleware/auth';
@@ -17,32 +16,6 @@ import * as mock from '../data/mock';
 import { persistRun, type EngineResult, type PersistSummary } from '../services/pipelinePersist.service';
 
 const router = Router();
-
-// GET /api/pipeline/stream?north=&south=&east=&west=&scene_size= — pipe the engine's
-// live-scan SSE straight to the browser (per-stage progress as an AOI scan runs).
-router.get('/stream', asyncHandler(async (req, res) => {
-  const params = new URLSearchParams();
-  for (const k of ['north', 'south', 'east', 'west', 'scene_size']) {
-    const v = str(req.query[k]);
-    if (v !== undefined) params.set(k, v);
-  }
-  try {
-    const upstream = await fetch(`${env.pythonEngineUrl}/pipeline/stream?${params.toString()}`);
-    if (!upstream.ok || !upstream.body) {
-      res.status(502).json({ error: { status: 502, message: 'engine stream unavailable' } });
-      return;
-    }
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders?.();
-    const stream = Readable.fromWeb(upstream.body as Parameters<typeof Readable.fromWeb>[0]);
-    stream.pipe(res);
-    req.on('close', () => stream.destroy());
-  } catch {
-    if (!res.headersSent) res.status(502).json({ error: { status: 502, message: 'engine stream unavailable' } });
-  }
-}));
 
 /** Best-effort persistence — a broken DB must never break a pipeline run. */
 async function tryPersist(data: unknown): Promise<PersistSummary | null> {
@@ -109,8 +82,14 @@ function parseBbox(raw: unknown): { north: number; south: number; east: number; 
 
 /** Engine-offline marker for an AOI run — no fabricated detections (all data is
  *  computed live by the engine; when it's down we say so rather than show statics). */
-function offlineAoiResult(bbox: { north: number; south: number; east: number; west: number }): Record<string, unknown> {
+function offlineAoiResult(
+  bbox: { north: number; south: number; east: number; west: number },
+  timedOut = false,
+): Record<string, unknown> {
   const stage = (s: string, detail: string) => ({ stage: s, status: 'SKIPPED', durationMs: 0, detail });
+  const why = timedOut
+    ? 'Scan timed out after 120s — the satellite download is too slow on this connection; try a smaller area or Rescan'
+    : 'Python engine unreachable — start it on :8000 to analyze this area';
   return {
     runId: `aoi_offline_${Date.now().toString(36)}`,
     region: null,
@@ -119,9 +98,7 @@ function offlineAoiResult(bbox: { north: number; south: number; east: number; we
     engineOffline: true,
     bbox,
     scene: null,
-    stages: ['DOWNLOAD', 'FDI', 'CNN', 'DBSCAN', 'DRIFT', 'ALERT'].map((s) =>
-      stage(s, 'Python engine unreachable — start it on :8000 to analyze this area'),
-    ),
+    stages: ['DOWNLOAD', 'FDI', 'CNN', 'DBSCAN', 'DRIFT', 'ALERT'].map((s) => stage(s, why)),
     detections: [],
     hotspots: [],
     trajectories: [],
@@ -168,8 +145,10 @@ router.post(
       // PostgreSQL so the dashboards reflect accumulated real results.
       const persisted = await tryPersist(data);
       res.json({ data, meta: { engine: 'online', persisted } });
-    } catch {
-      res.json({ data: bbox ? offlineAoiResult(bbox) : demoPipelineResult(region), meta: { engine: 'offline' } });
+    } catch (err) {
+      const timedOut = (err as Error)?.name === 'AbortError';
+      if (timedOut) logger.warn('pipeline run timed out after 120s (slow satellite download)');
+      res.json({ data: bbox ? offlineAoiResult(bbox, timedOut) : demoPipelineResult(region), meta: { engine: 'offline' } });
     }
   }),
 );

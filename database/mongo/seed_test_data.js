@@ -1,1 +1,0 @@
-// MongoDB seed test data

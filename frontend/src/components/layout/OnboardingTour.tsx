@@ -1,5 +1,5 @@
 /**
- * First-login onboarding tour — a five-step walkthrough of the app shown once
+ * First-login onboarding tour — a four-step walkthrough of the app shown once
  * (dismissal persists in localStorage). Deliberately a centered step-through,
  * not an element-anchored spotlight: it works on every viewport, needs no
  * third-party dep, and never breaks when the layout changes.
@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map as MapIcon, Cpu, Activity, FileText, Waves, ArrowRight, X } from 'lucide-react';
+import { Map as MapIcon, Activity, FileText, Waves, ArrowRight, X } from 'lucide-react';
 
 const DONE_KEY = 'mpt-tour-v1';
 
@@ -23,12 +23,6 @@ const STEPS = [
     title: 'Draw anywhere on the Map Explorer',
     body: 'Drag a box over any stretch of ocean and the full pipeline — scene scan, FDI, CNN prediction, clustering, drift — runs live for that exact area, pinned to the newest real Sentinel-2 scene.',
     cta: { to: '/app/map', label: 'Open the map' },
-  },
-  {
-    icon: Cpu,
-    title: 'Watch the pipeline work',
-    body: 'The Pipeline page runs full region scans, shows each stage with real timings, and carries the model card — which classifier is loaded and its honest held-out accuracy.',
-    cta: { to: '/app/pipeline', label: 'See the pipeline' },
   },
   {
     icon: Activity,

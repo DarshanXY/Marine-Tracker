@@ -8,19 +8,31 @@
  * permanently redirect — see App.tsx — so old bookmarks never 404.
  */
 import {
-  Radar, Map as MapIcon, Layers, Cpu, Ship, FlaskConical, BookMarked,
-  BarChart3, Settings as SettingsIcon, ShieldCheck, GraduationCap,
+  Radar, Map as MapIcon, Layers, Ship, FlaskConical, BookMarked,
+  BarChart3, Settings as SettingsIcon, ShieldCheck,
 } from 'lucide-react';
+import { ROLE_LEVEL, type UserRole } from '@/types';
 
 export type NavItem = {
   to: string;
   label: string;
   icon: typeof Radar;
   end?: boolean;
-  adminOnly?: boolean;
+  /** Minimum role needed to see + open this page. Absent = every role (FIELD+).
+   *  Enforced in the sidebar, the command palette, and by <RequireRole> on the
+   *  route itself so a hidden page can't be reached by typing its URL either. */
+  minRole?: UserRole;
   keywords?: string;
 };
 export type NavSection = { title: string; items: NavItem[] };
+
+/** True when a user with `role` is allowed to see `item`. Single source of truth
+ *  shared by the sidebar (AppLayout) and the command palette. */
+export function navItemAllowed(item: NavItem, role?: UserRole): boolean {
+  if (!item.minRole) return true;
+  if (!role) return false;
+  return ROLE_LEVEL[role] >= ROLE_LEVEL[item.minRole];
+}
 
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -35,23 +47,21 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Intelligence',
     items: [
-      { to: '/app/ai-lab', label: 'AI Lab', icon: FlaskConical, keywords: 'model accuracy confusion matrix similarity clay embeddings fusion change capabilities evaluate metrics' },
-      { to: '/app/active-learning', label: 'Active Learning', icon: GraduationCap, keywords: 'label confirm false alarm review queue retrain uncertainty human in the loop' },
-      { to: '/app/pipeline', label: 'Pipeline', icon: Cpu, keywords: 'scan run ingest process stages sse' },
+      { to: '/app/ai-lab', label: 'AI Lab', icon: FlaskConical, minRole: 'COASTGUARD', keywords: 'model accuracy confusion matrix similarity clay embeddings fusion change capabilities evaluate metrics' },
     ],
   },
   {
     title: 'Operate',
     items: [
       { to: '/app/operations', label: 'Field Ops', icon: Ship, keywords: 'operations missions dispatch crew kanban response' },
-      { to: '/app/analytics', label: 'Analytics & Reports', icon: BarChart3, keywords: 'charts trends stats export pdf csv geojson report builder eval' },
+      { to: '/app/analytics', label: 'Analytics & Reports', icon: BarChart3, minRole: 'COASTGUARD', keywords: 'charts trends stats export pdf csv geojson report builder eval' },
     ],
   },
   {
     title: 'System',
     items: [
       { to: '/app/settings', label: 'Settings', icon: SettingsIcon, keywords: 'profile 2fa preferences notifications sessions' },
-      { to: '/app/admin', label: 'Admin', icon: ShieldCheck, adminOnly: true, keywords: 'users roles system engine regions services' },
+      { to: '/app/admin', label: 'Admin', icon: ShieldCheck, minRole: 'ADMIN', keywords: 'users roles system engine regions services' },
     ],
   },
 ];
