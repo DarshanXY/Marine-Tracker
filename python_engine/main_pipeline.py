@@ -19,14 +19,14 @@ from ml import batch_classifier, clay_live, embedding_spool, inference_engine as
 from ml.confidence_filter import filter_by_confidence
 from ml.detection_merger import merge as merge_detections
 from ml.hotspot_embeddings import site_key
-from satellite import download
+from satellite import download, landmask
 from satellite.download import REGIONS
 from satellite.fdi_calculator import floating_debris_index
 from schemas import (
     BBox, ConePoint, Detection, Hotspot, PipelineResult, PipelineStats,
     SceneRef, StageLog, Surface, Trajectory, TrajectoryPoint,
 )
-from trajectory import data_interpolator, eta_calculator, lagrangian_model, path_clamp
+from trajectory import data_interpolator, eta_calculator, lagrangian_model, path_clamp, polygon_landfall
 from trajectory.coastline_loader import coast_lon_for
 from trajectory.ensemble_model import DEFAULT_WINDAGE
 
@@ -70,6 +70,28 @@ def _fdi_candidates(pixels: list[dict]) -> list[tuple[dict, float]]:
         if fdi > settings.fdi_threshold:
             out.append((px, fdi))
     return out
+
+
+def _drop_inland(sd: download.SceneData, candidates: list[tuple[dict, float]]) -> tuple[list[tuple[dict, float]], int]:
+    """Drop candidates that sit on land more than 3 km from the coast.
+
+    The scene's SCL water class also covers inland ponds/aquaculture and wet
+    fields, which the spectral model then reports as "plastic" (a Godavari-delta
+    scan had 88 of 115 plastic detections deep inland). Marine plastic can only be
+    over the sea or right at the shore, so those are removed before classification.
+    Real scenes only (synthetic pixel positions are fabricated); a missing
+    coastline dataset keeps everything."""
+    if sd.source != "sentinelhub" or not candidates:
+        return candidates, 0
+    deep = landmask.deep_inland([px["lat"] for px, _ in candidates], [px["lon"] for px, _ in candidates])
+    if not deep:
+        return candidates, 0
+    kept = [c for c, d in zip(candidates, deep) if not d]
+    return kept, len(candidates) - len(kept)
+
+
+def _inland_note(dropped: int) -> str:
+    return f" · {dropped} inland (>{landmask.INLAND_BUFFER_KM:g} km from coast) dropped" if dropped else ""
 
 
 def _apply_options(det_dicts: list[dict], min_confidence: float, dedupe: bool) -> list[dict]:
@@ -116,7 +138,7 @@ def _embed_sites(run_tag: str, arr6, hotspots: list[Hotspot], candidates, region
 
 
 def _drift_stage(hotspots: list[Hotspot], coast_lon_of,
-                 clamp: bool = True) -> tuple[list[Trajectory], str, StageLog]:
+                 clamp: bool = True, polygon: bool = False) -> tuple[list[Trajectory], str, StageLog]:
     """Compute ETA per hotspot + full tracks for the top 2. coast_lon_of(hotspot)
     returns the coastline longitude to use for that hotspot.
 
@@ -128,6 +150,10 @@ def _drift_stage(hotspots: list[Hotspot], coast_lon_of,
     t = time.perf_counter()
     trajectories: list[Trajectory] = []
     drift_source = "demo" if settings.demo_mode else "synthetic"
+    # polygon=True (real scans): use the real coastline when its polygons are
+    # available — a box edge / borrowed meridian is not a coast. The single-longitude
+    # model stays the default/fallback.
+    is_land = landmask.is_land if polygon and landmask.available() else None
     for rank, h in enumerate(hotspots):
         forcing = _forcing_for(h.centroid_lat, h.centroid_lon, settings.drift_horizon_hours)
         if forcing:
@@ -135,11 +161,15 @@ def _drift_stage(hotspots: list[Hotspot], coast_lon_of,
         points, cone = lagrangian_model.simulate(
             h.centroid_lat, h.centroid_lon, settings.drift_horizon_hours, forcing=forcing,
         )
-        coast = coast_lon_of(h)
-        # ETA is read off the RAW mean path before any clamp, so it is unchanged.
-        h.eta_hours = eta_calculator.coast_eta_hours(points, coast)
-        if clamp:
-            points, cone, _end_h, _end_r = path_clamp.clamp_path_to_coast(points, cone, coast)
+        if is_land is not None:
+            points, cone, end_h, end_r = polygon_landfall.clamp_path(points, cone, is_land)
+            h.eta_hours = end_h if end_r == "landfall" else None
+        else:
+            coast = coast_lon_of(h)
+            # ETA is read off the RAW mean path before any clamp, so it is unchanged.
+            h.eta_hours = eta_calculator.coast_eta_hours(points, coast)
+            if clamp:
+                points, cone, _end_h, _end_r = path_clamp.clamp_path_to_coast(points, cone, coast)
         if rank < 2:
             trajectories.append(Trajectory(
                 detection_index=rank,
@@ -207,9 +237,10 @@ def run_aoi(bbox: dict, scene_size: int = 64, min_confidence: float = 0.0,
 
     # 2. FDI
     t = time.perf_counter()
-    candidates = _fdi_candidates(sd.pixels)
+    candidates, inland = _drop_inland(sd, _fdi_candidates(sd.pixels))
     stages.append(StageLog(stage="FDI", status="COMPLETED", duration_ms=_ms(t),
-                           detail=f"{len(candidates)} candidate pixels above FDI {settings.fdi_threshold}"))
+                           detail=f"{len(candidates)} candidate pixels above FDI {settings.fdi_threshold}"
+                                  + _inland_note(inland)))
 
     # 3. CNN classification
     t = time.perf_counter()
@@ -243,7 +274,7 @@ def run_aoi(bbox: dict, scene_size: int = 64, min_confidence: float = 0.0,
     # 5. Drift (coast ETA uses the AOI's eastern edge). clamp=False: the box edge
     #    is not a real coastline, so the path must not halt on the drawn rectangle.
     coast_lon = float(bbox["east"])
-    trajectories, _src, drift_log = _drift_stage(hotspots, lambda _h: coast_lon, clamp=False)
+    trajectories, _src, drift_log = _drift_stage(hotspots, lambda _h: coast_lon, clamp=False, polygon=True)
     stages.append(drift_log)
 
     # 6. Alerts
@@ -284,8 +315,9 @@ def run_aoi_events(bbox: dict, scene_size: int = 64):
 
     # 2. FDI
     t = time.perf_counter()
-    candidates = _fdi_candidates(sd.pixels)
-    yield stage_ev("FDI", t, f"{len(candidates)} candidate pixels above FDI {settings.fdi_threshold}")
+    candidates, inland = _drop_inland(sd, _fdi_candidates(sd.pixels))
+    yield stage_ev("FDI", t, f"{len(candidates)} candidate pixels above FDI {settings.fdi_threshold}"
+                             + _inland_note(inland))
 
     # 3. Classify
     t = time.perf_counter()
@@ -312,7 +344,7 @@ def run_aoi_events(bbox: dict, scene_size: int = 64):
 
     # 5. Drift (clamp=False — AOI box edge is not a real coastline, see run_aoi)
     coast_lon = float(bbox["east"])
-    _traj, _src, drift_log = _drift_stage(hotspots, lambda _h: coast_lon, clamp=False)
+    _traj, _src, drift_log = _drift_stage(hotspots, lambda _h: coast_lon, clamp=False, polygon=True)
     yield {"type": "stage", "stage": "DRIFT", "status": drift_log.status,
            "durationMs": drift_log.duration_ms, "detail": drift_log.detail}
 
@@ -372,10 +404,15 @@ def run_pipeline(region: str | None = None, scene_size: int = 48, min_confidence
 
     # 2. FDI (per region)
     t = time.perf_counter()
-    candidates_by_code = {code: _fdi_candidates(sd.pixels) for code, sd in scene_map.items()}
+    candidates_by_code: dict = {}
+    inland_total = 0
+    for code, sd in scene_map.items():
+        candidates_by_code[code], n_in = _drop_inland(sd, _fdi_candidates(sd.pixels))
+        inland_total += n_in
     total_cand = sum(len(v) for v in candidates_by_code.values())
     stages.append(StageLog(stage="FDI", status="COMPLETED", duration_ms=_ms(t),
-                           detail=f"{total_cand} candidate pixels above FDI {settings.fdi_threshold}"))
+                           detail=f"{total_cand} candidate pixels above FDI {settings.fdi_threshold}"
+                                  + _inland_note(inland_total)))
 
     # 3. CNN (per region so patch models cut from that region's array)
     t = time.perf_counter()

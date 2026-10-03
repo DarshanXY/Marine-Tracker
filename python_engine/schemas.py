@@ -56,13 +56,13 @@ class Hotspot(Camel):
 
 
 class TrajectoryPoint(Camel):
-    t: int
+    t: float  # hours from release; the landfall vertex is fractional (exact coast crossing)
     lat: float
     lon: float
 
 
 class ConePoint(Camel):
-    t: int
+    t: float
     lat_min: float
     lat_max: float
     lon_min: float
@@ -177,6 +177,9 @@ class DriftRequest(Camel):
     lat: float
     lon: float
     horizon_hours: int = 72
+    # Optional what-if: windage fractions of the ensemble members (default = generic floating plastic).
+    windage: list[float] | None = None
+    include_backtrack: bool = True
 
 
 class IndicesRequest(Camel):

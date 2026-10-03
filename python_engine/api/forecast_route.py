@@ -10,7 +10,7 @@ from fastapi import APIRouter
 
 from main_pipeline import _forcing_for
 from satellite import landmask
-from schemas import DriftRequest
+from schemas import BBox, DriftRequest
 from trajectory import forecast as fc
 from trajectory.back_tracker import back_track
 from trajectory.coastline_loader import nearest_coast_lon
@@ -18,16 +18,22 @@ from trajectory.ensemble_model import DEFAULT_WINDAGE
 
 router = APIRouter()
 
-# Above this terrain elevation the release point is inland (a landlocked lake /
-# reservoir sits hundreds of m up), where the OCEAN drift model — currents + winds
-# — is meaningless. Ocean/near-shore points are at/near sea level (≤ ~0 m).
+# Fallback only (used when the coastline polygons are unavailable): above this
+# terrain elevation the release point is inland (a landlocked lake / reservoir sits
+# hundreds of m up), where the OCEAN drift model — currents + winds — is
+# meaningless. Ocean/near-shore points are at/near sea level (≤ ~0 m).
 _INLAND_ELEV_M = 10.0
 
 
 def _is_marine(lat: float, lon: float) -> bool:
-    """Open-sea release point? Uses the keyless Open-Meteo elevation (SAME host the
-    drift forcing already reaches). Marine ⇔ at/near sea level. Best-effort: an
-    unknown lookup does NOT block the forecast (assume marine)."""
+    """Open-sea release point? Primary test is the coastline land polygon — elevation
+    cannot separate a river-delta town or aquaculture pond (0-11 m) from the sea, so
+    a point inside land is refused. Falls back to the keyless Open-Meteo elevation
+    only if the polygons can't be loaded; an unknown lookup does NOT block the
+    forecast (assume marine)."""
+    land = landmask.is_land(lat, lon)
+    if land is not None:
+        return not land
     try:
         elevs = landmask._fetch_elevations([lat], [lon])
         if elevs:
@@ -46,15 +52,20 @@ def forecast_trajectory(body: DriftRequest) -> dict:
     if not _is_marine(body.lat, body.lon):
         return {
             "marine": False,
-            "reason": ("This release point is inland (well above sea level), so the ocean "
+            "reason": ("This release point is on land or an inland water body, so the ocean "
                        "drift model — currents + winds — does not apply. Marine plastic drift "
                        "is only meaningful over the sea."),
             "points": [], "cone": [], "horizonHours": horizon, "dataSource": "n/a",
         }
-    # Use the nearest monitored coastline so the landfall ETA is real (was None,
-    # which made every on-demand forecast report a null ETA).
-    coast = nearest_coast_lon(body.lat, body.lon)
-    out = fc.forecast(body.lat, body.lon, horizon, coast_lon=coast, include_backtrack=True)
+    # Landfall against the real coastline polygon when it's available; otherwise the
+    # nearest monitored region's single-longitude coast (crude, but not None).
+    if landmask.is_land(body.lat, body.lon) is not None:
+        out = fc.forecast(body.lat, body.lon, horizon, include_backtrack=body.include_backtrack,
+                          is_land=landmask.is_land, windage=body.windage)
+    else:
+        coast = nearest_coast_lon(body.lat, body.lon)
+        out = fc.forecast(body.lat, body.lon, horizon, coast_lon=coast, include_backtrack=body.include_backtrack,
+                          windage=body.windage)
     out["marine"] = True
     return out
 
@@ -69,3 +80,33 @@ def forecast_backtrack(body: DriftRequest) -> dict:
         "windageCoeffs": list(DEFAULT_WINDAGE), "horizonHours": horizon,
         "dataSource": forcing["source"] if forcing else "synthetic",
     }
+
+
+@router.post("/forecast/open-water", summary="An open-water point inside a box (for a what-if plastic release)")
+def open_water(b: BBox) -> dict:
+    """Nearest-to-centre point of the box that is over the sea. Prefers points whose four
+    neighbours ~5 km away are sea too (not a shoreline pixel the coarse coast might mislabel).
+    `found: false` when the box has no open water (or the coastline data is missing)."""
+    import numpy as np  # noqa: PLC0415
+
+    n = 41
+    lats = np.linspace(b.south, b.north, n + 2)[1:-1]
+    lons = np.linspace(b.west, b.east, n + 2)[1:-1]
+    glat, glon = np.meshgrid(lats, lons, indexing="ij")
+    glat, glon = glat.ravel(), glon.ravel()
+    d = 0.05
+    stack_lat = np.concatenate([glat, glat + d, glat - d, glat, glat])
+    stack_lon = np.concatenate([glon, glon, glon, glon + d, glon - d])
+    land = landmask.land_many(stack_lat.tolist(), stack_lon.tolist())
+    if land is None:
+        return {"found": False, "reason": "coastline data unavailable"}
+    land = np.asarray(land).reshape(5, -1)
+    water = ~land[0]
+    offshore = water & ~land[1:].any(axis=0)
+    for mask, tag in ((offshore, True), (water, False)):
+        if mask.any():
+            cl, co = (b.north + b.south) / 2.0, (b.east + b.west) / 2.0
+            dist = (glat - cl) ** 2 + ((glon - co) * np.cos(np.radians(cl))) ** 2
+            i = int(np.argmin(np.where(mask, dist, np.inf)))
+            return {"found": True, "lat": round(float(glat[i]), 5), "lon": round(float(glon[i]), 5), "offshore": tag}
+    return {"found": False, "reason": "no open water in this box"}

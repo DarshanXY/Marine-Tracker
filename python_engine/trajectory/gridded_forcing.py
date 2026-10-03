@@ -15,8 +15,11 @@ login` once to cache the CMEMS credentials.
 from __future__ import annotations
 
 import logging
+import math
 import os
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger("engine.drift")
@@ -78,11 +81,42 @@ class GriddedForcing:
     def wind_ms(self, lat: float, lon: float, t: float) -> tuple[float, float]:
         if not self.wind:
             return 0.0, 0.0
-        i = min(int(round(t)), len(self.wind["u_wind"]) - 1)
+        i = max(0, min(self.wind.get("t0_index", 0) + int(round(t)), len(self.wind["u_wind"]) - 1))
         return float(self.wind["u_wind"][i]), float(self.wind["v_wind"][i])
 
 
-def fetch_gridded_forcing(bbox: dict, hours: int) -> GriddedForcing:
+# One shared, bounded pool for CMEMS downloads + de-duplication of in-flight loads.
+_POOL = ThreadPoolExecutor(max_workers=3, thread_name_prefix="cmems")
+_INFLIGHT: dict = {}
+_LOCK = threading.Lock()
+LOAD_BUDGET_S = float(os.getenv("CMEMS_LOAD_BUDGET_S", "75"))
+
+
+def _load_currents(key, west, south, east, north, hours, now):
+    """Download + cache one CMEMS surface-current subset (runs in the pool)."""
+    import copernicusmarine
+
+    pad = 0.5  # degrees of margin so the drift can't leave the loaded subset
+    ds = copernicusmarine.open_dataset(
+        dataset_id=_CMEMS_CUR_DATASET,
+        username=os.getenv("CMEMS_USERNAME"),
+        password=os.getenv("CMEMS_PASSWORD"),
+        variables=["uo", "vo"],
+        minimum_longitude=west - pad, maximum_longitude=east + pad,
+        minimum_latitude=south - pad, maximum_latitude=north + pad,
+        start_datetime=now, end_datetime=now + timedelta(hours=hours + 3),
+        minimum_depth=0.0, maximum_depth=1.0,
+    )
+    # Collapse a singleton depth dim if present, then pull the small subset into RAM.
+    if "depth" in ds.dims:
+        ds = ds.isel(depth=0)
+    ds = ds.load()
+    _CACHE[key] = (time.time() + _CACHE_TTL, ds)
+    logger.info("gridded CMEMS currents loaded: %s grid, %d hours", ds["uo"].shape, hours)
+    return ds
+
+
+def fetch_gridded_forcing(bbox: dict, hours: int, wind_at: tuple[float, float] | None = None) -> GriddedForcing:
     """Open the CMEMS surface-current subset for the AOI/window and return a
     (lat,lon,t)->(u,v) sampler. Raises on any failure so the caller falls back to
     point forcing."""
@@ -91,41 +125,44 @@ def fetch_gridded_forcing(bbox: dict, hours: int) -> GriddedForcing:
             "Gridded CMEMS forcing needs copernicusmarine + xarray and CMEMS "
             "credentials. Point Open-Meteo forcing is used until then."
         )
-    key = (round(bbox["west"], 1), round(bbox["south"], 1),
-           round(bbox["east"], 1), round(bbox["north"], 1), hours // 12)
-    cached = _CACHE.get(key)
-    if cached and time.time() < cached[0]:
-        return cached[1]
-
-    import copernicusmarine
-
+    # Snap the box OUTWARD to whole degrees: releases within the same degree cell share
+    # one CMEMS load (a cold load is ~30 s), and the pad still covers the drift.
+    west, south = math.floor(bbox["west"]), math.floor(bbox["south"])
+    east, north = math.ceil(bbox["east"]), math.ceil(bbox["north"])
+    key = (west, south, east, north, hours // 12)
     now = datetime.now(timezone.utc)
-    pad = 0.5  # degrees of margin so the drift can't leave the loaded subset
-    ds = copernicusmarine.open_dataset(
-        dataset_id=_CMEMS_CUR_DATASET,
-        username=os.getenv("CMEMS_USERNAME"),
-        password=os.getenv("CMEMS_PASSWORD"),
-        variables=["uo", "vo"],
-        minimum_longitude=bbox["west"] - pad, maximum_longitude=bbox["east"] + pad,
-        minimum_latitude=bbox["south"] - pad, maximum_latitude=bbox["north"] + pad,
-        start_datetime=now, end_datetime=now + timedelta(hours=hours + 3),
-        minimum_depth=0.0, maximum_depth=1.0,
-    )
-    # Collapse a singleton depth dim if present, then pull the small subset into RAM.
-    if "depth" in ds.dims:
-        ds = ds.isel(depth=0)
-    ds = ds.load()
+    cached = _CACHE.get(key)
+    ds = cached[1] if cached and time.time() < cached[0] else None
 
-    # Winds (windage term) from the keyless Open-Meteo point series at the centre.
+    if ds is None:
+        # ONE in-flight load per area: concurrent requests share it instead of each
+        # starting a ~30 s CMEMS download. If it isn't ready within the budget, raise so
+        # the caller falls back to point forcing (honestly labelled) - the load keeps
+        # running in the background and warms the cache for the next request.
+        with _LOCK:
+            fut = _INFLIGHT.get(key)
+            if fut is None or (fut.done() and fut.exception() is not None):
+                fut = _POOL.submit(_load_currents, key, west, south, east, north, hours, now)
+                _INFLIGHT[key] = fut
+        try:
+            ds = fut.result(timeout=LOAD_BUDGET_S)
+        except FutureTimeout as exc:
+            raise TimeoutError(f"CMEMS load still in progress after {LOAD_BUDGET_S:.0f}s") from exc
+        finally:
+            if fut.done():
+                with _LOCK:
+                    if _INFLIGHT.get(key) is fut:
+                        _INFLIGHT.pop(key, None)
+
+    # Winds (windage term) from the keyless Open-Meteo point series at the centre —
+    # re-fetched (cheap, hour-cached) on EVERY call so its "now" index is current.
     wind = None
     try:
         from . import data_interpolator
-        wind = data_interpolator.fetch_forcing(
-            (bbox["north"] + bbox["south"]) / 2.0, (bbox["east"] + bbox["west"]) / 2.0, hours)
+        wlat, wlon = wind_at or ((bbox["north"] + bbox["south"]) / 2.0, (bbox["east"] + bbox["west"]) / 2.0)
+        wind = data_interpolator.fetch_forcing(wlat, wlon, hours)
     except Exception as exc:  # noqa: BLE001 — winds are optional; currents dominate
         logger.info("gridded forcing: winds unavailable (%s) — currents only", exc)
 
-    logger.info("gridded CMEMS currents loaded: %s grid, %d hours", ds["uo"].shape, hours)
-    gf = GriddedForcing(ds, wind, now)
-    _CACHE[key] = (time.time() + _CACHE_TTL, gf)
-    return gf
+    # The sampler is rebuilt per call so t=0 is the CURRENT time even on a cache hit.
+    return GriddedForcing(ds, wind, now)

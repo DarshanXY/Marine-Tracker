@@ -20,12 +20,13 @@ def _get(url: str, params: dict, timeout: int = 10) -> dict:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def fetch(lat: float, lon: float, days: int) -> tuple[list, list, str]:
-    """Return (speed_series, direction_series, speed_unit)."""
+def fetch(lat: float, lon: float, days: int, past_days: int = 0) -> tuple[list, list, str]:
+    """Return (speed_series, direction_series, speed_unit). The hourly series starts at
+    00:00 UTC of (today - past_days) and runs (past_days + days) * 24 hours."""
     j = _get(MARINE_URL, {
         "latitude": lat, "longitude": lon,
         "hourly": "ocean_current_velocity,ocean_current_direction",
-        "forecast_days": days, "timezone": "UTC", "cell_selection": "sea",
+        "forecast_days": days, "past_days": past_days, "timezone": "UTC", "cell_selection": "sea",
     })
     h = j.get("hourly", {})
     unit = j.get("hourly_units", {}).get("ocean_current_velocity", "km/h")

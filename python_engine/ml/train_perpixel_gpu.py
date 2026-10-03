@@ -282,7 +282,13 @@ def train_candidate(name, xtr, ytr, xva, yva, epochs, lr, batch, device, seed, c
         vf1 = _macro_f1(_prf(_confusion(yva, _predict(model, xva, device)))) if len(yva) else 0.0
         if vf1 >= best_f1:
             best_f1, best_ep, best_state = vf1, ep, copy.deepcopy(model.state_dict())
-        if ep == 1 or ep % 10 == 0 or ep == epochs:
+        # Optional hooks used by training_lab/ (defaults keep the original behaviour):
+        #   cfg["log_every"] - print every N epochs (default: epoch 1, every 10th, last)
+        #   cfg["history"]   - a list; one dict per epoch is appended (for learning-curve plots)
+        if cfg.get("history") is not None:
+            cfg["history"].append({"epoch": ep, "loss": loss_sum / tot, "train_acc": correct / tot, "val_macro_f1": vf1})
+        every = cfg.get("log_every") or 10
+        if ep == 1 or ep % every == 0 or ep == epochs:
             print(f"  epoch {ep:3d}/{epochs}  loss {loss_sum/tot:.4f}  train_acc {correct/tot:.4f}  val_macroF1 {vf1:.4f}  lr {sched.get_last_lr()[0]:.2e}")
     if best_state is not None:
         model.load_state_dict(best_state)

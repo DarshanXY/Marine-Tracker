@@ -50,7 +50,8 @@ def _velocity_deg(forcing, w: float, lat: float, lon: float, t: float) -> tuple[
         cu, cv = ms_to_deg(cu_ms, cv_ms, lat)
         wu, wv = ms_to_deg(wu_ms, wv_ms, lat)
     elif isinstance(forcing, dict):
-        i = min(int(round(t)), len(forcing["u_cur"]) - 1)
+        # t is signed hours from release (negative = back-track); t0_index is "now".
+        i = max(0, min(forcing.get("t0_index", 0) + int(round(t)), len(forcing["u_cur"]) - 1))
         cu, cv = ms_to_deg(forcing["u_cur"][i], forcing["v_cur"][i], lat)
         wu, wv = ms_to_deg(forcing["u_wind"][i], forcing["v_wind"][i], lat)
     else:
@@ -70,15 +71,18 @@ def integrate_members(start_lat: float, start_lon: float, horizon_hours: int = 7
         lat, lon = start_lat, start_lon
         track: list[tuple[float, float]] = [(lat, lon)]
         for step in range(1, horizon_hours + 1):
-            t0 = float(step - 1)
+            # Signed time from release: forward reads the coming hours, the back-track
+            # reads the PAST hours (the parcel was carried by yesterday's currents).
+            t0 = direction * float(step - 1)
+            td = direction * dt
             # RK4 over one hour; velocity is deg/hour so h == dt == 1.
             k1x, k1y = _velocity_deg(forcing, w, lat, lon, t0)
             k2x, k2y = _velocity_deg(forcing, w, lat + 0.5 * dt * k1y * direction,
-                                     lon + 0.5 * dt * k1x * direction, t0 + 0.5 * dt)
+                                     lon + 0.5 * dt * k1x * direction, t0 + 0.5 * td)
             k3x, k3y = _velocity_deg(forcing, w, lat + 0.5 * dt * k2y * direction,
-                                     lon + 0.5 * dt * k2x * direction, t0 + 0.5 * dt)
+                                     lon + 0.5 * dt * k2x * direction, t0 + 0.5 * td)
             k4x, k4y = _velocity_deg(forcing, w, lat + dt * k3y * direction,
-                                     lon + dt * k3x * direction, t0 + dt)
+                                     lon + dt * k3x * direction, t0 + td)
             lon += direction * dt / 6.0 * (k1x + 2 * k2x + 2 * k3x + k4x)
             lat += direction * dt / 6.0 * (k1y + 2 * k2y + 2 * k3y + k4y)
             track.append((lat, lon))

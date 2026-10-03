@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import time
 import urllib.error  # noqa: F401  (re-exported for callers that catch URLError)
 import urllib.request
 from dataclasses import dataclass
@@ -224,15 +225,21 @@ def _real_ingest(bbox: dict, max_candidates: int = 500) -> SceneData:
     or has too little water, we widen the search history once and keep whichever
     composite is clearer — the clearest genuinely-available real scene, honestly
     graded, instead of a monsoon cloud top."""
+    t0 = time.monotonic()
     surface, mask, pixels, arr6 = _ingest_once(bbox, settings.ingest_days_back, max_candidates)
+    first_s = time.monotonic() - t0
 
     # Widen ONLY for low COVERAGE (cloud-gapped nodata that more dates can fill) —
     # NOT for a land-dominated grade. A permanently-land AOI is 'unusable' forever,
     # so widening on grade alone would double-fetch every land scan pointlessly/slowly.
+    # Also skip it on a slow link: a second pull would push the run past the
+    # backend's 120 s cap and the user would get nothing instead of this scene.
     def _low_coverage(s: dict | None) -> bool:
         return s is None or s.get("coverage_pct", 100.0) < 60.0
 
-    if _low_coverage(surface) and settings.ingest_days_back_max > settings.ingest_days_back:
+    if first_s > 25.0 and _low_coverage(surface):
+        log.info("skipping widened ingest: first pull took %.0fs", first_s)
+    elif _low_coverage(surface) and settings.ingest_days_back_max > settings.ingest_days_back:
         try:
             s2, m2, p2, a2 = _ingest_once(bbox, settings.ingest_days_back_max, max_candidates)
             # Keep the wider pull only if it genuinely improves coverage.
