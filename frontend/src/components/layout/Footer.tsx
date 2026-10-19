@@ -31,7 +31,6 @@ export function Footer() {
               <li><Link to="/app" className="hover:text-ocean-600">Command Center</Link></li>
               <li><Link to="/app/map" className="hover:text-ocean-600">Map Explorer</Link></li>
               <li><Link to="/app/records" className="hover:text-ocean-600">Records</Link></li>
-              <li><Link to="/app/ai-lab" className="hover:text-ocean-600">AI Lab</Link></li>
             </ul>
           </div>
 

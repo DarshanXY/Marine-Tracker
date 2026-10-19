@@ -5,7 +5,7 @@
  */
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Flame, ArrowLeft, Wind, Ship, Sparkles, MapPin, Clock, Crosshair } from 'lucide-react';
+import { Flame, ArrowLeft, Wind, MapPin, Clock, Crosshair } from 'lucide-react';
 import { PageHeader, Card, Badge, SeverityPill } from '@/components';
 import { useHotspot, useForecast, useBacktrack } from '@/hooks/useApi';
 import { formatCoords, forcingLabel } from '@/lib/utils';
@@ -104,14 +104,8 @@ export default function HotspotDetail() {
       </Card>
 
       <div className="flex flex-wrap gap-2">
-        <Link to="/app/operations" className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white/70 px-3 py-2 text-sm text-slate-600 hover:border-ocean-300 hover:text-ocean-700">
-          <Ship size={14} className="text-ocean-500" /> Dispatch field operation
-        </Link>
         <Link to="/app/map" className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white/70 px-3 py-2 text-sm text-slate-600 hover:border-ocean-300 hover:text-ocean-700">
           <MapPin size={14} className="text-ocean-500" /> View on map
-        </Link>
-        <Link to="/app/ai-lab" className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white/70 px-3 py-2 text-sm text-slate-600 hover:border-ocean-300 hover:text-ocean-700">
-          <Sparkles size={14} className="text-ocean-500" /> Similar sites
         </Link>
       </div>
     </div>

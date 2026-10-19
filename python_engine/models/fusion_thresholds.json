@@ -1,11 +1,11 @@
 {
-  "conf_high": 0.7,
+  "conf_high": 0.5,
   "aff_min": 0.1,
-  "anomaly_tau": 0.2,
+  "anomaly_tau": 0.3,
   "conf_low": 0.5,
   "targetPrecision": 0.92,
   "calibratedOn": "MARIDA+MADOS held-out test (aligned per-pixel MLP + Clay affinity)",
   "population": "MLP-Plastic chips",
-  "confirmedPrecision": 0.9219,
-  "confirmedRecall": 0.7037
+  "confirmedPrecision": 0.9283,
+  "confirmedRecall": 0.82
 }

@@ -215,9 +215,10 @@ export const regions: RegionDto[] = regionDefs.map((r) => ({
 
 // ── Active model version ─────────────────────────────────────────────────────
 // Mirrors the real MARIDA+MADOS-trained model so the offline/demo badge stays honest
-// (macro-F1 on the held-out combined test split; see backend/prisma/seed.ts).
+// (macro-F1 on the held-out combined test split; see backend/prisma/seed.ts and
+// python_engine/models/metrics.json — 3-seed ensemble retrain, 2026-07-22).
 export const modelVersion = {
   name: 'MarineNet (per-pixel MLP)',
   version: '1.1-gpu-marida+mados',
-  f1Score: 0.787,
+  f1Score: 0.8175,
 };

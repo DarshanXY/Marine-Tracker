@@ -8,6 +8,10 @@
  * upserts the REAL combined-benchmark model as the single active version, and
  * deletes the fabricated ResNet-50 demo row so it can't resurface.
  *
+ * Numbers below mirror python_engine/models/metrics.json (3-seed ensemble
+ * retrain, 2026-07-22) — re-sync these if the model is retrained again, so
+ * this script can't resurrect a stale figure if ever re-run.
+ *
  * Run:  npx tsx prisma/reseed-model.ts
  */
 import { PrismaClient } from '@prisma/client';
@@ -16,15 +20,15 @@ const prisma = new PrismaClient();
 
 const REAL_MODEL = {
   name: 'MarineNet (per-pixel MLP)',
-  architecture: 'per-pixel MLP 7→32→16→4 (ReLU)',
+  architecture: 'per-pixel 3-seed ensemble MLP 11→256→128→64→32→4 (focal loss + class-balanced weights, GPU AdamW)',
   trainedOn: ['MARIDA', 'MADOS'],
   storagePath: 'models/marinenet.onnx',
-  f1Score: 0.5, // macro-F1 on the held-out combined MARIDA+MADOS test split
-  precision: 0.435, // macro precision
-  recall: 0.87, // macro recall
+  f1Score: 0.8175, // macro-F1 on the held-out combined MARIDA+MADOS test split
+  precision: 0.7759, // macro precision
+  recall: 0.8685, // macro recall
   confusionMatrix: {
     classes: ['Plastic', 'Algae', 'Sea_Foam', 'Water'],
-    matrix: [[1201, 79, 69, 5], [577, 6318, 225, 208], [53, 35, 647, 39], [1539, 10773, 39098, 439041]],
+    matrix: [[1116, 93, 10, 135], [186, 6024, 142, 976], [48, 10, 646, 70], [88, 3163, 150, 487050]],
   },
   isActive: true,
 };

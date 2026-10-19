@@ -28,12 +28,10 @@ const SignUp = lazy(() => import('@/pages/SignUp'));
 // IA v2 consolidated pages (14 → 10)
 const CommandCenter = lazy(() => import('@/pages/CommandCenter'));   // merges Dashboard + Live Ops + Alerts
 const Records = lazy(() => import('@/pages/Records'));               // merges Detections + Hotspots
-const AILab = lazy(() => import('@/pages/AILab'));                   // merges Model Health + Similarity & Fusion
 const AnalyticsReports = lazy(() => import('@/pages/AnalyticsReports')); // merges Analytics + Reports
 const MapExplorer = lazy(() => import('@/pages/MapExplorer'));
 const Areas = lazy(() => import('@/pages/Areas'));           // saved AOIs + 72h drift forecasting
 const Settings = lazy(() => import('@/pages/Settings'));
-const Operations = lazy(() => import('@/pages/Operations'));
 const DetectionDetail = lazy(() => import('@/pages/DetectionDetail'));
 const HotspotDetail = lazy(() => import('@/pages/HotspotDetail'));
 const AdminPanel = lazy(() => import('@/pages/AdminPanel'));
@@ -125,13 +123,12 @@ export default function App() {
                 <Route path="detections/:id" element={<DetectionDetail />} />
                 <Route path="hotspots/:id" element={<HotspotDetail />} />
                 {/* Operate */}
-                <Route path="operations" element={<Operations />} />
+                <Route path="operations" element={<Navigate to="/app" replace />} />
                 {/* System */}
                 <Route path="settings" element={<Settings />} />
 
                 {/* COASTGUARD+ only — kept in sync with nav.ts minRole */}
                 <Route element={<RequireRole minRole="COASTGUARD" />}>
-                  <Route path="ai-lab" element={<AILab />} />
                   <Route path="analytics" element={<AnalyticsReports />} />
                 </Route>
 
@@ -145,8 +142,8 @@ export default function App() {
                 <Route path="alerts" element={<Navigate to="/app" replace />} />
                 <Route path="detections" element={<Navigate to="/app/records" replace />} />
                 <Route path="hotspots" element={<Navigate to="/app/records" replace />} />
-                <Route path="model" element={<Navigate to="/app/ai-lab" replace />} />
-                <Route path="intelligence" element={<Navigate to="/app/ai-lab" replace />} />
+                <Route path="model" element={<Navigate to="/app" replace />} />
+                <Route path="intelligence" element={<Navigate to="/app" replace />} />
                 <Route path="reports" element={<Navigate to="/app/analytics" replace />} />
                 {/* Pipeline module removed — scanning now lives on Map Explorer / Areas */}
                 <Route path="pipeline" element={<Navigate to="/app/map" replace />} />

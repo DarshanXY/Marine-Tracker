@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Activity, BellRing, Check, Flame, Layers, Loader2, Play, Radar, ScanLine,
-  Satellite, Server, ChevronDown, ArrowRight, Map as MapIcon, Send,
+  Satellite, Server, ChevronDown, ArrowRight, Map as MapIcon,
   CheckCircle2, Globe2, Waves, Target, Sparkles, type LucideIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -45,9 +45,9 @@ function greeting(): string {
 
 // Role-specific quick actions (routes point at the consolidated IA v2 pages).
 const ROLE_ACTIONS: Record<string, { to: string; label: string; icon: LucideIcon }[]> = {
-  ADMIN:      [{ to: '/app/map', label: 'Live AOI scan', icon: MapIcon }, { to: '/app/analytics', label: 'Analytics & Reports', icon: Layers }, { to: '/app/ai-lab', label: 'AI Lab', icon: Sparkles }],
-  COASTGUARD: [{ to: '/app/records', label: 'Priority hotspots', icon: Flame }, { to: '/app/map', label: 'Live AOI scan', icon: MapIcon }, { to: '/app/operations', label: 'Field Ops', icon: Send }],
-  FIELD:      [{ to: '/app/map', label: 'Map', icon: MapIcon }, { to: '/app/records', label: 'Verification queue', icon: ScanLine }, { to: '/app/operations', label: 'Field Ops', icon: Send }],
+  ADMIN:      [{ to: '/app/map', label: 'Live AOI scan', icon: MapIcon }, { to: '/app/analytics', label: 'Analytics & Reports', icon: Layers }],
+  COASTGUARD: [{ to: '/app/records', label: 'Priority hotspots', icon: Flame }, { to: '/app/map', label: 'Live AOI scan', icon: MapIcon }],
+  FIELD:      [{ to: '/app/map', label: 'Map', icon: MapIcon }, { to: '/app/records', label: 'Verification queue', icon: ScanLine }],
 };
 
 type StatusFilter = 'all' | 'open' | 'acked';
@@ -685,15 +685,6 @@ function InboxRow({ alert: a, onAck, acking }: { alert: Alert; onAck: () => void
         <span className="inline-flex shrink-0 items-center gap-1 text-xs text-success-700"><Check size={13} /></span>
       ) : (
         <div className="flex shrink-0 items-center gap-1">
-          {/* Dispatch appears on hover — one hop from alert to a field response */}
-          <Link
-            to="/app/operations"
-            title="Dispatch a field response"
-            aria-label={`Dispatch response for: ${a.title}`}
-            className="hidden rounded-lg border border-border p-1.5 text-slate-500 transition-colors hover:border-ocean-300 hover:text-ocean-700 group-hover:inline-flex"
-          >
-            <Send size={13} />
-          </Link>
           <button
             type="button"
             onClick={onAck}

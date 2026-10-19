@@ -30,7 +30,7 @@ const FEATURES = [
   { icon: GraduationCap, title: 'Active-learning loop', desc: 'Analyst labels on real detections feed back into the model — the pilot is designed to get better with use.' },
 ];
 
-// Honest headline numbers — see the model card in AI Lab. Lead with macro-F1
+// Honest headline numbers — see the model card in Analytics. Lead with macro-F1
 // (accuracy is Water-inflated), never overclaim plastic detection.
 const METRICS = [
   { value: '0.82', label: 'macro-F1 (held-out MARIDA+MADOS)' },

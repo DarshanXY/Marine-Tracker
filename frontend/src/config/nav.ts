@@ -8,7 +8,7 @@
  * permanently redirect — see App.tsx — so old bookmarks never 404.
  */
 import {
-  Radar, Map as MapIcon, Layers, Ship, FlaskConical, BookMarked,
+  Radar, Map as MapIcon, Layers, BookMarked,
   BarChart3, Settings as SettingsIcon, ShieldCheck,
 } from 'lucide-react';
 import { ROLE_LEVEL, type UserRole } from '@/types';
@@ -45,15 +45,8 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Intelligence',
-    items: [
-      { to: '/app/ai-lab', label: 'AI Lab', icon: FlaskConical, minRole: 'COASTGUARD', keywords: 'model accuracy confusion matrix similarity clay embeddings fusion change capabilities evaluate metrics' },
-    ],
-  },
-  {
     title: 'Operate',
     items: [
-      { to: '/app/operations', label: 'Field Ops', icon: Ship, keywords: 'operations missions dispatch crew kanban response' },
       { to: '/app/analytics', label: 'Analytics & Reports', icon: BarChart3, minRole: 'COASTGUARD', keywords: 'charts trends stats export pdf csv geojson report builder eval' },
     ],
   },

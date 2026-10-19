@@ -48,7 +48,7 @@ export default function Analytics({ embedded = false }: { embedded?: boolean }) 
         <StatCard label="Avg. confidence" value={o ? Math.round(o.avgConfidence * 100) : 0} unit="%" icon={<Gauge size={18} />} color="ocean" />
         <StatCard label="Total area" value={o?.totalAreaSqKm ?? 0} unit="km²" icon={<Target size={18} />} color="success" />
         <StatCard label="False-alarm rate" value={o ? Math.round((o.falseAlarms / Math.max(o.totalDetections, 1)) * 100) : 0} unit="%" icon={<Gauge size={18} />} color="warn" />
-        <StatCard label="Model F1" value={o?.model.f1Score ? Math.round(o.model.f1Score * 1000) / 10 : 0} unit="%" icon={<Cpu size={18} />} color="purple" />
+        <StatCard label="Model F1" value={macroF1 != null ? Math.round(macroF1 * 1000) / 10 : 0} unit="%" icon={<Cpu size={18} />} color="purple" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

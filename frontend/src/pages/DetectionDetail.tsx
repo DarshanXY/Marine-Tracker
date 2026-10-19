@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Activity, Cpu, Wind, ShieldCheck, Check, Ban, MapPin, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Activity, Cpu, Wind, ShieldCheck, Check, Ban, MapPin } from 'lucide-react';
 import { PageHeader, Card, Badge } from '@/components';
 import { useDetection, useForecast, useLabelDetection } from '@/hooks/useApi';
 import { useAuthStore } from '@/stores/authStore';
@@ -120,9 +120,6 @@ export default function DetectionDetail() {
       <div className="flex flex-wrap gap-2">
         <Link to="/app/map" className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white/70 px-3 py-2 text-sm text-slate-600 hover:border-ocean-300 hover:text-ocean-700">
           <MapPin size={14} className="text-ocean-500" /> View on map
-        </Link>
-        <Link to="/app/ai-lab" className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white/70 px-3 py-2 text-sm text-slate-600 hover:border-ocean-300 hover:text-ocean-700">
-          <AlertTriangle size={14} className="text-ocean-500" /> Explore fingerprint space
         </Link>
       </div>
     </div>

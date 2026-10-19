@@ -300,10 +300,14 @@ async function main(): Promise<void> {
   console.log('  ✔ 3 alerts');
 
   // ── 8. Active model version ─────────────────────────────────────────────
-  // REAL metrics from held-out MARIDA+MADOS combined test split (models/metrics.json),
-  // written by `python -m app.ml.train_combined`. f1Score is the macro-F1; the
-  // confusion matrix and precision/recall are genuine per-class evaluation — no
-  // fabricated placeholders. Classes order: Plastic, Algae, Sea_Foam, Water.
+  // REAL metrics from held-out MARIDA+MADOS combined test split
+  // (python_engine/models/metrics.json, independently re-verified against the
+  // shipped marinenet.onnx — see docs/MODEL_EVALUATION_METRICS.md). f1Score is
+  // the macro-F1; the confusion matrix and precision/recall are genuine
+  // per-class evaluation — no fabricated placeholders. Classes order:
+  // Plastic, Algae, Sea_Foam, Water. Last synced to the 2026-07-22 3-seed
+  // ensemble retrain (macroF1 0.787 -> 0.8175) — re-sync these if the model
+  // is retrained again, so this never drifts from the live engine numbers.
   // Deactivate any prior rows first so exactly one model version is active
   // (idempotent even against an older DB that still holds demo rows).
   await prisma.modelVersion.updateMany({ data: { isActive: false } });
@@ -311,26 +315,26 @@ async function main(): Promise<void> {
     where:  { version: '1.1-gpu-marida+mados' },
     update: {
       name:         'MarineNet (per-pixel MLP)',
-      architecture: 'per-pixel MLP 11→64→32→16→4 (ReLU + dropout, GPU AdamW)',
+      architecture: 'per-pixel 3-seed ensemble MLP 11→256→128→64→32→4 (focal loss + class-balanced weights, GPU AdamW)',
       trainedOn:    ['MARIDA', 'MADOS'],
       storagePath:  'models/marinenet.onnx',
-      f1Score:      0.787,
-      precision:    0.721,
-      recall:       0.876,
+      f1Score:      0.8175,
+      precision:    0.7759,
+      recall:       0.8685,
       isActive:     true,
     },
     create: {
       name:         'MarineNet (per-pixel MLP)',
       version:      '1.1-gpu-marida+mados',
-      architecture: 'per-pixel MLP 11→64→32→16→4 (ReLU + dropout, GPU AdamW)',
+      architecture: 'per-pixel 3-seed ensemble MLP 11→256→128→64→32→4 (focal loss + class-balanced weights, GPU AdamW)',
       trainedOn:    ['MARIDA', 'MADOS'],
       storagePath:  'models/marinenet.onnx',
-      f1Score:      0.787,   // macro-F1 on combined MARIDA+MADOS test split (GPU retrain)
-      precision:    0.721,   // macro precision
-      recall:       0.876,   // macro recall
+      f1Score:      0.8175,  // macro-F1 on combined MARIDA+MADOS test split (3-seed ensemble retrain)
+      precision:    0.7759,  // macro precision
+      recall:       0.8685,  // macro recall
       confusionMatrix: {
         classes: ['Plastic', 'Algae', 'Sea_Foam', 'Water'],
-        matrix:  [[1162,90,40,62],[366,6090,171,701],[57,8,637,72],[166,3756,198,486331]],
+        matrix:  [[1116,93,10,135],[186,6024,142,976],[48,10,646,70],[88,3163,150,487050]],
       },
       isActive: true,
     },

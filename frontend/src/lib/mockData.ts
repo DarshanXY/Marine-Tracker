@@ -71,7 +71,7 @@ export const overview: OverviewStats = {
   regionsMonitored: 5,
   openAlerts: 3,
   lastUpdated: new Date().toISOString(),
-  model: { name: 'MarineNet (per-pixel MLP)', version: '1.1-gpu-marida+mados', f1Score: 0.787 },
+  model: { name: 'MarineNet (per-pixel MLP)', version: '1.1-gpu-marida+mados', f1Score: 0.8175 },
 };
 
 export function trend(days: number): TrendPoint[] {
