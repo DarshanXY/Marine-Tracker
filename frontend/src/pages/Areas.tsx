@@ -827,7 +827,7 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
                   pathOptions={{ color: '#14B8A6', weight: 2, fillOpacity: 0.04 }}
                 />
 
-                {scanUsable && detections.map((d, i) => {
+                {scanUsable && detections.filter((d) => d.classification !== 'Water').map((d, i) => {
                   // Three visual tiers: HIGH-CONFIDENCE plastic = the trusted signal
                   // (bold, ringed, solid); CANDIDATE plastic = review-queue maybe
                   // (dashed, hollow); non-plastic = faint context noise. So the map
@@ -913,7 +913,7 @@ function AreaDetail({ area, canManage, busy, onClose, onRescan, onForecast, onDe
         </div>
       </div>
 
-      {canManage && !editing && (
+      {canManage && !editing && area.stats.provider !== 'sentinelhub' && (
         <ExampleDriftCard
           type={exType} onType={setExType} horizon={exHorizon} onHorizon={setExHorizon}
           point={exPoint} pickMode={pickMode} onPickMode={setPickMode}
@@ -1642,7 +1642,7 @@ function MapLegend({ detections, hasForecast, hasHotspot, hasExample = false, su
     return acc;
   }, {});
   const plasticHi = detections.filter((d) => d.classification === 'Plastic' && d.highConfidence).length;
-  const present = CLASS_ORDER.filter((c) => counts[c] > 0);
+  const present = CLASS_ORDER.filter((c) => c !== 'Water' && counts[c] > 0);
   return (
     <div className="pointer-events-none absolute bottom-3 left-3 z-[500] max-w-[13.5rem] rounded-xl border border-border/70 bg-white/90 p-2.5 text-[11px] shadow-glass backdrop-blur">
       <p className="mb-1 font-semibold text-slate-600">Detections by class</p>

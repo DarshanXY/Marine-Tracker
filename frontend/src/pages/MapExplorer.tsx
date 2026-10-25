@@ -28,7 +28,8 @@ import { CLASS_COLORS, CLASS_ORDER } from '@/lib/classColors';
 import { ROLE_LEVEL } from '@/types';
 import SimilarSitesDrawer from '@/components/map/SimilarSitesDrawer';
 
-const ALL_CLASSES = CLASS_ORDER;
+// Water is the background, not a finding — no chip, no markers (every scan is over water)
+const ALL_CLASSES = CLASS_ORDER.filter((c) => c !== 'Water');
 const SEV_COLORS: Record<string, string> = { HIGH: '#EF4444', MEDIUM: '#F59E0B', LOW: '#14B8A6' };
 
 const MIN_DEG = 0.01; // ignore accidental micro-drags
@@ -308,16 +309,32 @@ const SURFACE_LABEL: Record<string, string> = {
 /** Real-time "what am I scanning" readout from Sentinel-2 SCL. FDI/marine
  *  classification is only valid over water, so this warns loudly when it isn't.
  *  Shows an honest note when the scan fell back to a synthetic scene (no real SCL). */
-function SurfaceReadout({ stats }: { stats: PipelineStats }) {
+function SurfaceReadout({ stats, stages }: { stats: PipelineStats; stages?: PipelineStage[] }) {
   const surface = stats.surface;
+  // Engine appends "real ingest failed → synthetic (<reason>)" to the DOWNLOAD stage.
+  const failure = stages?.find((st) => st.stage === 'DOWNLOAD')?.detail.match(/real ingest failed → synthetic \((.*)\)/)?.[1];
+  const authFailed = !!failure && /(401|403)|invalid_client|Unauthorized|Forbidden/i.test(failure);
 
   if (!surface) {
     if (stats.provider === 'sentinelhub') return null; // real run but no SCL — say nothing
+    if (authFailed) {
+      return (
+        <Card className="flex items-start gap-3 border-red-200 bg-red-50/80 text-sm text-red-800">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-red-500" />
+          <p className="text-xs leading-relaxed">
+            <b>Satellite credentials rejected</b> — Copernicus refused the Sentinel Hub OAuth client ({failure}). No real
+            imagery was fetched, so this scan used a <b>synthetic</b> scene and <b>cannot find real plastic</b>. Create a new
+            OAuth client at dataspace.copernicus.eu, update <code>SENTINEL_HUB_CLIENT_ID/SECRET</code> in <code>.env</code>,
+            and restart the engine.
+          </p>
+        </Card>
+      );
+    }
     return (
       <Card className="flex items-start gap-3 border-slate-200 bg-slate-50/70 text-sm text-slate-600">
         <Info size={16} className="mt-0.5 shrink-0 text-slate-400" />
         <p className="text-xs leading-relaxed">
-          <b>Surface unknown</b> — real Sentinel-2 imagery couldn&apos;t be fetched for this area right now, so this is a
+          <b>Surface unknown</b> — real Sentinel-2 imagery couldn&apos;t be fetched for this area right now{failure ? ` (${failure})` : ''}, so this is a
           dynamic <b>synthetic</b> scene (a placeholder, not a real detection). The water / land / cloud readout appears
           whenever a real scene is available — try again, or pick an area with recent clear imagery.
         </p>
@@ -586,7 +603,7 @@ export default function MapExplorer() {
   const scanSurface = result?.stats?.surface ?? null;
   const scanUsable = !scanSurface || scanSurface.waterValid;
   const visibleDetections = scanUsable
-    ? (result?.detections ?? []).filter((d) => classFilter.has(d.classification))
+    ? (result?.detections ?? []).filter((d) => d.classification !== 'Water' && classFilter.has(d.classification))
     : [];
 
   // Heat points respect the class filter, so toggling classes also refocuses the
@@ -596,7 +613,7 @@ export default function MapExplorer() {
     if (!scanUsable) return [];
     const dets = result?.detections ?? [];
     return dets
-      .filter((d) => classFilter.has(d.classification))
+      .filter((d) => d.classification !== 'Water' && classFilter.has(d.classification))
       .map((d) => {
         const base = d.classification === 'Plastic' ? 1 : 0.5;
         return [d.lat, d.lon, Math.max(0.15, base * (0.4 + 0.6 * d.confidence))] as L.HeatLatLngTuple;
@@ -957,7 +974,7 @@ export default function MapExplorer() {
       {bbox && <StageTimeline stages={result?.stages} fetching={aoi.isFetching} />}
 
       {/* Real-time "what am I scanning" readout (real SCL) or synthetic note */}
-      {result && !result.engineOffline && <SurfaceReadout stats={result.stats} />}
+      {result && !result.engineOffline && <SurfaceReadout stats={result.stats} stages={result.stages} />}
 
       {/* Honest zero-result explanation (fully masked or genuinely clean water) */}
       {result && !result.engineOffline && result.stats.candidatePixels === 0 && (

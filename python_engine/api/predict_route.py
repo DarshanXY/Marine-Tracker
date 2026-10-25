@@ -55,7 +55,10 @@ def pipeline_run(body: RunRequest | None = None) -> PipelineResult:
             _last_result = cached
             return cached
         _last_result = run_aoi(req.bbox.model_dump(), scene_size=max(size, 48), **opts)
-        _aoi_cache.put(key, _last_result)
+        # Never cache a scan that fell back to synthetic: a transient ingest failure
+        # would otherwise keep serving "no plastic" for this AOI until restart.
+        if not any("real ingest failed" in st.detail for st in _last_result.stages):
+            _aoi_cache.put(key, _last_result)
         metrics.inc("pipeline.aoi")
     else:
         _last_result = run_pipeline(region=req.region, scene_size=size, **opts)

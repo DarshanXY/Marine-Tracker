@@ -49,7 +49,7 @@ export const useAlerts = (params: { acked?: boolean; severity?: string } = {}) =
   useQuery({ queryKey: ['alerts', params], queryFn: () => api.alerts(params) });
 
 export const useSatelliteStatus = () =>
-  useQuery({ queryKey: ['satellite-status'], queryFn: api.satelliteStatus });
+  useQuery({ queryKey: ['satellite-status'], queryFn: api.satelliteStatus, refetchInterval: 15_000 });
 
 export const useScenes = (region?: string) =>
   useQuery({ queryKey: ['scenes', region ?? 'all'], queryFn: () => api.scenes(region) });

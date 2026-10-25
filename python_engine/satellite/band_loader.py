@@ -150,7 +150,15 @@ def _read_url(req: urllib.request.Request, timeout: float, attempts: int = 3,
                     chunks.append(b)
                     if meter is not None:
                         meter.add(len(b))
-        except urllib.error.HTTPError:
+        except urllib.error.HTTPError as exc:
+            # Surface the server's own reason (Sentinel Hub 400s explain themselves in
+            # the body) so a failed scan says WHY instead of a bare "Bad Request".
+            try:
+                detail = exc.read()[:200].decode("utf-8", "replace").strip()
+            except Exception:  # noqa: BLE001
+                detail = ""
+            if detail:
+                exc.msg = f"{exc.msg} - {detail}"
             raise
         except (urllib.error.URLError, OSError) as exc:
             last = exc

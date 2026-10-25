@@ -94,6 +94,18 @@ def _inland_note(dropped: int) -> str:
     return f" · {dropped} inland (>{landmask.INLAND_BUFFER_KM:g} km from coast) dropped" if dropped else ""
 
 
+def _drop_water(det_dicts: list[dict]) -> tuple[list[dict], int]:
+    """Open water is the background of every scan, not a finding: the classifier still
+    scores it (that is how it rejects non-debris), but only Plastic / Algae / Sea_Foam
+    pixels are returned, so Water never reaches the map, tables or analytics."""
+    kept = [d for d in det_dicts if d["classification"] != "Water"]
+    return kept, len(det_dicts) - len(kept)
+
+
+def _water_note(dropped: int) -> str:
+    return f" · {dropped} open-water px dropped" if dropped else ""
+
+
 def _apply_options(det_dicts: list[dict], min_confidence: float, dedupe: bool) -> list[dict]:
     """Opt-in /pipeline/run post-processing: drop low-confidence detections and/or
     collapse near-duplicates. Both default off, so the base result is unchanged."""
@@ -232,7 +244,7 @@ def run_aoi(bbox: dict, scene_size: int = 64, min_confidence: float = 0.0,
     if real:
         detail = _download_detail(detail + " — REAL Sentinel-2 reflectance", sd)
     elif download.band_loader.available() and sd.error:
-        detail += f" — real ingest failed → synthetic ({sd.error[:60]})"
+        detail += f" — real ingest failed → synthetic ({sd.error[:160]})"
     stages.append(StageLog(stage="DOWNLOAD", status="COMPLETED", duration_ms=_ms(t), detail=detail))
 
     # 2. FDI
@@ -246,11 +258,12 @@ def run_aoi(bbox: dict, scene_size: int = 64, min_confidence: float = 0.0,
     t = time.perf_counter()
     det_dicts, _, mode = batch_classifier.classify_candidates(candidates, sd.arr6, biofouling=biofouling)
     det_dicts = _apply_options(det_dicts, min_confidence, dedupe)
+    det_dicts, n_water = _drop_water(det_dicts)
     plastic = sum(1 for d in det_dicts if d["classification"] == "Plastic")
     detections = [Detection(**d) for d in det_dicts]
     stages.append(StageLog(stage="CNN", status="COMPLETED", duration_ms=_ms(t),
-                           detail=f"{plastic} plastic of {len(detections)} classified via {mode} "
-                                  f"(model_loaded={infer.model_loaded()})"))
+                           detail=f"{plastic} plastic of {len(detections) + n_water} classified via {mode} "
+                                  f"(model_loaded={infer.model_loaded()})" + _water_note(n_water)))
 
     # 4. DBSCAN
     t = time.perf_counter()
@@ -322,9 +335,10 @@ def run_aoi_events(bbox: dict, scene_size: int = 64):
     # 3. Classify
     t = time.perf_counter()
     det_dicts, _, mode = batch_classifier.classify_candidates(candidates, sd.arr6)
+    det_dicts, n_water = _drop_water(det_dicts)
     plastic = sum(1 for d in det_dicts if d["classification"] == "Plastic")
     detections = [Detection(**d) for d in det_dicts]
-    yield stage_ev("CNN", t, f"{plastic} plastic of {len(detections)} classified via {mode}")
+    yield stage_ev("CNN", t, f"{plastic} plastic of {len(detections) + n_water} classified via {mode}" + _water_note(n_water))
 
     # 4. Cluster (+ spool embeddings, like run_aoi)
     t = time.perf_counter()
@@ -399,7 +413,7 @@ def run_pipeline(region: str | None = None, scene_size: int = 48, min_confidence
     else:
         err = next((sd.error for sd in scene_map.values() if sd.error), None)
         if download.band_loader.available() and err:
-            detail += f" — real ingest failed → synthetic ({err[:60]})"
+            detail += f" — real ingest failed → synthetic ({err[:160]})"
     stages.append(StageLog(stage="DOWNLOAD", status="COMPLETED", duration_ms=_ms(t), detail=detail))
 
     # 2. FDI (per region)
@@ -419,10 +433,13 @@ def run_pipeline(region: str | None = None, scene_size: int = 48, min_confidence
     detections: list[Detection] = []
     det_region: list[str] = []
     plastic = 0
+    n_water = 0
     modes: set[str] = set()
     for code, lst in candidates_by_code.items():
         dets, _, mode = batch_classifier.classify_candidates(lst, scene_map[code].arr6, biofouling=biofouling)
         dets = _apply_options(dets, min_confidence, dedupe)
+        dets, nw = _drop_water(dets)
+        n_water += nw
         for d in dets:
             detections.append(Detection(**d))
             det_region.append(code)
@@ -430,8 +447,8 @@ def run_pipeline(region: str | None = None, scene_size: int = 48, min_confidence
         modes.add(mode)
     mode = "patch CNN" if "patch CNN" in modes else ("per-pixel model" if "per-pixel model" in modes else "heuristic")
     stages.append(StageLog(stage="CNN", status="COMPLETED", duration_ms=_ms(t),
-                           detail=f"{plastic} plastic of {len(detections)} classified via {mode} "
-                                  f"(model_loaded={infer.model_loaded()})"))
+                           detail=f"{plastic} plastic of {len(detections) + n_water} classified via {mode} "
+                                  f"(model_loaded={infer.model_loaded()})" + _water_note(n_water)))
 
     # 4. DBSCAN (per region → labels encode the region)
     t = time.perf_counter()
